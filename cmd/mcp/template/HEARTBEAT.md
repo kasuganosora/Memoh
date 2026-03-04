@@ -1,6 +1,7 @@
 ## Checks
 
 - [ ] Read recent inbox messages via `search_inbox` tool
+- [ ] Check and process new emails.
 - [ ] Review and organize recent memory files
   - [ ] Summarize the important information to `MEMORY.md` from inbox
   - [ ] Update today's memory in `memory/YYYY-MM-DD.md` from inbox

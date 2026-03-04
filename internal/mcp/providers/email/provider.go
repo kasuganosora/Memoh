@@ -12,10 +12,10 @@ import (
 )
 
 const (
-	toolEmailAccounts = "email_accounts"
-	toolEmailSend     = "email_send"
-	toolEmailList     = "email_list"
-	toolEmailRead     = "email_read"
+	toolListEmailAccounts = "list_email_accounts"
+	toolSendEmail         = "send_email"
+	toolListEmails        = "list_email"
+	toolReadEmail         = "read_email"
 )
 
 type Executor struct {
@@ -35,7 +35,7 @@ func NewExecutor(log *slog.Logger, service *email.Service, manager *email.Manage
 func (e *Executor) ListTools(_ context.Context, _ mcpgw.ToolSessionContext) ([]mcpgw.ToolDescriptor, error) {
 	return []mcpgw.ToolDescriptor{
 		{
-			Name:        toolEmailAccounts,
+			Name:        toolListEmailAccounts,
 			Description: "List the email accounts (provider bindings) configured for this bot, including provider IDs, email addresses, and permissions.",
 			InputSchema: map[string]any{
 				"type":       "object",
@@ -43,7 +43,7 @@ func (e *Executor) ListTools(_ context.Context, _ mcpgw.ToolSessionContext) ([]m
 			},
 		},
 		{
-			Name:        toolEmailSend,
+			Name:        toolSendEmail,
 			Description: "Send an email via the bot's configured email provider. Requires write permission.",
 			InputSchema: map[string]any{
 				"type": "object",
@@ -58,7 +58,7 @@ func (e *Executor) ListTools(_ context.Context, _ mcpgw.ToolSessionContext) ([]m
 			},
 		},
 		{
-			Name:        toolEmailList,
+			Name:        toolListEmails,
 			Description: "List emails from the mailbox (newest first). Supports pagination. Requires read permission.",
 			InputSchema: map[string]any{
 				"type": "object",
@@ -70,7 +70,7 @@ func (e *Executor) ListTools(_ context.Context, _ mcpgw.ToolSessionContext) ([]m
 			},
 		},
 		{
-			Name:        toolEmailRead,
+			Name:        toolReadEmail,
 			Description: "Read the full content of an email by its UID. Requires read permission.",
 			InputSchema: map[string]any{
 				"type": "object",
@@ -122,21 +122,21 @@ func (e *Executor) CallTool(ctx context.Context, session mcpgw.ToolSessionContex
 	}
 
 	switch toolName {
-	case toolEmailAccounts:
+	case toolListEmailAccounts:
 		return e.callAccounts(ctx, bindings)
-	case toolEmailSend:
+	case toolSendEmail:
 		binding := resolveWriteBinding()
 		if binding == nil {
 			return mcpgw.BuildToolErrorResult("email write permission denied or provider not found"), nil
 		}
 		return e.callSend(ctx, botID, binding.EmailProviderID, arguments)
-	case toolEmailList:
+	case toolListEmails:
 		binding := resolveReadBinding()
 		if binding == nil {
 			return mcpgw.BuildToolErrorResult("email read permission denied or provider not found"), nil
 		}
 		return e.callList(ctx, binding.EmailProviderID, arguments)
-	case toolEmailRead:
+	case toolReadEmail:
 		binding := resolveReadBinding()
 		if binding == nil {
 			return mcpgw.BuildToolErrorResult("email read permission denied or provider not found"), nil
