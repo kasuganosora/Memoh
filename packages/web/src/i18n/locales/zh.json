@@ -149,6 +149,8 @@
     "addModel": "添加模型",
     "editModel": "编辑模型",
     "deleteModelConfirm": "确定要删除这个模型吗？",
+    "searchModelPlaceholder": "搜索模型…",
+    "searchNoResults": "没有匹配的模型",
     "emptyTitle": "暂无模型",
     "emptyDescription": "点击上方按钮为当前服务商添加模型",
     "clientType": "客户端类型",

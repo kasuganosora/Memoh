@@ -153,6 +153,8 @@
     "addModel": "Add Model",
     "editModel": "Edit Model",
     "deleteModelConfirm": "Are you sure you want to delete this model?",
+    "searchModelPlaceholder": "Search models…",
+    "searchNoResults": "No matching models",
     "emptyTitle": "No Models",
     "emptyDescription": "Click the button above to add a model for this provider",
     "clientType": "Client Type",
