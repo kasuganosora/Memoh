@@ -1,6 +1,7 @@
 <template>
-  <section class="flex">
+  <section class="flex h-dvh overflow-hidden">
     <sidebar-provider
+      class="min-h-0 h-full"
       :default-open="sidebarDefaultOpen"
     >
       <section class="relative">

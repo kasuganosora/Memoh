@@ -100,34 +100,38 @@
       </DropdownMenu>
     </div>
 
-    <ScrollArea class="flex-1">
-      <div class="flex flex-col gap-1 px-1.5 overflow-hidden">
-        <SessionItem
-          v-for="session in filteredSessions"
-          :key="session.id"
-          :session="session"
-          :is-active="sessionId === session.id"
-          @select="handleSelect"
-        />
-      </div>
+    <div class="flex-1 relative min-h-0">
+      <div class="absolute inset-0">
+        <ScrollArea class="h-full">
+          <div class="flex flex-col gap-1 px-1.5">
+            <SessionItem
+              v-for="session in filteredSessions"
+              :key="session.id"
+              :session="session"
+              :is-active="sessionId === session.id"
+              @select="handleSelect"
+            />
+          </div>
 
-      <div
-        v-if="currentBotId && !loadingChats && filteredSessions.length === 0"
-        class="px-3 py-6 text-center text-xs text-muted-foreground"
-      >
-        {{ t('chat.noSessions') }}
-      </div>
+          <div
+            v-if="currentBotId && !loadingChats && filteredSessions.length === 0"
+            class="px-3 py-6 text-center text-xs text-muted-foreground"
+          >
+            {{ t('chat.noSessions') }}
+          </div>
 
-      <div
-        v-if="loadingChats"
-        class="flex justify-center py-4"
-      >
-        <FontAwesomeIcon
-          :icon="['fas', 'spinner']"
-          class="size-4 animate-spin text-muted-foreground"
-        />
+          <div
+            v-if="loadingChats"
+            class="flex justify-center py-4"
+          >
+            <FontAwesomeIcon
+              :icon="['fas', 'spinner']"
+              class="size-4 animate-spin text-muted-foreground"
+            />
+          </div>
+        </ScrollArea>
       </div>
-    </ScrollArea>
+    </div>
   </div>
 </template>
 
