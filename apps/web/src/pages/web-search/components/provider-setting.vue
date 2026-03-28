@@ -1,14 +1,22 @@
 <template>
   <div class="p-4">
-    <section class="flex justify-between items-center">
-      <div class="flex items-center gap-2">
-        <SearchProviderLogo
-          :provider="curProvider?.provider || ''"
-          size="lg"
+    <section class="flex items-center gap-3">
+      <SearchProviderLogo
+        :provider="curProvider?.provider || ''"
+        size="lg"
+      />
+      <h2 class="scroll-m-20 text-sm font-semibold tracking-tight min-w-0 truncate">
+        {{ curProvider?.name }}
+      </h2>
+      <div class="ml-auto flex items-center gap-2">
+        <span class="text-xs text-muted-foreground">
+          {{ $t('common.enable') }}
+        </span>
+        <Switch
+          :model-value="curProvider?.enable ?? true"
+          :disabled="!curProvider?.id || enableLoading"
+          @update:model-value="handleToggleEnable"
         />
-        <h2 class="scroll-m-20 text-sm font-semibold tracking-tight">
-          {{ curProvider?.name }}
-        </h2>
       </div>
     </section>
     <Separator class="mt-4 mb-6" />
@@ -123,6 +131,7 @@ import {
   FormItem,
   Separator,
   Label,
+  Switch,
 } from '@memohai/ui'
 import ConfirmPopover from '@/components/confirm-popover/index.vue'
 import LoadingButton from '@/components/loading-button/index.vue'
@@ -146,9 +155,13 @@ import { useForm } from 'vee-validate'
 import { useMutation, useQueryCache } from '@pinia/colada'
 import { putSearchProvidersById, deleteSearchProvidersById } from '@memohai/sdk'
 import type { SearchprovidersGetResponse, SearchprovidersUpdateRequest } from '@memohai/sdk'
+import { useI18n } from 'vue-i18n'
+import { toast } from 'vue-sonner'
 
+const { t } = useI18n()
 const curProvider = inject('curSearchProvider', ref<SearchprovidersGetResponse>())
 const curProviderId = computed(() => curProvider.value?.id)
+const enableLoading = ref(false)
 
 const queryCache = useQueryCache()
 
@@ -181,6 +194,28 @@ watch(curProvider, (newVal) => {
     configData.value = { ...(newVal.config ?? {}) }
   }
 }, { immediate: true })
+
+async function handleToggleEnable(value: boolean) {
+  if (!curProviderId.value || !curProvider.value) return
+
+  const prev = curProvider.value.enable ?? true
+  curProvider.value = { ...curProvider.value, enable: value }
+
+  enableLoading.value = true
+  try {
+    await putSearchProvidersById({
+      path: { id: curProviderId.value },
+      body: { enable: value },
+      throwOnError: true,
+    })
+    queryCache.invalidateQueries({ key: ['search-providers'] })
+  } catch {
+    curProvider.value = { ...curProvider.value, enable: prev }
+    toast.error(t('common.saveFailed'))
+  } finally {
+    enableLoading.value = false
+  }
+}
 
 // ---- mutations ----
 const { mutate: submitUpdate, isLoading: editLoading } = useMutation({

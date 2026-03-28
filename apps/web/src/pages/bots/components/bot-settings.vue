@@ -477,10 +477,11 @@ const { mutateAsync: deleteBot, isLoading: deleteLoading } = useMutation({
 
 const models = computed(() => modelData.value ?? [])
 const providers = computed(() => providerData.value ?? [])
-const searchProviders = computed(() => searchProviderData.value ?? [])
+const searchProviders = computed(() => (searchProviderData.value ?? []).filter((p) => p.enable !== false))
 const memoryProviders = computed(() => memoryProviderData.value ?? [])
-const ttsProviders = computed(() => ttsProviderData.value ?? [])
-const ttsModels = computed(() => ttsModelData.value ?? [])
+const ttsProviders = computed(() => (ttsProviderData.value ?? []).filter((p) => p.enable !== false))
+const enabledTtsProviderIds = computed(() => new Set(ttsProviders.value.map((p) => p.id)))
+const ttsModels = computed(() => (ttsModelData.value ?? []).filter((m: Record<string, unknown>) => enabledTtsProviderIds.value.has(m.tts_provider_id as string)))
 const browserContexts = computed(() => browserContextData.value ?? [])
 
 // ---- Form ----

@@ -48,6 +48,7 @@ type UpdateRequest struct {
 	Name     *string        `json:"name,omitempty"`
 	Provider *ProviderName  `json:"provider,omitempty"`
 	Config   map[string]any `json:"config,omitempty"`
+	Enable   *bool          `json:"enable,omitempty"`
 }
 
 type GetResponse struct {
@@ -55,6 +56,7 @@ type GetResponse struct {
 	Name      string         `json:"name"`
 	Provider  string         `json:"provider"`
 	Config    map[string]any `json:"config,omitempty"`
+	Enable    bool           `json:"enable"`
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 }

@@ -1378,6 +1378,7 @@ export type SearchprovidersGetResponse = {
         [key: string]: unknown;
     };
     created_at?: string;
+    enable?: boolean;
     id?: string;
     name?: string;
     provider?: string;
@@ -1411,6 +1412,7 @@ export type SearchprovidersUpdateRequest = {
     config?: {
         [key: string]: unknown;
     };
+    enable?: boolean;
     name?: string;
     provider?: SearchprovidersProviderName;
 };
@@ -1534,6 +1536,7 @@ export type TtsProviderMetaResponse = {
 
 export type TtsProviderResponse = {
     created_at?: string;
+    enable?: boolean;
     id?: string;
     name?: string;
     provider?: string;
@@ -1555,6 +1558,7 @@ export type TtsUpdateModelRequest = {
 };
 
 export type TtsUpdateProviderRequest = {
+    enable?: boolean;
     name?: string;
 };
 

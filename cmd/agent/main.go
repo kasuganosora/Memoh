@@ -263,6 +263,8 @@ func runServe() {
 			injectToolProviders,
 			startRegistrySync,
 			startMemoryProviderBootstrap,
+			startSearchProviderBootstrap,
+			startTtsProviderBootstrap,
 			startScheduleService,
 			startHeartbeatService,
 			startChannelManager,
@@ -869,6 +871,28 @@ func startMemoryProviderBootstrap(lc fx.Lifecycle, log *slog.Logger, mpService *
 				log.Warn("failed to instantiate default memory provider", slog.Any("error", regErr))
 			} else {
 				log.Info("default memory provider ready", slog.String("id", resp.ID), slog.String("provider", resp.Provider))
+			}
+			return nil
+		},
+	})
+}
+
+func startTtsProviderBootstrap(lc fx.Lifecycle, log *slog.Logger, ttsService *ttspkg.Service) {
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			if err := ttsService.EnsureDefaults(ctx); err != nil {
+				log.Warn("failed to ensure default tts providers", slog.Any("error", err))
+			}
+			return nil
+		},
+	})
+}
+
+func startSearchProviderBootstrap(lc fx.Lifecycle, log *slog.Logger, spService *searchproviders.Service) {
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			if err := spService.EnsureDefaults(ctx); err != nil {
+				log.Warn("failed to ensure default search providers", slog.Any("error", err))
 			}
 			return nil
 		},

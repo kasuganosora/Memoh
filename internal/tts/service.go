@@ -48,6 +48,7 @@ func (s *Service) CreateProvider(ctx context.Context, req CreateProviderRequest)
 		Name:     strings.TrimSpace(req.Name),
 		Provider: string(req.Provider),
 		Config:   []byte("{}"),
+		Enable:   false,
 	})
 	if err != nil {
 		return ProviderResponse{}, fmt.Errorf("create tts provider: %w", err)
@@ -106,11 +107,16 @@ func (s *Service) UpdateProvider(ctx context.Context, id string, req UpdateProvi
 	if req.Name != nil {
 		name = strings.TrimSpace(*req.Name)
 	}
+	enable := current.Enable
+	if req.Enable != nil {
+		enable = *req.Enable
+	}
 	updated, err := s.queries.UpdateTtsProvider(ctx, sqlc.UpdateTtsProviderParams{
 		ID:       pgID,
 		Name:     name,
 		Provider: current.Provider,
 		Config:   current.Config,
+		Enable:   enable,
 	})
 	if err != nil {
 		return ProviderResponse{}, fmt.Errorf("update tts provider: %w", err)
@@ -124,6 +130,50 @@ func (s *Service) DeleteProvider(ctx context.Context, id string) error {
 		return err
 	}
 	return s.queries.DeleteTtsProvider(ctx, pgID)
+}
+
+// EnsureDefaults creates a default TTS provider for each registered adapter
+// type that does not yet exist in the database.
+func (s *Service) EnsureDefaults(ctx context.Context) error {
+	rows, err := s.queries.ListTtsProviders(ctx)
+	if err != nil {
+		return fmt.Errorf("list tts providers: %w", err)
+	}
+	existing := make(map[string]struct{}, len(rows))
+	for _, row := range rows {
+		existing[row.Provider] = struct{}{}
+	}
+
+	for _, meta := range s.registry.ListMeta() {
+		if _, ok := existing[meta.Provider]; ok {
+			continue
+		}
+		adapter, adapterErr := s.registry.Get(TtsType(meta.Provider))
+		if adapterErr != nil {
+			continue
+		}
+		row, createErr := s.queries.CreateTtsProvider(ctx, sqlc.CreateTtsProviderParams{
+			Name:     meta.DisplayName,
+			Provider: meta.Provider,
+			Config:   []byte("{}"),
+			Enable:   false,
+		})
+		if createErr != nil {
+			s.logger.Warn("failed to create default tts provider",
+				slog.String("provider", meta.Provider),
+				slog.Any("error", createErr),
+			)
+			continue
+		}
+		if importErr := s.importModelsForProvider(ctx, row.ID, adapter); importErr != nil {
+			s.logger.Warn("auto-import models failed for default tts provider",
+				slog.String("provider", meta.Provider),
+				slog.Any("error", importErr),
+			)
+		}
+		s.logger.Info("created default tts provider", slog.String("provider", meta.Provider))
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -500,6 +550,7 @@ func (*Service) toProviderResponse(row sqlc.TtsProvider) ProviderResponse {
 		ID:        row.ID.String(),
 		Name:      row.Name,
 		Provider:  row.Provider,
+		Enable:    row.Enable,
 		CreatedAt: row.CreatedAt.Time,
 		UpdatedAt: row.UpdatedAt.Time,
 	}

@@ -405,6 +405,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (GetResponse, e
 		Name:     strings.TrimSpace(req.Name),
 		Provider: string(req.Provider),
 		Config:   configJSON,
+		Enable:   false,
 	})
 	if err != nil {
 		return GetResponse{}, fmt.Errorf("create search provider: %w", err)
@@ -481,11 +482,16 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRequest) (Get
 		}
 		config = configJSON
 	}
+	enable := current.Enable
+	if req.Enable != nil {
+		enable = *req.Enable
+	}
 	updated, err := s.queries.UpdateSearchProvider(ctx, sqlc.UpdateSearchProviderParams{
 		ID:       pgID,
 		Name:     name,
 		Provider: provider,
 		Config:   config,
+		Enable:   enable,
 	})
 	if err != nil {
 		return GetResponse{}, fmt.Errorf("update search provider: %w", err)
@@ -513,9 +519,61 @@ func (s *Service) toGetResponse(row sqlc.SearchProvider) GetResponse {
 		Name:      row.Name,
 		Provider:  row.Provider,
 		Config:    cfg,
+		Enable:    row.Enable,
 		CreatedAt: row.CreatedAt.Time,
 		UpdatedAt: row.UpdatedAt.Time,
 	}
+}
+
+var defaultProviders = []struct {
+	Name        ProviderName
+	DisplayName string
+}{
+	{ProviderBrave, "Brave"},
+	{ProviderBing, "Bing"},
+	{ProviderGoogle, "Google"},
+	{ProviderTavily, "Tavily"},
+	{ProviderSogou, "Sogou"},
+	{ProviderSerper, "Serper"},
+	{ProviderSearXNG, "SearXNG"},
+	{ProviderJina, "Jina"},
+	{ProviderExa, "Exa"},
+	{ProviderBocha, "Bocha"},
+	{ProviderDuckDuckGo, "DuckDuckGo"},
+	{ProviderYandex, "Yandex"},
+}
+
+func (s *Service) EnsureDefaults(ctx context.Context) error {
+	rows, err := s.queries.ListSearchProviders(ctx)
+	if err != nil {
+		return fmt.Errorf("list search providers: %w", err)
+	}
+
+	existing := make(map[string]struct{}, len(rows))
+	for _, row := range rows {
+		existing[row.Provider] = struct{}{}
+	}
+
+	for _, dp := range defaultProviders {
+		if _, ok := existing[string(dp.Name)]; ok {
+			continue
+		}
+		_, err := s.queries.CreateSearchProvider(ctx, sqlc.CreateSearchProviderParams{
+			Name:     dp.DisplayName,
+			Provider: string(dp.Name),
+			Config:   []byte("{}"),
+			Enable:   false,
+		})
+		if err != nil {
+			s.logger.Warn("failed to create default search provider",
+				slog.String("provider", string(dp.Name)),
+				slog.Any("error", err),
+			)
+			continue
+		}
+		s.logger.Info("created default search provider", slog.String("provider", string(dp.Name)))
+	}
+	return nil
 }
 
 func isValidProviderName(name ProviderName) bool {

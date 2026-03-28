@@ -2264,6 +2264,8 @@ definitions:
         type: object
       created_at:
         type: string
+      enable:
+        type: boolean
       id:
         type: string
       name:
@@ -2338,6 +2340,8 @@ definitions:
       config:
         additionalProperties: {}
         type: object
+      enable:
+        type: boolean
       name:
         type: string
       provider:
@@ -2547,6 +2551,8 @@ definitions:
     properties:
       created_at:
         type: string
+      enable:
+        type: boolean
       id:
         type: string
       name:
@@ -2574,6 +2580,8 @@ definitions:
     type: object
   tts.UpdateProviderRequest:
     properties:
+      enable:
+        type: boolean
       name:
         type: string
     type: object

@@ -10,13 +10,15 @@ type CreateProviderRequest struct {
 }
 
 type UpdateProviderRequest struct {
-	Name *string `json:"name,omitempty"`
+	Name   *string `json:"name,omitempty"`
+	Enable *bool   `json:"enable,omitempty"`
 }
 
 type ProviderResponse struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
 	Provider  string    `json:"provider"`
+	Enable    bool      `json:"enable"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

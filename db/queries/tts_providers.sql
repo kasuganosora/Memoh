@@ -1,9 +1,10 @@
 -- name: CreateTtsProvider :one
-INSERT INTO tts_providers (name, provider, config)
+INSERT INTO tts_providers (name, provider, config, enable)
 VALUES (
   sqlc.arg(name),
   sqlc.arg(provider),
-  sqlc.arg(config)
+  sqlc.arg(config),
+  sqlc.arg(enable)
 )
 RETURNING *;
 
@@ -28,6 +29,7 @@ SET
   name = sqlc.arg(name),
   provider = sqlc.arg(provider),
   config = sqlc.arg(config),
+  enable = sqlc.arg(enable),
   updated_at = now()
 WHERE id = sqlc.arg(id)
 RETURNING *;

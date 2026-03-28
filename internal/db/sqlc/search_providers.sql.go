@@ -12,29 +12,37 @@ import (
 )
 
 const createSearchProvider = `-- name: CreateSearchProvider :one
-INSERT INTO search_providers (name, provider, config)
+INSERT INTO search_providers (name, provider, config, enable)
 VALUES (
   $1,
   $2,
-  $3
+  $3,
+  $4
 )
-RETURNING id, name, provider, config, created_at, updated_at
+RETURNING id, name, provider, config, enable, created_at, updated_at
 `
 
 type CreateSearchProviderParams struct {
 	Name     string `json:"name"`
 	Provider string `json:"provider"`
 	Config   []byte `json:"config"`
+	Enable   bool   `json:"enable"`
 }
 
 func (q *Queries) CreateSearchProvider(ctx context.Context, arg CreateSearchProviderParams) (SearchProvider, error) {
-	row := q.db.QueryRow(ctx, createSearchProvider, arg.Name, arg.Provider, arg.Config)
+	row := q.db.QueryRow(ctx, createSearchProvider,
+		arg.Name,
+		arg.Provider,
+		arg.Config,
+		arg.Enable,
+	)
 	var i SearchProvider
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.Provider,
 		&i.Config,
+		&i.Enable,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -51,7 +59,7 @@ func (q *Queries) DeleteSearchProvider(ctx context.Context, id pgtype.UUID) erro
 }
 
 const getSearchProviderByID = `-- name: GetSearchProviderByID :one
-SELECT id, name, provider, config, created_at, updated_at FROM search_providers WHERE id = $1
+SELECT id, name, provider, config, enable, created_at, updated_at FROM search_providers WHERE id = $1
 `
 
 func (q *Queries) GetSearchProviderByID(ctx context.Context, id pgtype.UUID) (SearchProvider, error) {
@@ -62,6 +70,7 @@ func (q *Queries) GetSearchProviderByID(ctx context.Context, id pgtype.UUID) (Se
 		&i.Name,
 		&i.Provider,
 		&i.Config,
+		&i.Enable,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -69,7 +78,7 @@ func (q *Queries) GetSearchProviderByID(ctx context.Context, id pgtype.UUID) (Se
 }
 
 const getSearchProviderByName = `-- name: GetSearchProviderByName :one
-SELECT id, name, provider, config, created_at, updated_at FROM search_providers WHERE name = $1
+SELECT id, name, provider, config, enable, created_at, updated_at FROM search_providers WHERE name = $1
 `
 
 func (q *Queries) GetSearchProviderByName(ctx context.Context, name string) (SearchProvider, error) {
@@ -80,6 +89,7 @@ func (q *Queries) GetSearchProviderByName(ctx context.Context, name string) (Sea
 		&i.Name,
 		&i.Provider,
 		&i.Config,
+		&i.Enable,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -87,7 +97,7 @@ func (q *Queries) GetSearchProviderByName(ctx context.Context, name string) (Sea
 }
 
 const listSearchProviders = `-- name: ListSearchProviders :many
-SELECT id, name, provider, config, created_at, updated_at FROM search_providers
+SELECT id, name, provider, config, enable, created_at, updated_at FROM search_providers
 ORDER BY created_at DESC
 `
 
@@ -105,6 +115,7 @@ func (q *Queries) ListSearchProviders(ctx context.Context) ([]SearchProvider, er
 			&i.Name,
 			&i.Provider,
 			&i.Config,
+			&i.Enable,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -119,7 +130,7 @@ func (q *Queries) ListSearchProviders(ctx context.Context) ([]SearchProvider, er
 }
 
 const listSearchProvidersByProvider = `-- name: ListSearchProvidersByProvider :many
-SELECT id, name, provider, config, created_at, updated_at FROM search_providers
+SELECT id, name, provider, config, enable, created_at, updated_at FROM search_providers
 WHERE provider = $1
 ORDER BY created_at DESC
 `
@@ -138,6 +149,7 @@ func (q *Queries) ListSearchProvidersByProvider(ctx context.Context, provider st
 			&i.Name,
 			&i.Provider,
 			&i.Config,
+			&i.Enable,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -157,15 +169,17 @@ SET
   name = $1,
   provider = $2,
   config = $3,
+  enable = $4,
   updated_at = now()
-WHERE id = $4
-RETURNING id, name, provider, config, created_at, updated_at
+WHERE id = $5
+RETURNING id, name, provider, config, enable, created_at, updated_at
 `
 
 type UpdateSearchProviderParams struct {
 	Name     string      `json:"name"`
 	Provider string      `json:"provider"`
 	Config   []byte      `json:"config"`
+	Enable   bool        `json:"enable"`
 	ID       pgtype.UUID `json:"id"`
 }
 
@@ -174,6 +188,7 @@ func (q *Queries) UpdateSearchProvider(ctx context.Context, arg UpdateSearchProv
 		arg.Name,
 		arg.Provider,
 		arg.Config,
+		arg.Enable,
 		arg.ID,
 	)
 	var i SearchProvider
@@ -182,6 +197,7 @@ func (q *Queries) UpdateSearchProvider(ctx context.Context, arg UpdateSearchProv
 		&i.Name,
 		&i.Provider,
 		&i.Config,
+		&i.Enable,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

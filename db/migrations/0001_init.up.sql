@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS search_providers (
   name TEXT NOT NULL,
   provider TEXT NOT NULL,
   config JSONB NOT NULL DEFAULT '{}'::jsonb,
+  enable BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT search_providers_name_unique UNIQUE (name)
@@ -125,6 +126,7 @@ CREATE TABLE IF NOT EXISTS tts_providers (
   name TEXT NOT NULL,
   provider TEXT NOT NULL,
   config JSONB NOT NULL DEFAULT '{}'::jsonb,
+  enable BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT tts_providers_name_unique UNIQUE (name)

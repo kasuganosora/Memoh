@@ -12,29 +12,37 @@ import (
 )
 
 const createTtsProvider = `-- name: CreateTtsProvider :one
-INSERT INTO tts_providers (name, provider, config)
+INSERT INTO tts_providers (name, provider, config, enable)
 VALUES (
   $1,
   $2,
-  $3
+  $3,
+  $4
 )
-RETURNING id, name, provider, config, created_at, updated_at
+RETURNING id, name, provider, config, enable, created_at, updated_at
 `
 
 type CreateTtsProviderParams struct {
 	Name     string `json:"name"`
 	Provider string `json:"provider"`
 	Config   []byte `json:"config"`
+	Enable   bool   `json:"enable"`
 }
 
 func (q *Queries) CreateTtsProvider(ctx context.Context, arg CreateTtsProviderParams) (TtsProvider, error) {
-	row := q.db.QueryRow(ctx, createTtsProvider, arg.Name, arg.Provider, arg.Config)
+	row := q.db.QueryRow(ctx, createTtsProvider,
+		arg.Name,
+		arg.Provider,
+		arg.Config,
+		arg.Enable,
+	)
 	var i TtsProvider
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.Provider,
 		&i.Config,
+		&i.Enable,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -51,7 +59,7 @@ func (q *Queries) DeleteTtsProvider(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getTtsProviderByID = `-- name: GetTtsProviderByID :one
-SELECT id, name, provider, config, created_at, updated_at FROM tts_providers WHERE id = $1
+SELECT id, name, provider, config, enable, created_at, updated_at FROM tts_providers WHERE id = $1
 `
 
 func (q *Queries) GetTtsProviderByID(ctx context.Context, id pgtype.UUID) (TtsProvider, error) {
@@ -62,6 +70,7 @@ func (q *Queries) GetTtsProviderByID(ctx context.Context, id pgtype.UUID) (TtsPr
 		&i.Name,
 		&i.Provider,
 		&i.Config,
+		&i.Enable,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -69,7 +78,7 @@ func (q *Queries) GetTtsProviderByID(ctx context.Context, id pgtype.UUID) (TtsPr
 }
 
 const getTtsProviderByName = `-- name: GetTtsProviderByName :one
-SELECT id, name, provider, config, created_at, updated_at FROM tts_providers WHERE name = $1
+SELECT id, name, provider, config, enable, created_at, updated_at FROM tts_providers WHERE name = $1
 `
 
 func (q *Queries) GetTtsProviderByName(ctx context.Context, name string) (TtsProvider, error) {
@@ -80,6 +89,7 @@ func (q *Queries) GetTtsProviderByName(ctx context.Context, name string) (TtsPro
 		&i.Name,
 		&i.Provider,
 		&i.Config,
+		&i.Enable,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -87,7 +97,7 @@ func (q *Queries) GetTtsProviderByName(ctx context.Context, name string) (TtsPro
 }
 
 const listTtsProviders = `-- name: ListTtsProviders :many
-SELECT id, name, provider, config, created_at, updated_at FROM tts_providers
+SELECT id, name, provider, config, enable, created_at, updated_at FROM tts_providers
 ORDER BY created_at DESC
 `
 
@@ -105,6 +115,7 @@ func (q *Queries) ListTtsProviders(ctx context.Context) ([]TtsProvider, error) {
 			&i.Name,
 			&i.Provider,
 			&i.Config,
+			&i.Enable,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -119,7 +130,7 @@ func (q *Queries) ListTtsProviders(ctx context.Context) ([]TtsProvider, error) {
 }
 
 const listTtsProvidersByProvider = `-- name: ListTtsProvidersByProvider :many
-SELECT id, name, provider, config, created_at, updated_at FROM tts_providers
+SELECT id, name, provider, config, enable, created_at, updated_at FROM tts_providers
 WHERE provider = $1
 ORDER BY created_at DESC
 `
@@ -138,6 +149,7 @@ func (q *Queries) ListTtsProvidersByProvider(ctx context.Context, provider strin
 			&i.Name,
 			&i.Provider,
 			&i.Config,
+			&i.Enable,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -157,15 +169,17 @@ SET
   name = $1,
   provider = $2,
   config = $3,
+  enable = $4,
   updated_at = now()
-WHERE id = $4
-RETURNING id, name, provider, config, created_at, updated_at
+WHERE id = $5
+RETURNING id, name, provider, config, enable, created_at, updated_at
 `
 
 type UpdateTtsProviderParams struct {
 	Name     string      `json:"name"`
 	Provider string      `json:"provider"`
 	Config   []byte      `json:"config"`
+	Enable   bool        `json:"enable"`
 	ID       pgtype.UUID `json:"id"`
 }
 
@@ -174,6 +188,7 @@ func (q *Queries) UpdateTtsProvider(ctx context.Context, arg UpdateTtsProviderPa
 		arg.Name,
 		arg.Provider,
 		arg.Config,
+		arg.Enable,
 		arg.ID,
 	)
 	var i TtsProvider
@@ -182,6 +197,7 @@ func (q *Queries) UpdateTtsProvider(ctx context.Context, arg UpdateTtsProviderPa
 		&i.Name,
 		&i.Provider,
 		&i.Config,
+		&i.Enable,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

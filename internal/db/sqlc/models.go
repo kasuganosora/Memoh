@@ -431,6 +431,7 @@ type SearchProvider struct {
 	Name      string             `json:"name"`
 	Provider  string             `json:"provider"`
 	Config    []byte             `json:"config"`
+	Enable    bool               `json:"enable"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
@@ -470,6 +471,7 @@ type TtsProvider struct {
 	Name      string             `json:"name"`
 	Provider  string             `json:"provider"`
 	Config    []byte             `json:"config"`
+	Enable    bool               `json:"enable"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }

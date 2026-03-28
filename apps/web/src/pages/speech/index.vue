@@ -37,7 +37,11 @@ const selectProvider = (name: string) => computed(() => {
 
 const filteredProviders = computed(() => {
   if (!Array.isArray(providerData.value)) return []
-  return providerData.value
+  return [...providerData.value].sort((a, b) => {
+    const ae = a.enable !== false ? 1 : 0
+    const be = b.enable !== false ? 1 : 0
+    return be - ae
+  })
 })
 
 watch(filteredProviders, (list) => {
@@ -76,7 +80,19 @@ const openStatus = reactive({ addOpen: false })
               :model-value="selectProvider(item.name ?? '').value"
               @update:model-value="(isSelect) => { if (isSelect) curProvider = item }"
             >
-              {{ item.name }}
+              <span class="relative shrink-0">
+                <span class="flex size-7 items-center justify-center rounded-full bg-muted">
+                  <FontAwesomeIcon
+                    :icon="['fas', 'volume-high']"
+                    class="size-3.5 text-muted-foreground"
+                  />
+                </span>
+                <span
+                  v-if="item.enable !== false"
+                  class="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-green-500 ring-2 ring-background"
+                />
+              </span>
+              <span class="truncate">{{ item.name }}</span>
             </Toggle>
           </SidebarMenuButton>
         </SidebarMenuItem>

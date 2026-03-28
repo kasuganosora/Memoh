@@ -43,15 +43,27 @@ const curFilterProvider = computed(() => {
   if (!Array.isArray(providerData.value)) {
     return []
   }
-  return providerData.value
+  return [...providerData.value].sort((a, b) => {
+    const ae = a.enable !== false ? 1 : 0
+    const be = b.enable !== false ? 1 : 0
+    return be - ae
+  })
 })
 
-watch(curFilterProvider, () => {
-  if (curFilterProvider.value.length > 0) {
-    curProvider.value = curFilterProvider.value[0]
-  } else {
+watch(curFilterProvider, (providers) => {
+  if (providers.length === 0) {
     curProvider.value = { id: '' }
+    return
   }
+  const currentId = curProvider.value?.id
+  if (currentId) {
+    const stillExists = providers.find((p) => p.id === currentId)
+    if (stillExists) {
+      curProvider.value = stillExists
+      return
+    }
+  }
+  curProvider.value = providers[0]
 }, {
   immediate: true,
 })
@@ -74,7 +86,10 @@ const openStatus = reactive({
             class="justify-start py-5! px-4"
           >
             <Toggle
-              :class="`py-4 border border-transparent ${curProvider?.name === item.name ? 'border-inherit' : ''}`"
+              :class="[
+                'py-4 border',
+                curProvider?.id === item.id ? 'border-border' : 'border-transparent',
+              ]"
               :model-value="selectProvider(item.name as string).value"
               @update:model-value="(isSelect) => {
                 if (isSelect) {
@@ -82,12 +97,17 @@ const openStatus = reactive({
                 }
               }"
             >
-              <SearchProviderLogo
-                :provider="item.provider || ''"
-                size="sm"
-                class="mr-2"
-              />
-              {{ item.name }}
+              <span class="relative shrink-0">
+                <SearchProviderLogo
+                  :provider="item.provider || ''"
+                  size="sm"
+                />
+                <span
+                  v-if="item.enable !== false"
+                  class="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-green-500 ring-2 ring-background"
+                />
+              </span>
+              <span class="truncate">{{ item.name }}</span>
             </Toggle>
           </SidebarMenuButton>
         </SidebarMenuItem>

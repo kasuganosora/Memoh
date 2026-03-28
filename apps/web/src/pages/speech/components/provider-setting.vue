@@ -1,19 +1,27 @@
 <template>
   <div class="p-4">
-    <section class="flex justify-between items-center">
-      <div class="flex items-center gap-2">
-        <FontAwesomeIcon
-          :icon="['fas', 'volume-high']"
-          class="size-5"
+    <section class="flex items-center gap-3">
+      <FontAwesomeIcon
+        :icon="['fas', 'volume-high']"
+        class="size-5"
+      />
+      <div class="min-w-0">
+        <h2 class="text-sm font-semibold truncate">
+          {{ curProvider?.name }}
+        </h2>
+        <p class="text-xs text-muted-foreground">
+          {{ currentMeta?.display_name ?? curProvider?.provider }}
+        </p>
+      </div>
+      <div class="ml-auto flex items-center gap-2">
+        <span class="text-xs text-muted-foreground">
+          {{ $t('common.enable') }}
+        </span>
+        <Switch
+          :model-value="curProvider?.enable ?? false"
+          :disabled="!curProvider?.id || enableLoading"
+          @update:model-value="handleToggleEnable"
         />
-        <div>
-          <h2 class="text-sm font-semibold">
-            {{ curProvider?.name }}
-          </h2>
-          <p class="text-xs text-muted-foreground">
-            {{ currentMeta?.display_name ?? curProvider?.provider }}
-          </p>
-        </div>
       </div>
     </section>
     <Separator class="mt-4 mb-6" />
@@ -152,6 +160,7 @@ import {
   FormItem,
   Separator,
   Label,
+  Switch,
 } from '@memohai/ui'
 import ConfirmPopover from '@/components/confirm-popover/index.vue'
 import LoadingButton from '@/components/loading-button/index.vue'
@@ -170,6 +179,7 @@ import type { TtsProviderResponse, TtsProviderMetaResponse, TtsModelInfo } from 
 const { t } = useI18n()
 const curProvider = inject('curTtsProvider', ref<TtsProviderResponse>())
 const curProviderId = computed(() => curProvider.value?.id)
+const enableLoading = ref(false)
 
 const apiBase = import.meta.env.VITE_API_URL?.trim() || '/api'
 function authHeaders(): Record<string, string> {
@@ -218,6 +228,28 @@ function toggleModel(id: string) {
 }
 
 const queryCache = useQueryCache()
+
+async function handleToggleEnable(value: boolean) {
+  if (!curProviderId.value || !curProvider.value) return
+
+  const prev = curProvider.value.enable ?? false
+  curProvider.value = { ...curProvider.value, enable: value }
+
+  enableLoading.value = true
+  try {
+    await putTtsProvidersById({
+      path: { id: curProviderId.value },
+      body: { enable: value },
+      throwOnError: true,
+    })
+    queryCache.invalidateQueries({ key: ['tts-providers'] })
+  } catch {
+    curProvider.value = { ...curProvider.value, enable: prev }
+    toast.error(t('common.saveFailed'))
+  } finally {
+    enableLoading.value = false
+  }
+}
 
 const schema = toTypedSchema(z.object({
   name: z.string().min(1),

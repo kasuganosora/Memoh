@@ -12206,6 +12206,9 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "enable": {
+                    "type": "boolean"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -12306,6 +12309,9 @@ const docTemplate = `{
                 "config": {
                     "type": "object",
                     "additionalProperties": {}
+                },
+                "enable": {
+                    "type": "boolean"
                 },
                 "name": {
                     "type": "string"
@@ -12624,6 +12630,9 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "enable": {
+                    "type": "boolean"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -12665,6 +12674,9 @@ const docTemplate = `{
         "tts.UpdateProviderRequest": {
             "type": "object",
             "properties": {
+                "enable": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 }
