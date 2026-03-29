@@ -41,8 +41,12 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME}"
           VERSION="${TAG#v}"
+          # Strip pre-release/build metadata for MSI (only supports numeric X.Y.Z)
+          NUMERIC_VERSION="${VERSION%%-*}"
+          NUMERIC_VERSION="${NUMERIC_VERSION%%+*}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Resolved version: $VERSION"
+          echo "numeric_version=$NUMERIC_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $VERSION (MSI: $NUMERIC_VERSION)"
 
       - name: Sync version to tauri.conf.json and Cargo.toml
         shell: bash
@@ -96,13 +100,24 @@ jobs:
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Prepare Tauri build args
+        id: tauri-args
+        shell: bash
+        run: |
+          ARGS="--target ${{ matrix.target }}"
+          if [[ "${{ matrix.platform }}" == "windows-latest" ]]; then
+            MSI_VERSION="${{ steps.version.outputs.numeric_version }}"
+            ARGS="$ARGS --config {\"bundle\":{\"windows\":{\"wix\":{\"version\":\"$MSI_VERSION\"}}}}"
+          fi
+          echo "args=$ARGS" >> "$GITHUB_OUTPUT"
+
       - name: Build and release Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: apps/desktop
-          args: --target ${{ matrix.target }}
+          args: ${{ steps.tauri-args.outputs.args }}
           tauriScript: pnpm tauri
           tagName: ${{ github.ref_name }}
           releaseName: "Memoh Desktop ${{ github.ref_name }}"
