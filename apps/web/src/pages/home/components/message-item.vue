@@ -1,7 +1,7 @@
 <template>
   <div
     class="flex gap-3 items-start"
-    :class="message.role === 'user' && isSelf ? 'justify-end' : ''"
+    :class="message.role === 'user' && isSelf && !isSpecialUserMessage ? 'justify-end' : ''"
   >
     <!-- Assistant avatar
     <div
@@ -27,9 +27,9 @@
       />
     </div> -->
 
-    <!-- User avatar (other sender, left-aligned) -->
+    <!-- User avatar (other sender, left-aligned; hidden for special session types) -->
     <div
-      v-if="message.role === 'user' && !isSelf"
+      v-if="message.role === 'user' && !isSelf && !isSpecialUserMessage"
       class="relative shrink-0"
     >
       <Avatar class="size-8">
@@ -62,9 +62,82 @@
         {{ message.senderDisplayName || senderFallbackName }}
       </p> -->
 
-      <!-- User message -->
+      <!-- Heartbeat trigger (replaces user message) -->
       <div
-        v-if="message.role === 'user'"
+        v-if="message.role === 'user' && sessionType === 'heartbeat'"
+        class="space-y-2"
+      >
+        <HeartbeatTriggerBlock
+          v-for="(block, i) in message.blocks.filter(b => b.type === 'text')"
+          :key="i"
+          :content="block.content ?? ''"
+          :bot-id="botId"
+        />
+        <p
+          class="text-xs text-muted-foreground/80 mt-1"
+          :title="fullTimestamp"
+        >
+          {{ relativeTimestamp }}
+        </p>
+      </div>
+
+      <!-- Schedule trigger (replaces user message) -->
+      <div
+        v-else-if="message.role === 'user' && sessionType === 'schedule'"
+        class="space-y-2"
+      >
+        <ScheduleTriggerBlock
+          v-for="(block, i) in message.blocks.filter(b => b.type === 'text')"
+          :key="i"
+          :content="block.content ?? ''"
+          :bot-id="botId"
+        />
+        <p
+          class="text-xs text-muted-foreground/80 mt-1"
+          :title="fullTimestamp"
+        >
+          {{ relativeTimestamp }}
+        </p>
+      </div>
+
+      <!-- Subagent user message (full-width markdown box) -->
+      <div
+        v-else-if="message.role === 'user' && sessionType === 'subagent'"
+        class="space-y-2"
+      >
+        <div
+          v-for="(block, i) in message.blocks"
+          :key="i"
+        >
+          <div
+            v-if="block.type === 'text' && block.content"
+            class="w-full rounded-lg border border-violet-200 dark:border-violet-400/20 bg-violet-50/50 dark:bg-violet-950/20 px-4 py-3"
+          >
+            <div class="prose prose-sm dark:prose-invert max-w-none *:first:mt-0">
+              <MarkdownRender
+                :content="block.content"
+                :is-dark="isDark"
+                custom-id="chat-msg"
+              />
+            </div>
+          </div>
+          <AttachmentBlock
+            v-else-if="block.type === 'attachment'"
+            :block="(block as AttachmentBlockType)"
+            :on-open-media="onOpenMedia"
+          />
+        </div>
+        <p
+          class="text-xs text-muted-foreground/80 mt-1"
+          :title="fullTimestamp"
+        >
+          {{ relativeTimestamp }}
+        </p>
+      </div>
+
+      <!-- Default user message (chat bubble) -->
+      <div
+        v-else-if="message.role === 'user'"
         class="space-y-2"
       >
         <div
@@ -175,6 +248,8 @@ import { useSettingsStore } from '@/store/settings'
 import ThinkingBlock from './thinking-block.vue'
 import ToolCallBlock from './tool-call-block.vue'
 import AttachmentBlock from './attachment-block.vue'
+import HeartbeatTriggerBlock from './heartbeat-trigger-block.vue'
+import ScheduleTriggerBlock from './schedule-trigger-block.vue'
 import ChannelBadge from '@/components/chat-list/channel-badge/index.vue'
 // import { useUserStore } from '@/store/user'
 // import { useChatStore } from '@/store/chat-list'
@@ -195,6 +270,8 @@ const isDark = computed(() => settingsStore.theme === 'dark')
 
 const props = defineProps<{
   message: ChatMessage
+  sessionType?: string
+  botId?: string
   onOpenMedia?: (src: string) => void
 }>()
 
@@ -234,7 +311,13 @@ function cleanUserText(content?: string): string {
     .trim()
 }
 
+const isSpecialUserMessage = computed(() =>
+  props.message.role === 'user'
+  && (props.sessionType === 'heartbeat' || props.sessionType === 'schedule' || props.sessionType === 'subagent'),
+)
+
 const contentClass = computed(() => {
+  if (isSpecialUserMessage.value) return 'flex-1 max-w-full'
   if (props.message.role === 'user') return 'max-w-[80%]'
   return 'flex-1 max-w-full'
 })

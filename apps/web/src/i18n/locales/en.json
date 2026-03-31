@@ -191,7 +191,18 @@
     "sessionTypeChat": "Chat",
     "sessionFilterAll": "All",
     "sessionSourcePrefix": "From:",
-    "searchSessionPlaceholder": "Search"
+    "searchSessionPlaceholder": "Search",
+    "heartbeatTrigger": "Heartbeat Trigger",
+    "heartbeatTime": "Time",
+    "heartbeatInterval": "Interval",
+    "heartbeatLastAt": "Last Heartbeat",
+    "viewHeartbeatLogs": "View Logs",
+    "scheduleTrigger": "Scheduled Task Trigger",
+    "scheduleName": "Task Name",
+    "scheduleDescription": "Description",
+    "schedulePattern": "Cron Pattern",
+    "scheduleMaxCalls": "Max Calls",
+    "viewSchedule": "View Schedule"
   },
   "models": {
     "title": "Models",

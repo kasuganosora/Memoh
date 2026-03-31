@@ -187,7 +187,18 @@
     "sessionTypeChat": "对话",
     "sessionFilterAll": "全部",
     "sessionSourcePrefix": "来自：",
-    "searchSessionPlaceholder": "搜索"
+    "searchSessionPlaceholder": "搜索",
+    "heartbeatTrigger": "心跳触发",
+    "heartbeatTime": "触发时间",
+    "heartbeatInterval": "间隔",
+    "heartbeatLastAt": "上次心跳",
+    "viewHeartbeatLogs": "查看日志",
+    "scheduleTrigger": "定时任务触发",
+    "scheduleName": "任务名称",
+    "scheduleDescription": "描述",
+    "schedulePattern": "Cron 表达式",
+    "scheduleMaxCalls": "最大调用次数",
+    "viewSchedule": "查看定时任务"
   },
   "models": {
     "title": "模型",

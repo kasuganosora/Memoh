@@ -50,6 +50,8 @@
                   v-for="msg in messages"
                   :key="msg.id"
                   :message="msg"
+                  :session-type="activeSession?.type"
+                  :bot-id="currentBotId"
                   :on-open-media="galleryOpenBySrc"
                 />
               </div>
@@ -64,8 +66,11 @@
           @update:open-index="gallerySetOpenIndex"
         />
 
-        <!-- Input -->
-        <div class="px-3 sm:px-5 lg:px-8 py-2.5">
+        <!-- Input (hidden for read-only sessions) -->
+        <div
+          v-if="!activeChatReadOnly"
+          class="px-3 sm:px-5 lg:px-8 py-2.5"
+        >
           <div class="w-full max-w-4xl mx-auto">
             <!-- Pending attachment previews -->
             <div
@@ -515,6 +520,7 @@ const {
   streaming,
   currentBotId,
   sessionId,
+  activeSession,
   activeChatReadOnly,
   loadingOlder,
   loadingChats,

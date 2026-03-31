@@ -36,9 +36,9 @@
       </Badge>
     </div>
 
-    <!-- Task list -->
+    <!-- Task list (only shown while running, before results are available) -->
     <div
-      v-if="tasks.length"
+      v-if="tasks.length && !results.length"
       class="px-3 py-2 space-y-1"
     >
       <div
@@ -52,9 +52,47 @@
       </div>
     </div>
 
-    <!-- Results -->
-    <Collapsible
+    <!-- Results (clickable to navigate to subagent session) -->
+    <div
       v-if="block.done && results.length"
+      class="px-3 py-2 space-y-1"
+    >
+      <component
+        :is="result.session_id ? 'button' : 'div'"
+        v-for="(result, idx) in results"
+        :key="idx"
+        class="flex items-center gap-1.5 text-xs w-full text-left rounded-md px-1.5 py-1 -mx-1.5 transition-colors"
+        :class="result.session_id
+          ? 'cursor-pointer hover:bg-accent'
+          : ''"
+        @click="result.session_id ? navigateToSession(result.session_id) : undefined"
+      >
+        <CircleCheck
+          v-if="result.success"
+          class="size-2.5 text-green-500 shrink-0"
+        />
+        <CircleX
+          v-else
+          class="size-2.5 text-red-500 shrink-0"
+        />
+        <span class="font-mono text-foreground shrink-0">#{{ idx + 1 }}</span>
+        <span
+          v-if="result.task"
+          class="truncate text-muted-foreground"
+          :title="result.task"
+        >
+          {{ result.task }}
+        </span>
+        <ExternalLink
+          v-if="result.session_id"
+          class="size-2.5 text-muted-foreground/50 shrink-0 ml-auto"
+        />
+      </component>
+    </div>
+
+    <!-- Detailed results (collapsible) -->
+    <Collapsible
+      v-if="block.done && hasDetailedResults"
       v-model:open="resultOpen"
     >
       <CollapsibleTrigger class="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer w-full">
@@ -71,24 +109,6 @@
             :key="idx"
             class="text-xs"
           >
-            <div class="flex items-center gap-1.5 mb-0.5">
-              <CircleCheck
-                v-if="result.success"
-                class="size-2.5 text-green-500"
-              />
-              <CircleX
-                v-else
-                class="size-2.5 text-red-500"
-              />
-              <span class="font-mono text-foreground">#{{ idx + 1 }}</span>
-              <span
-                v-if="result.task"
-                class="truncate text-muted-foreground"
-                :title="result.task"
-              >
-                {{ result.task }}
-              </span>
-            </div>
             <pre
               v-if="result.text"
               class="text-muted-foreground overflow-x-auto whitespace-pre-wrap break-all max-h-32 overflow-y-auto pl-4"
@@ -108,8 +128,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Check, LoaderCircle, GitBranch, ChevronRight, CircleCheck, CircleX } from 'lucide-vue-next'
+import { Check, LoaderCircle, GitBranch, ChevronRight, CircleCheck, CircleX, ExternalLink } from 'lucide-vue-next'
 import { Badge, Collapsible, CollapsibleTrigger, CollapsibleContent } from '@memohai/ui'
+import { useRouter } from 'vue-router'
+import { useChatStore } from '@/store/chat-list'
+import { storeToRefs } from 'pinia'
 import type { ToolCallBlock } from '@/store/chat-list'
 
 interface SpawnTaskResult {
@@ -121,6 +144,10 @@ interface SpawnTaskResult {
 }
 
 const props = defineProps<{ block: ToolCallBlock }>()
+
+const router = useRouter()
+const chatStore = useChatStore()
+const { currentBotId } = storeToRefs(chatStore)
 
 const resultOpen = ref(false)
 
@@ -146,4 +173,18 @@ const results = computed<SpawnTaskResult[]>(() => {
   const items = r.results
   return Array.isArray(items) ? (items as SpawnTaskResult[]) : []
 })
+
+const hasDetailedResults = computed(() =>
+  results.value.some(r => r.text || r.error),
+)
+
+function navigateToSession(sessionId: string) {
+  const botId = currentBotId.value
+  if (!botId || !sessionId) return
+  chatStore.selectSession(sessionId)
+  router.push({
+    name: 'chat',
+    params: { botId, sessionId },
+  })
+}
 </script>

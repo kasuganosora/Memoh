@@ -121,7 +121,15 @@ export const useChatStore = defineStore('chat', () => {
     sessions.value.find((s) => s.id === sessionId.value) ?? null,
   )
 
-  const activeChatReadOnly = computed(() => false)
+  const activeChatReadOnly = computed(() => {
+    const session = activeSession.value
+    if (!session) return false
+    const type = session.type ?? 'chat'
+    if (type === 'heartbeat' || type === 'schedule' || type === 'subagent') return true
+    const ct = (session.channel_type ?? '').trim().toLowerCase()
+    if (ct && ct !== 'web') return true
+    return false
+  })
 
   watch(currentBotId, (newId) => {
     if (newId) {
