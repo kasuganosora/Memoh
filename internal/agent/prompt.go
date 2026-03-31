@@ -200,11 +200,15 @@ func buildSkillsSection(skills []SkillEntry) string {
 		return strings.Compare(a.Name, b.Name)
 	})
 	var sb strings.Builder
-	sb.WriteString("## Skills\n")
+	sb.WriteString("## Skills\n\n")
+	sb.WriteString("Skills are stored in `{{home}}/skills/`. ")
+	sb.WriteString("Each skill is a `SKILL.md` file inside a named subdirectory.\n\n")
+	sb.WriteString("Call `use_skill` with the skill name to load its full instructions before following them. ")
+	sb.WriteString("Only activate a skill when it is relevant to the current task.\n\n")
 	sb.WriteString(strconv.Itoa(len(sorted)))
-	sb.WriteString(" skills available via `use_skill`:\n")
+	sb.WriteString(" skill(s) available:\n")
 	for _, s := range sorted {
-		sb.WriteString("- " + s.Name + ": " + s.Description + "\n")
+		sb.WriteString("- **" + s.Name + "**: " + s.Description + "\n")
 	}
 	return sb.String()
 }

@@ -14,7 +14,7 @@ import (
 	"github.com/memohai/memoh/internal/workspace/bridge"
 )
 
-const skillsDirPath = config.DefaultDataMount + "/.skills"
+const skillsDirPath = config.DefaultDataMount + "/skills"
 
 type SkillItem struct {
 	Name        string         `json:"name"`
