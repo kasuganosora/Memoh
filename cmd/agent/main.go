@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	stdpath "path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -81,6 +82,8 @@ import (
 	sessionpkg "github.com/memohai/memoh/internal/session"
 	"github.com/memohai/memoh/internal/settings"
 	"github.com/memohai/memoh/internal/storage/providers/containerfs"
+	"github.com/memohai/memoh/internal/storage/providers/fallback"
+	"github.com/memohai/memoh/internal/storage/providers/localfs"
 	ttspkg "github.com/memohai/memoh/internal/tts"
 	ttsedge "github.com/memohai/memoh/internal/tts/adapter/edge"
 	"github.com/memohai/memoh/internal/version"
@@ -672,8 +675,14 @@ func provideSessionHandler(log *slog.Logger, sessionService *sessionpkg.Service,
 	return handlers.NewSessionHandler(log, sessionService, botService, accountService)
 }
 
-func provideMediaService(log *slog.Logger, manager *workspace.Manager) *media.Service {
-	provider := containerfs.New(manager)
+func provideMediaService(log *slog.Logger, manager *workspace.Manager, cfg config.Config) *media.Service {
+	primary := containerfs.New(manager)
+	dataRoot := cfg.Workspace.DataRoot
+	if dataRoot == "" {
+		dataRoot = config.DefaultDataRoot
+	}
+	secondary := localfs.New(filepath.Join(dataRoot, "media"))
+	provider := fallback.New(primary, secondary)
 	return media.NewService(log, provider)
 }
 
