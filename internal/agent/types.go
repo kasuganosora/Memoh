@@ -55,6 +55,7 @@ type RunConfig struct {
 	System             string
 	SessionType        string
 	SupportsImageInput bool
+	SupportsToolCall   bool
 	InlineImages       []sdk.ImagePart
 	Identity           SessionContext
 	Skills             []SkillEntry

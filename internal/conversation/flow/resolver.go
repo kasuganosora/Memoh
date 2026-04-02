@@ -274,6 +274,7 @@ func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (r
 		Messages:           sdkMessages,
 		Query:              headerifiedQuery,
 		SupportsImageInput: chatModel.HasCompatibility(models.CompatVision),
+		SupportsToolCall:   chatModel.HasCompatibility(models.CompatToolCall),
 		InlineImages:       inlineImages,
 		Identity: agentpkg.SessionContext{
 			BotID:             req.BotID,

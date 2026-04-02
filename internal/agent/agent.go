@@ -366,7 +366,7 @@ func (*Agent) buildGenerateOptions(cfg RunConfig, tools []sdk.Tool, prepareStep 
 		sdk.WithSystem(cfg.System),
 		sdk.WithMaxSteps(-1),
 	}
-	if len(tools) > 0 {
+	if len(tools) > 0 && cfg.SupportsToolCall {
 		opts = append(opts, sdk.WithTools(tools))
 	}
 	if prepareStep != nil {
