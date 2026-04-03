@@ -55,14 +55,15 @@ func (*MisskeyAdapter) Descriptor() channel.Descriptor {
 		Type:        Type,
 		DisplayName: "Misskey",
 		Capabilities: channel.ChannelCapabilities{
-			Text:        true,
-			Markdown:    true,
-			Reply:       true,
-			Reactions:   true,
-			Attachments: false,
-			Media:       false,
-			Streaming:   false,
-			Edit:        false,
+			Text:           true,
+			Markdown:       true,
+			Reply:          true,
+			Reactions:      true,
+			Attachments:    false,
+			Media:          false,
+			Streaming:      false,
+			BlockStreaming: true,
+			Edit:           false,
 		},
 		OutboundPolicy: channel.OutboundPolicy{
 			TextChunkLimit: misskeyMaxNoteLength,
@@ -566,4 +567,77 @@ func (*MisskeyAdapter) ProcessingCompleted(_ context.Context, _ channel.ChannelC
 // ProcessingFailed is a no-op for Misskey.
 func (*MisskeyAdapter) ProcessingFailed(_ context.Context, _ channel.ChannelConfig, _ channel.InboundMessage, _ channel.ProcessingStatusInfo, _ channel.ProcessingStatusHandle, _ error) error {
 	return nil
+}
+
+// --- StreamSender (block-streaming: buffer deltas, send final as one message) ---
+
+// OpenStream opens a block-streaming session that buffers all deltas and sends
+// the final message as a single note when the stream is closed.
+func (a *MisskeyAdapter) OpenStream(_ context.Context, cfg channel.ChannelConfig, target string, _ channel.StreamOptions) (channel.OutboundStream, error) {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return nil, errors.New("misskey target is required")
+	}
+	return &misskeyBlockStream{
+		adapter: a,
+		cfg:     cfg,
+		target:  target,
+	}, nil
+}
+
+// misskeyBlockStream buffers streaming deltas and sends the final message as
+// one Send call when the stream is closed.
+type misskeyBlockStream struct {
+	adapter     *MisskeyAdapter
+	cfg         channel.ChannelConfig
+	target      string
+	textBuilder strings.Builder
+	attachments []channel.Attachment
+	final       *channel.Message
+	closed      bool
+}
+
+func (s *misskeyBlockStream) Push(_ context.Context, event channel.StreamEvent) error {
+	if s.closed {
+		return nil
+	}
+	switch event.Type {
+	case channel.StreamEventDelta:
+		if strings.TrimSpace(event.Delta) != "" && event.Phase != channel.StreamPhaseReasoning {
+			s.textBuilder.WriteString(event.Delta)
+		}
+	case channel.StreamEventAttachment:
+		s.attachments = append(s.attachments, event.Attachments...)
+	case channel.StreamEventFinal:
+		if event.Final != nil {
+			msg := event.Final.Message
+			s.final = &msg
+		}
+	}
+	return nil
+}
+
+func (s *misskeyBlockStream) Close(ctx context.Context) error {
+	if s.closed {
+		return nil
+	}
+	s.closed = true
+
+	msg := channel.Message{Format: channel.MessageFormatPlain}
+	if s.final != nil {
+		msg = *s.final
+	}
+	if strings.TrimSpace(msg.Text) == "" {
+		msg.Text = strings.TrimSpace(s.textBuilder.String())
+	}
+	if len(msg.Attachments) == 0 && len(s.attachments) > 0 {
+		msg.Attachments = append(msg.Attachments, s.attachments...)
+	}
+	if msg.IsEmpty() {
+		return nil
+	}
+	return s.adapter.Send(ctx, s.cfg, channel.OutboundMessage{
+		Target:  s.target,
+		Message: msg,
+	})
 }
