@@ -17,6 +17,7 @@ import (
 	"unicode/utf8"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"golang.org/x/time/rate"
 
 	"github.com/memohai/memoh/internal/channel"
 	"github.com/memohai/memoh/internal/channel/adapters/common"
@@ -51,6 +52,7 @@ type TelegramAdapter struct {
 	bots          map[string]*tgbotapi.BotAPI // keyed by bot token
 	fileEndpoints map[string]string           // token → file endpoint format string
 	assets        assetOpener
+	streamLimiter *rate.Limiter // global rate limiter for all streaming API calls
 }
 
 // NewTelegramAdapter creates a TelegramAdapter with the given logger.
@@ -62,6 +64,7 @@ func NewTelegramAdapter(log *slog.Logger) *TelegramAdapter {
 		logger:        log.With(slog.String("adapter", "telegram")),
 		bots:          make(map[string]*tgbotapi.BotAPI),
 		fileEndpoints: make(map[string]string),
+		streamLimiter: rate.NewLimiter(rate.Every(time.Second), 3), // 1 req/s sustained, burst of 3
 	}
 	initTelegramBotLogger(adapter.logger)
 	return adapter
@@ -72,6 +75,13 @@ func initTelegramBotLogger(log *slog.Logger) {
 		_ = tgbotapi.SetLogger(telegramBotLogger)
 	})
 	telegramBotLogger.SetLogger(log)
+}
+
+// waitStreamLimit waits for the global stream rate limiter to allow one request.
+// All streams from the same adapter share this limiter to coordinate and avoid
+// aggregate Telegram API rate limits across concurrent conversations.
+func (a *TelegramAdapter) waitStreamLimit(ctx context.Context) error {
+	return a.streamLimiter.Wait(ctx)
 }
 
 // SetAssetOpener injects the media asset reader for storage-first file delivery.
