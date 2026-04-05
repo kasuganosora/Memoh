@@ -92,7 +92,8 @@ func main() {
 	}
 
 	srv := grpc.NewServer()
-	pb.RegisterContainerServiceServer(srv, &containerServer{})
+	procMgr := newProcessManager()
+	pb.RegisterContainerServiceServer(srv, &containerServer{procMgr: procMgr})
 	reflection.Register(srv)
 
 	go func() {

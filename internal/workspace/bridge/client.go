@@ -135,6 +135,7 @@ type ExecResult struct {
 	Stdout   string
 	Stderr   string
 	ExitCode int32
+	ExecID   string // non-empty when command was detached to background
 }
 
 // Exec runs a command and collects all output. For streaming, use ExecStream.
@@ -162,6 +163,7 @@ func (c *Client) ExecWithStdin(ctx context.Context, command, workDir string, tim
 
 	var stdout, stderr bytes.Buffer
 	var exitCode int32
+	var execID string
 
 	for {
 		msg, err := stream.Recv()
@@ -178,6 +180,8 @@ func (c *Client) ExecWithStdin(ctx context.Context, command, workDir string, tim
 			stderr.Write(msg.GetData())
 		case pb.ExecOutput_EXIT:
 			exitCode = msg.GetExitCode()
+		case pb.ExecOutput_BACKGROUND:
+			execID = msg.GetExecId()
 		}
 	}
 
@@ -185,7 +189,37 @@ func (c *Client) ExecWithStdin(ctx context.Context, command, workDir string, tim
 		Stdout:   stdout.String(),
 		Stderr:   stderr.String(),
 		ExitCode: exitCode,
+		ExecID:   execID,
 	}, nil
+}
+
+// ExecStatusResult holds the status of a background exec.
+type ExecStatusResult struct {
+	Status     string // "RUNNING", "EXITED", "NOT_FOUND"
+	Stdout     string
+	Stderr     string
+	ExitCode   int32
+	Command    string
+	StartedAt  int64
+	FinishedAt int64
+}
+
+// ExecStatus checks the status of a background exec.
+func (c *Client) ExecStatus(ctx context.Context, execID string) (*ExecStatusResult, error) {
+	resp, err := c.svc.ExecStatus(ctx, &pb.ExecStatusRequest{ExecId: execID})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	result := &ExecStatusResult{
+		Status:     resp.GetStatus().String(),
+		Stdout:     resp.GetStdout(),
+		Stderr:     resp.GetStderr(),
+		ExitCode:   resp.GetExitCode(),
+		Command:    resp.GetCommand(),
+		StartedAt:  resp.GetStartedAt(),
+		FinishedAt: resp.GetFinishedAt(),
+	}
+	return result, nil
 }
 
 // ExecStream returns a bidirectional stream for interactive exec.

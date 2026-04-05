@@ -109,7 +109,7 @@ func (p *ContainerProvider) Tools(_ context.Context, session SessionContext) ([]
 		},
 		{
 			Name:        "exec",
-			Description: fmt.Sprintf("Execute a command in the bot container. Runs in the bot's data directory (%s) by default.", wd),
+			Description: fmt.Sprintf("Execute a command in the bot container. Runs in the bot's data directory (%s) by default. If the command takes longer than 30 seconds, it will be detached to run in the background and return an exec_id that you can use with exec_status to check the result.", wd),
 			Parameters: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -120,6 +120,23 @@ func (p *ContainerProvider) Tools(_ context.Context, session SessionContext) ([]
 			},
 			Execute: func(ctx *sdk.ToolExecContext, input any) (any, error) {
 				return p.execExec(ctx.Context, sess, inputAsMap(input))
+			},
+		},
+		{
+			Name:        "exec_status",
+			Description: "Check the status of a background command started by exec that exceeded its timeout. Returns the output and exit code if the command has finished.",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"exec_id": map[string]any{
+						"type":        "string",
+						"description": "The exec_id returned by a previous exec call that timed out",
+					},
+				},
+				"required": []string{"exec_id"},
+			},
+			Execute: func(ctx *sdk.ToolExecContext, input any) (any, error) {
+				return p.execStatus(ctx.Context, sess, inputAsMap(input))
 			},
 		},
 	}, nil
@@ -335,9 +352,67 @@ func (p *ContainerProvider) execExec(ctx context.Context, session SessionContext
 	if err != nil {
 		return nil, err
 	}
-	stdout := pruneToolOutputText(result.Stdout, "tool result (exec stdout)")
-	stderr := pruneToolOutputText(result.Stderr, "tool result (exec stderr)")
-	return map[string]any{"stdout": stdout, "stderr": stderr, "exit_code": result.ExitCode}, nil
+
+	// Command completed within timeout — normal path.
+	if result.ExecID == "" {
+		stdout := pruneToolOutputText(result.Stdout, "tool result (exec stdout)")
+		stderr := pruneToolOutputText(result.Stderr, "tool result (exec stderr)")
+		return map[string]any{"stdout": stdout, "stderr": stderr, "exit_code": result.ExitCode}, nil
+	}
+
+	// Command exceeded timeout — detached to background.
+	partialStdout := pruneToolOutputText(result.Stdout, "tool result (exec stdout)")
+	partialStderr := pruneToolOutputText(result.Stderr, "tool result (exec stderr)")
+	return map[string]any{
+		"status":    "running",
+		"exec_id":   result.ExecID,
+		"stdout":    partialStdout,
+		"stderr":    partialStderr,
+		"exit_code": -1,
+		"message":   fmt.Sprintf("Command is still running in the background (exec_id: %s). Use the exec_status tool with this exec_id to check the result.", result.ExecID),
+	}, nil
+}
+
+func (p *ContainerProvider) execStatus(ctx context.Context, session SessionContext, args map[string]any) (any, error) {
+	client, err := p.getClient(ctx, session.BotID)
+	if err != nil {
+		return nil, err
+	}
+	execID := strings.TrimSpace(StringArg(args, "exec_id"))
+	if execID == "" {
+		return nil, errors.New("exec_id is required")
+	}
+
+	result, err := client.ExecStatus(ctx, execID)
+	if err != nil {
+		return nil, err
+	}
+
+	switch result.Status {
+	case "NOT_FOUND":
+		return map[string]any{
+			"status":  "not_found",
+			"message": fmt.Sprintf("No background process found with exec_id %q. The process may have expired or the container was restarted.", execID),
+		}, nil
+	case "RUNNING":
+		return map[string]any{
+			"status":  "running",
+			"exec_id": execID,
+			"message": "Command is still running. Poll again later.",
+		}, nil
+	case "EXITED":
+		stdout := pruneToolOutputText(result.Stdout, "tool result (exec stdout)")
+		stderr := pruneToolOutputText(result.Stderr, "tool result (exec stderr)")
+		return map[string]any{
+			"status":    "exited",
+			"exec_id":   execID,
+			"stdout":    stdout,
+			"stderr":    stderr,
+			"exit_code": result.ExitCode,
+		}, nil
+	default:
+		return nil, fmt.Errorf("unknown status: %s", result.Status)
+	}
 }
 
 func addLineNumbers(content string, startLine int32) string {

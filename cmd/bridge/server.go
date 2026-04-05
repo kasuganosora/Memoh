@@ -36,6 +36,7 @@ const (
 
 type containerServer struct {
 	pb.UnimplementedContainerServiceServer
+	procMgr *processManager
 }
 
 func (*containerServer) ReadFile(_ context.Context, req *pb.ReadFileRequest) (*pb.ReadFileResponse, error) {
@@ -264,7 +265,7 @@ func listTopDir(path string) string {
 	return ""
 }
 
-func (*containerServer) Exec(stream pb.ContainerService_ExecServer) error {
+func (s *containerServer) Exec(stream pb.ContainerService_ExecServer) error {
 	firstMsg, err := stream.Recv()
 	if err != nil {
 		return status.Error(codes.InvalidArgument, "failed to receive exec config")
@@ -278,7 +279,7 @@ func (*containerServer) Exec(stream pb.ContainerService_ExecServer) error {
 	if firstMsg.GetPty() {
 		return execPTY(stream, firstMsg)
 	}
-	return execPipe(stream, firstMsg)
+	return execPipe(stream, firstMsg, s.procMgr)
 }
 
 func execPTY(stream pb.ContainerService_ExecServer, firstMsg *pb.ExecInput) error {
@@ -349,7 +350,7 @@ func execPTY(stream pb.ContainerService_ExecServer, firstMsg *pb.ExecInput) erro
 	})
 }
 
-func execPipe(stream pb.ContainerService_ExecServer, firstMsg *pb.ExecInput) error {
+func execPipe(stream pb.ContainerService_ExecServer, firstMsg *pb.ExecInput, pm *processManager) error {
 	command := firstMsg.GetCommand()
 	workDir := firstMsg.GetWorkDir()
 	if workDir == "" {
@@ -361,10 +362,9 @@ func execPipe(stream pb.ContainerService_ExecServer, firstMsg *pb.ExecInput) err
 		timeout = defaultTimeout
 	}
 
-	ctx, cancel := context.WithTimeout(stream.Context(), time.Duration(timeout)*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", command) //nolint:gosec // G204: MCP exec tool intentionally executes agent-issued shell commands inside the container
+	// Use exec.Command (NOT CommandContext) so we can detach on timeout
+	// instead of killing the process.
+	cmd := exec.Command("/bin/sh", "-c", command) //nolint:gosec // G204: MCP exec tool intentionally executes agent-issued shell commands inside the container
 	cmd.Dir = workDir
 	if len(firstMsg.GetEnv()) > 0 {
 		cmd.Env = append(os.Environ(), firstMsg.GetEnv()...)
@@ -384,6 +384,7 @@ func execPipe(stream pb.ContainerService_ExecServer, firstMsg *pb.ExecInput) err
 		return status.Errorf(codes.Internal, "stderr pipe: %v", err)
 	}
 
+	startedAt := time.Now()
 	if err := cmd.Start(); err != nil {
 		return status.Errorf(codes.Internal, "start: %v", err)
 	}
@@ -401,29 +402,73 @@ func execPipe(stream pb.ContainerService_ExecServer, firstMsg *pb.ExecInput) err
 		}
 	}()
 
-	done := make(chan struct{})
+	// Shared capped buffers — tee goroutines write here always (even after detach).
+	stdoutBuf := newCappedBuffer(maxOutputBytes)
+	stderrBuf := newCappedBuffer(maxOutputBytes)
+	detached := make(chan struct{})
+
+	// teeStream: reads from pipe into buf AND sends on gRPC stream.
+	// After detach, it keeps reading into buf but stops sending gRPC.
+	stdoutDone := make(chan struct{})
 	go func() {
-		defer close(done)
-		streamPipe(stream, stdoutPipe, pb.ExecOutput_STDOUT)
+		defer close(stdoutDone)
+		teeStream(stream, stdoutPipe, stdoutBuf, pb.ExecOutput_STDOUT, detached)
 	}()
-	streamPipe(stream, stderrPipe, pb.ExecOutput_STDERR)
-	<-done
 
-	exitCode := int32(0)
-	if err := cmd.Wait(); err != nil {
-		exitErr := &exec.ExitError{}
-		if errors.As(err, &exitErr) {
-			ec := exitErr.ExitCode()
-			exitCode = int32(max(math.MinInt32, min(math.MaxInt32, ec))) //nolint:gosec // G115: value is clamped to int32 range above; Unix exit codes are 0-255
+	stderrDone := make(chan struct{})
+	go func() {
+		defer close(stderrDone)
+		teeStream(stream, stderrPipe, stderrBuf, pb.ExecOutput_STDERR, detached)
+	}()
+
+	// Single cmd.Wait goroutine.
+	waitCh := make(chan waitResult, 1)
+	go func() {
+		if waitErr := cmd.Wait(); waitErr != nil {
+			exitErr := &exec.ExitError{}
+			if errors.As(waitErr, &exitErr) {
+				ec := exitErr.ExitCode()
+				waitCh <- waitResult{exitCode: int32(max(math.MinInt32, min(math.MaxInt32, ec)))} //nolint:gosec // G115
+			} else {
+				waitCh <- waitResult{exitCode: -1}
+			}
 		} else {
-			exitCode = -1
+			waitCh <- waitResult{exitCode: 0}
 		}
-	}
+	}()
 
-	return stream.Send(&pb.ExecOutput{
-		Stream:   pb.ExecOutput_EXIT,
-		ExitCode: exitCode,
-	})
+	timer := time.NewTimer(time.Duration(timeout) * time.Second)
+	defer timer.Stop()
+
+	select {
+	case wr := <-waitCh:
+		// Process completed within timeout — normal path.
+		close(detached)
+		<-stdoutDone
+		<-stderrDone
+		return stream.Send(&pb.ExecOutput{
+			Stream:   pb.ExecOutput_EXIT,
+			ExitCode: wr.exitCode,
+		})
+
+	case <-timer.C:
+		// Timeout — detach to background.
+		// Signal tee goroutines to stop sending gRPC, but they keep reading into buffers.
+		close(detached)
+		_ = stdinPipe.Close()
+
+		// Adopt the process. The tee goroutines continue reading from pipes into
+		// the shared buffers until the process exits and pipes EOF.
+		execID := pm.adopt(command, workDir, startedAt, stdoutBuf, stderrBuf, waitCh)
+
+		// Do NOT wait for stdoutDone/stderrDone here — they will finish when the
+		// process exits and pipes close, which may be long after we return.
+		// Just send the BACKGROUND message and let the gRPC stream end.
+		return stream.Send(&pb.ExecOutput{
+			Stream: pb.ExecOutput_BACKGROUND,
+			ExecId: execID,
+		})
+	}
 }
 
 func (*containerServer) ReadRaw(req *pb.ReadRawRequest, stream pb.ContainerService_ReadRawServer) error {
@@ -603,6 +648,55 @@ func streamPipe(stream pb.ContainerService_ExecServer, r io.Reader, st pb.ExecOu
 			break
 		}
 	}
+}
+
+// waitResult carries the exit code from cmd.Wait().
+type waitResult struct {
+	exitCode int32
+}
+
+// teeStream reads from r, writes data to buf, and sends it as gRPC ExecOutput.
+// After the detached channel is closed, it continues reading into buf but stops
+// sending gRPC messages. This ensures no pipe data is lost and no goroutine leaks.
+func teeStream(stream pb.ContainerService_ExecServer, r io.Reader, buf *cappedBuffer, st pb.ExecOutput_Stream, detached <-chan struct{}) {
+	b := make([]byte, 4096)
+	for {
+		n, err := r.Read(b)
+		if n > 0 {
+			buf.Write(b[:n])
+			// Only send gRPC if not yet detached.
+			select {
+			case <-detached:
+				// Detached — skip gRPC send, keep reading into buffer.
+			default:
+				_ = stream.Send(&pb.ExecOutput{
+					Stream: st,
+					Data:   b[:n],
+				})
+			}
+		}
+		if err != nil {
+			return
+		}
+	}
+}
+
+func (s *containerServer) ExecStatus(_ context.Context, req *pb.ExecStatusRequest) (*pb.ExecStatusResponse, error) {
+	execID := req.GetExecId()
+	if execID == "" {
+		return nil, status.Error(codes.InvalidArgument, "exec_id is required")
+	}
+
+	if s.procMgr == nil {
+		return &pb.ExecStatusResponse{Status: pb.ExecStatusResponse_NOT_FOUND}, nil
+	}
+
+	proc, exists := s.procMgr.lookup(execID)
+	if !exists {
+		return &pb.ExecStatusResponse{Status: pb.ExecStatusResponse_NOT_FOUND}, nil
+	}
+
+	return proc.toResponse(), nil
 }
 
 func buildFileEntry(name, _ string, d fs.DirEntry) (*pb.FileEntry, error) {
