@@ -33,17 +33,19 @@ const (
 
 // Service manages context compaction for bot conversations.
 type Service struct {
-	queries   *sqlc.Queries
-	logger    *slog.Logger
-	failCount int // consecutive compaction failures
-	failMu    sync.Mutex
+	queries *sqlc.Queries
+	logger  *slog.Logger
+	failMu  sync.Mutex
+	// per-bot consecutive compaction failures for circuit breaker.
+	failCounts map[string]int
 }
 
 // NewService creates a new compaction Service.
 func NewService(log *slog.Logger, queries *sqlc.Queries) *Service {
 	return &Service{
-		queries: queries,
-		logger:  log,
+		queries:    queries,
+		logger:     log,
+		failCounts: make(map[string]int),
 	}
 }
 
@@ -56,7 +58,7 @@ func ShouldCompact(inputTokens, threshold int) bool {
 // Implements a circuit breaker: after MaxConsecutiveFailures consecutive failures,
 // auto-compaction is paused until a successful run resets the counter.
 func (s *Service) TriggerCompaction(ctx context.Context, cfg TriggerConfig) {
-	if s.isCircuitOpen() {
+	if s.isCircuitOpen(cfg.BotID) {
 		s.logger.Warn("compaction circuit breaker open, skipping",
 			slog.String("bot_id", cfg.BotID),
 			slog.String("session_id", cfg.SessionID),
@@ -66,42 +68,44 @@ func (s *Service) TriggerCompaction(ctx context.Context, cfg TriggerConfig) {
 	go func() {
 		bgCtx := context.WithoutCancel(ctx)
 		if err := s.runCompaction(bgCtx, cfg); err != nil {
-			s.recordFailure()
+			s.recordFailure(cfg.BotID)
 			s.logger.Error("compaction failed",
 				slog.String("bot_id", cfg.BotID),
 				slog.String("session_id", cfg.SessionID),
 				slog.String("error", err.Error()))
 		} else {
-			s.recordSuccess()
+			s.recordSuccess(cfg.BotID)
 		}
 	}()
 }
 
-func (s *Service) isCircuitOpen() bool {
+func (s *Service) isCircuitOpen(botID string) bool {
 	s.failMu.Lock()
 	defer s.failMu.Unlock()
-	return s.failCount >= MaxConsecutiveFailures
+	return s.failCounts[botID] >= MaxConsecutiveFailures
 }
 
-func (s *Service) recordFailure() {
+func (s *Service) recordFailure(botID string) {
 	s.failMu.Lock()
 	defer s.failMu.Unlock()
-	s.failCount++
-	if s.failCount >= MaxConsecutiveFailures {
+	s.failCounts[botID]++
+	if s.failCounts[botID] >= MaxConsecutiveFailures {
 		s.logger.Warn("compaction circuit breaker opened",
-			slog.Int("consecutive_failures", s.failCount),
+			slog.String("bot_id", botID),
+			slog.Int("consecutive_failures", s.failCounts[botID]),
 		)
 	}
 }
 
-func (s *Service) recordSuccess() {
+func (s *Service) recordSuccess(botID string) {
 	s.failMu.Lock()
 	defer s.failMu.Unlock()
-	if s.failCount > 0 {
+	if s.failCounts[botID] > 0 {
 		s.logger.Info("compaction circuit breaker reset",
-			slog.Int("previous_failures", s.failCount),
+			slog.String("bot_id", botID),
+			slog.Int("previous_failures", s.failCounts[botID]),
 		)
-		s.failCount = 0
+		delete(s.failCounts, botID)
 	}
 }
 
@@ -147,6 +151,30 @@ func (s *Service) doCompaction(ctx context.Context, logID pgtype.UUID, sessionUU
 		s.completeLog(ctx, logID, "ok", "", "", 0, nil, pgtype.UUID{})
 		return nil
 	}
+
+	// Log pre-compaction statistics: role breakdown and estimated token count.
+	var preUser, preAssistant, preTool, preTokens int
+	for _, m := range toCompact {
+		preTokens += estimateRowTokens(m)
+		switch strings.ToLower(strings.TrimSpace(m.Role)) {
+		case "user":
+			preUser++
+		case "assistant":
+			preAssistant++
+		case "tool":
+			preTool++
+		}
+	}
+	s.logger.Info("compaction starting",
+		slog.String("bot_id", cfg.BotID),
+		slog.String("session_id", cfg.SessionID),
+		slog.Int("total_uncompacted", len(messages)),
+		slog.Int("to_compact", len(toCompact)),
+		slog.Int("pre_user_msgs", preUser),
+		slog.Int("pre_assistant_msgs", preAssistant),
+		slog.Int("pre_tool_msgs", preTool),
+		slog.Int("pre_estimated_tokens", preTokens),
+	)
 
 	priorLogs, err := s.queries.ListCompactionLogsBySession(ctx, sessionUUID)
 	if err != nil {
@@ -201,6 +229,23 @@ func (s *Service) doCompaction(ctx context.Context, logID pgtype.UUID, sessionUU
 	}
 
 	s.completeLog(ctx, logID, "ok", result.Text, "", len(toCompact), usageJSON, modelUUID)
+
+	// Log post-compaction statistics: summary size and token savings.
+	summaryTokens := len(result.Text) / 4
+	savedTokens := preTokens - summaryTokens
+	if savedTokens < 0 {
+		savedTokens = 0
+	}
+	s.logger.Info("compaction completed",
+		slog.String("bot_id", cfg.BotID),
+		slog.String("session_id", cfg.SessionID),
+		slog.Int("compacted_msgs", len(toCompact)),
+		slog.Int("pre_estimated_tokens", preTokens),
+		slog.Int("summary_chars", len(result.Text)),
+		slog.Int("summary_estimated_tokens", summaryTokens),
+		slog.Int("saved_estimated_tokens", savedTokens),
+	)
+
 	return nil
 }
 

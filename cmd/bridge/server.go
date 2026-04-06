@@ -631,7 +631,7 @@ func isBarePath(cmd string) bool {
 			return false
 		}
 	}
-	return strings.HasPrefix(cmd, "/") || !strings.Contains(cmd, "/")
+	return strings.HasPrefix(cmd, "/") || strings.HasPrefix(cmd, "./") || !strings.Contains(cmd, "/")
 }
 
 func streamPipe(stream pb.ContainerService_ExecServer, r io.Reader, st pb.ExecOutput_Stream) {
