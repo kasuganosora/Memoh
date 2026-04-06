@@ -28,8 +28,14 @@ func (r *Resolver) StreamChat(ctx context.Context, req conversation.ChatRequest)
 		defer close(chunkCh)
 		defer close(errCh)
 
+		// Apply overall stream timeout to prevent stuck API calls.
+		// If the LLM provider hangs without returning data or closing the
+		// connection, this ensures the stream goroutine is eventually released.
+		streamCtx, streamCancel := context.WithTimeout(ctx, r.timeout)
+		defer streamCancel()
+
 		streamReq := req
-		rc, err := r.resolve(ctx, streamReq)
+		rc, err := r.resolve(streamCtx, streamReq)
 		if err != nil {
 			r.logger.Error("agent stream resolve failed",
 				slog.String("bot_id", streamReq.BotID),
@@ -44,9 +50,9 @@ func (r *Resolver) StreamChat(ctx context.Context, req conversation.ChatRequest)
 		go r.maybeGenerateSessionTitle(context.WithoutCancel(ctx), streamReq, streamReq.Query)
 
 		cfg := rc.runConfig
-		cfg = r.prepareRunConfig(ctx, cfg)
+		cfg = r.prepareRunConfig(streamCtx, cfg)
 
-		eventCh := r.agent.Stream(ctx, cfg)
+		eventCh := r.agent.Stream(streamCtx, cfg)
 		stored := false
 		for event := range eventCh {
 			if event.Type == agentpkg.EventError {
@@ -63,7 +69,8 @@ func (r *Resolver) StreamChat(ctx context.Context, req conversation.ChatRequest)
 				continue
 			}
 			if !stored && event.IsTerminal() && len(event.Messages) > 0 {
-				if _, storeErr := r.tryStoreStream(ctx, streamReq, data, rc.model.ID, rc); storeErr != nil {
+				// Use WithoutCancel so storage persists even if timeout fires mid-event.
+				if _, storeErr := r.tryStoreStream(context.WithoutCancel(ctx), streamReq, data, rc.model.ID, rc); storeErr != nil {
 					r.logger.Error("stream persist failed", slog.Any("error", storeErr))
 				} else {
 					stored = true
@@ -71,12 +78,21 @@ func (r *Resolver) StreamChat(ctx context.Context, req conversation.ChatRequest)
 			}
 			chunkCh <- conversation.StreamChunk(data)
 		}
+
+		if streamCtx.Err() == context.DeadlineExceeded {
+			r.logger.Warn("agent stream timed out",
+				slog.String("bot_id", streamReq.BotID),
+				slog.String("chat_id", streamReq.ChatID),
+				slog.Duration("timeout", r.timeout),
+			)
+		}
 	}()
 	return chunkCh, errCh
 }
 
 // StreamChatWS resolves the agent context and streams agent events.
 // Events are sent on eventCh. When abortCh is closed, the context is cancelled.
+// A timeout is applied via r.timeout to prevent stuck API calls.
 func (r *Resolver) StreamChatWS(
 	ctx context.Context,
 	req conversation.ChatRequest,
@@ -91,7 +107,8 @@ func (r *Resolver) StreamChatWS(
 
 	go r.maybeGenerateSessionTitle(context.WithoutCancel(ctx), req, req.Query)
 
-	streamCtx, cancel := context.WithCancel(ctx)
+	// Apply timeout + abort channel. Whichever fires first cancels the stream.
+	streamCtx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 
 	go func() {
@@ -124,7 +141,8 @@ func (r *Resolver) StreamChatWS(
 		}
 
 		if !stored && event.IsTerminal() && len(event.Messages) > 0 {
-			if _, storeErr := r.tryStoreStream(ctx, req, data, modelID, rc); storeErr != nil {
+			// Use WithoutCancel so storage persists even if timeout/abort fires.
+			if _, storeErr := r.tryStoreStream(context.WithoutCancel(ctx), req, data, modelID, rc); storeErr != nil {
 				r.logger.Error("ws persist failed", slog.Any("error", storeErr))
 			} else {
 				stored = true
@@ -136,6 +154,14 @@ func (r *Resolver) StreamChatWS(
 		case <-ctx.Done():
 			return ctx.Err()
 		}
+	}
+
+	if streamCtx.Err() == context.DeadlineExceeded {
+		r.logger.Warn("agent ws stream timed out",
+			slog.String("bot_id", req.BotID),
+			slog.String("chat_id", req.ChatID),
+			slog.Duration("timeout", r.timeout),
+		)
 	}
 
 	return nil
