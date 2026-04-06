@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"sort"
 	"strings"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -15,10 +17,26 @@ import (
 	"github.com/memohai/memoh/internal/models"
 )
 
+const (
+	// MaxConsecutiveFailures is the number of consecutive compaction failures
+	// before auto-compaction is paused (circuit breaker).
+	MaxConsecutiveFailures = 3
+
+	// DefaultKeepRecentTurns is the number of recent complete conversation turns
+	// to preserve during smart compaction.
+	DefaultKeepRecentTurns = 3
+
+	// LargeToolResultThreshold is the token threshold above which tool results
+	// are given boosted compaction priority.
+	LargeToolResultThreshold = 2000
+)
+
 // Service manages context compaction for bot conversations.
 type Service struct {
-	queries *sqlc.Queries
-	logger  *slog.Logger
+	queries   *sqlc.Queries
+	logger    *slog.Logger
+	failCount int // consecutive compaction failures
+	failMu    sync.Mutex
 }
 
 // NewService creates a new compaction Service.
@@ -35,13 +53,56 @@ func ShouldCompact(inputTokens, threshold int) bool {
 }
 
 // TriggerCompaction runs compaction in the background.
+// Implements a circuit breaker: after MaxConsecutiveFailures consecutive failures,
+// auto-compaction is paused until a successful run resets the counter.
 func (s *Service) TriggerCompaction(ctx context.Context, cfg TriggerConfig) {
+	if s.isCircuitOpen() {
+		s.logger.Warn("compaction circuit breaker open, skipping",
+			slog.String("bot_id", cfg.BotID),
+			slog.String("session_id", cfg.SessionID),
+		)
+		return
+	}
 	go func() {
 		bgCtx := context.WithoutCancel(ctx)
 		if err := s.runCompaction(bgCtx, cfg); err != nil {
-			s.logger.Error("compaction failed", slog.String("bot_id", cfg.BotID), slog.String("session_id", cfg.SessionID), slog.String("error", err.Error()))
+			s.recordFailure()
+			s.logger.Error("compaction failed",
+				slog.String("bot_id", cfg.BotID),
+				slog.String("session_id", cfg.SessionID),
+				slog.String("error", err.Error()))
+		} else {
+			s.recordSuccess()
 		}
 	}()
+}
+
+func (s *Service) isCircuitOpen() bool {
+	s.failMu.Lock()
+	defer s.failMu.Unlock()
+	return s.failCount >= MaxConsecutiveFailures
+}
+
+func (s *Service) recordFailure() {
+	s.failMu.Lock()
+	defer s.failMu.Unlock()
+	s.failCount++
+	if s.failCount >= MaxConsecutiveFailures {
+		s.logger.Warn("compaction circuit breaker opened",
+			slog.Int("consecutive_failures", s.failCount),
+		)
+	}
+}
+
+func (s *Service) recordSuccess() {
+	s.failMu.Lock()
+	defer s.failMu.Unlock()
+	if s.failCount > 0 {
+		s.logger.Info("compaction circuit breaker reset",
+			slog.Int("previous_failures", s.failCount),
+		)
+		s.failCount = 0
+	}
 }
 
 func (s *Service) runCompaction(ctx context.Context, cfg TriggerConfig) error {
@@ -64,7 +125,7 @@ func (s *Service) runCompaction(ctx context.Context, cfg TriggerConfig) error {
 
 	compactErr := s.doCompaction(ctx, logRow.ID, sessionUUID, cfg)
 	if compactErr != nil {
-		s.completeLog(ctx, logRow.ID, "error", "", compactErr.Error(), nil, pgtype.UUID{})
+		s.completeLog(ctx, logRow.ID, "error", "", compactErr.Error(), 0, nil, pgtype.UUID{})
 	}
 	return compactErr
 }
@@ -75,13 +136,15 @@ func (s *Service) doCompaction(ctx context.Context, logID pgtype.UUID, sessionUU
 		return err
 	}
 	if len(messages) == 0 {
-		s.completeLog(ctx, logID, "ok", "", "", nil, pgtype.UUID{})
+		s.completeLog(ctx, logID, "ok", "", "", 0, nil, pgtype.UUID{})
 		return nil
 	}
 
-	toCompact := splitByRatio(messages, cfg.TotalInputTokens, cfg.Ratio)
+	// Use smart strategy: preserve recent turns, compact expensive older content.
+	// Falls back to ratio-based split when not enough turns are found.
+	toCompact := splitBySmartStrategy(messages, cfg.TotalInputTokens, cfg.Ratio, DefaultKeepRecentTurns, LargeToolResultThreshold)
 	if len(toCompact) == 0 {
-		s.completeLog(ctx, logID, "ok", "", "", nil, pgtype.UUID{})
+		s.completeLog(ctx, logID, "ok", "", "", 0, nil, pgtype.UUID{})
 		return nil
 	}
 
@@ -137,16 +200,16 @@ func (s *Service) doCompaction(ctx context.Context, logID pgtype.UUID, sessionUU
 		return err
 	}
 
-	s.completeLog(ctx, logID, "ok", result.Text, "", usageJSON, modelUUID)
+	s.completeLog(ctx, logID, "ok", result.Text, "", len(toCompact), usageJSON, modelUUID)
 	return nil
 }
 
-func (s *Service) completeLog(ctx context.Context, logID pgtype.UUID, status, summary, errMsg string, usage []byte, modelID pgtype.UUID) {
+func (s *Service) completeLog(ctx context.Context, logID pgtype.UUID, status, summary, errMsg string, msgCount int, usage []byte, modelID pgtype.UUID) {
 	if _, err := s.queries.CompleteCompactionLog(ctx, sqlc.CompleteCompactionLogParams{
 		ID:           logID,
 		Status:       status,
 		Summary:      summary,
-		MessageCount: 0,
+		MessageCount: int32(msgCount), //nolint:gosec // msgCount is len() of a slice, always fits in int32
 		ErrorMessage: errMsg,
 		Usage:        usage,
 		ModelID:      modelID,
@@ -265,6 +328,73 @@ func joinTexts(parts []string) string {
 	return strings.Join(parts, " ")
 }
 
+// --- Token estimation ---
+
+type usagePayload struct {
+	InputTokens  *int `json:"input_tokens"`
+	OutputTokens *int `json:"output_tokens"`
+}
+
+// estimateRowTokens estimates the token count for a message row.
+// Uses input + output tokens from stored usage data when available,
+// falling back to a character-based heuristic.
+func estimateRowTokens(m sqlc.ListUncompactedMessagesBySessionRow) int {
+	if len(m.Usage) > 0 {
+		var u usagePayload
+		if json.Unmarshal(m.Usage, &u) == nil {
+			total := 0
+			if u.InputTokens != nil && *u.InputTokens > 0 {
+				total += *u.InputTokens
+			}
+			if u.OutputTokens != nil && *u.OutputTokens > 0 {
+				total += *u.OutputTokens
+			}
+			if total > 0 {
+				return total
+			}
+		}
+	}
+	return len(m.Content) / 4
+}
+
+// --- Message classification ---
+
+// messageCostCategory classifies messages by compaction priority.
+// Higher values are compacted sooner.
+type messageCostCategory int
+
+const (
+	costKeep      messageCostCategory = iota // user messages — keep as long as possible
+	costNormal                               // assistant text responses
+	costHigh                                 // assistant tool calls
+	costExpensive                            // tool results (often large JSON)
+	costHuge                                 // very large tool results (above threshold)
+)
+
+func classifyMessage(m sqlc.ListUncompactedMessagesBySessionRow) messageCostCategory {
+	role := strings.TrimSpace(m.Role)
+	switch strings.ToLower(role) {
+	case "user":
+		return costKeep
+	case "tool":
+		return costExpensive
+	case "assistant":
+		var parsed []map[string]any
+		if json.Unmarshal(m.Content, &parsed) == nil {
+			for _, part := range parsed {
+				if t, ok := part["type"].(string); ok && (t == "tool_use" || t == "function") {
+					return costHigh
+				}
+			}
+		}
+		return costNormal
+	default:
+		return costNormal
+	}
+}
+
+// --- Splitting strategies ---
+
 // splitByRatio splits messages so that roughly the first ratio% (by token weight)
 // are returned for compaction, and the rest are kept as-is.
 // When ratio >= 100 or totalInputTokens <= 0, all messages are returned.
@@ -297,16 +427,90 @@ func splitByRatio(messages []sqlc.ListUncompactedMessagesBySessionRow, totalInpu
 	return messages[:cutoff]
 }
 
-type usagePayload struct {
-	OutputTokens *int `json:"output_tokens"`
-}
+// splitBySmartStrategy compacts messages using a priority-based approach:
+//  1. Always preserve the most recent keepRecentTurns complete conversation turns
+//     (a turn starts with a user message).
+//  2. Among older messages, prefer compacting expensive content
+//     (tool results > tool calls > assistant text > user messages).
+//  3. Tool results larger than largeToolResultThreshold tokens get boosted priority.
+//  4. Falls back to splitByRatio when fewer than 2 distinct turns are found.
+func splitBySmartStrategy(messages []sqlc.ListUncompactedMessagesBySessionRow, totalInputTokens, ratio, keepRecentTurns, largeToolResultThreshold int) []sqlc.ListUncompactedMessagesBySessionRow {
+	if len(messages) == 0 || totalInputTokens <= 0 {
+		return messages
+	}
 
-func estimateRowTokens(m sqlc.ListUncompactedMessagesBySessionRow) int {
-	if len(m.Usage) > 0 {
-		var u usagePayload
-		if json.Unmarshal(m.Usage, &u) == nil && u.OutputTokens != nil && *u.OutputTokens > 0 {
-			return *u.OutputTokens
+	// Step 1: Find the boundary of the most recent keepRecentTurns complete turns.
+	recentBoundary := len(messages)
+	turnsFound := 0
+	for i := len(messages) - 1; i >= 0; i-- {
+		if strings.EqualFold(strings.TrimSpace(messages[i].Role), "user") {
+			turnsFound++
+			recentBoundary = i
+			if turnsFound >= keepRecentTurns {
+				break
+			}
 		}
 	}
-	return len(m.Content) / 4
+
+	// Not enough distinct turns found — fall back to ratio-based splitting.
+	if turnsFound < 2 {
+		return splitByRatio(messages, totalInputTokens, ratio)
+	}
+
+	// All messages are recent enough — nothing to compact.
+	if recentBoundary <= 0 {
+		return nil
+	}
+
+	// Step 2: Classify older messages and sort by compaction priority.
+	type indexedMsg struct {
+		idx      int
+		category messageCostCategory
+		tokens   int
+	}
+
+	older := make([]indexedMsg, 0, recentBoundary)
+	for i := 0; i < recentBoundary; i++ {
+		tokens := estimateRowTokens(messages[i])
+		cat := classifyMessage(messages[i])
+		if cat == costExpensive && tokens > largeToolResultThreshold {
+			cat = costHuge // boost very large tool results
+		}
+		older = append(older, indexedMsg{idx: i, category: cat, tokens: tokens})
+	}
+
+	// Sort: highest category first (most expensive), then oldest first.
+	sort.Slice(older, func(i, j int) bool {
+		if older[i].category != older[j].category {
+			return older[i].category > older[j].category
+		}
+		return older[i].idx < older[j].idx
+	})
+
+	// Step 3: Select messages to compact, targeting ~50% of older portion tokens.
+	olderTokens := 0
+	for _, m := range older {
+		olderTokens += m.tokens
+	}
+	targetCompactTokens := olderTokens / 2
+
+	compactIndices := make(map[int]bool)
+	accumulated := 0
+	for _, m := range older {
+		if accumulated >= targetCompactTokens {
+			break
+		}
+		compactIndices[m.idx] = true
+		accumulated += m.tokens
+	}
+
+	// Collect in original order.
+	var result []sqlc.ListUncompactedMessagesBySessionRow
+	for i := 0; i < recentBoundary; i++ {
+		if compactIndices[i] {
+			result = append(result, messages[i])
+		}
+	}
+
+	return result
 }

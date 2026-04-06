@@ -22,6 +22,19 @@ func (r *Resolver) maybeCompact(ctx context.Context, req conversation.ChatReques
 	if !settings.CompactionEnabled || settings.CompactionThreshold <= 0 {
 		return
 	}
+
+	// Log a warning when context usage approaches the compaction threshold.
+	usagePct := float64(inputTokens) / float64(settings.CompactionThreshold) * 100
+	if usagePct >= 80 && usagePct < 100 {
+		r.logger.Warn("context approaching compaction threshold",
+			slog.String("bot_id", req.BotID),
+			slog.String("session_id", req.SessionID),
+			slog.Float64("usage_pct", usagePct),
+			slog.Int("input_tokens", inputTokens),
+			slog.Int("threshold", settings.CompactionThreshold),
+		)
+	}
+
 	if !compaction.ShouldCompact(inputTokens, settings.CompactionThreshold) {
 		return
 	}
