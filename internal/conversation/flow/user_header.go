@@ -19,27 +19,58 @@ type UserMessageMeta struct {
 	AttachmentPaths   []string `json:"attachments"`
 }
 
-// BuildUserMessageMeta constructs a UserMessageMeta from the inbound parameters.
-func BuildUserMessageMeta(messageID, channelIdentityID, displayName, channel, conversationType, conversationName string, attachmentPaths []string) UserMessageMeta {
+// UserMessageHeaderInput is the unified input for building user message headers.
+// Keeping this as a struct avoids long positional argument lists and makes
+// future metadata extension backward-compatible for call sites.
+type UserMessageHeaderInput struct {
+	MessageID         string
+	ChannelIdentityID string
+	DisplayName       string
+	Channel           string
+	ConversationType  string
+	ConversationName  string
+	AttachmentPaths   []string
+	Time              time.Time
+	Timezone          string
+}
+
+// BuildUserMessageMetaFromInput constructs metadata from one cohesive input.
+func BuildUserMessageMetaFromInput(input UserMessageHeaderInput) UserMessageMeta {
+	attachmentPaths := input.AttachmentPaths
 	if attachmentPaths == nil {
 		attachmentPaths = []string{}
 	}
-	return UserMessageMeta{
+	meta := UserMessageMeta{
+		MessageID:         input.MessageID,
+		ChannelIdentityID: input.ChannelIdentityID,
+		DisplayName:       input.DisplayName,
+		Channel:           input.Channel,
+		ConversationType:  input.ConversationType,
+		ConversationName:  input.ConversationName,
+		Time:              time.Now().UTC().Format(time.RFC3339),
+		Timezone:          strings.TrimSpace(input.Timezone),
+		AttachmentPaths:   attachmentPaths,
+	}
+	if !input.Time.IsZero() {
+		meta.Time = input.Time.Format(time.RFC3339)
+	}
+	return meta
+}
+
+// BuildUserMessageMetaWithTime constructs metadata with an explicit timestamp
+// and timezone label for user-facing prompts.
+func BuildUserMessageMetaWithTime(messageID, channelIdentityID, displayName, channel, conversationType, conversationName string, attachmentPaths []string, now time.Time, timezone string) UserMessageMeta {
+	meta := BuildUserMessageMetaFromInput(UserMessageHeaderInput{
 		MessageID:         messageID,
 		ChannelIdentityID: channelIdentityID,
 		DisplayName:       displayName,
 		Channel:           channel,
 		ConversationType:  conversationType,
 		ConversationName:  conversationName,
-		Time:              time.Now().UTC().Format(time.RFC3339),
 		AttachmentPaths:   attachmentPaths,
-	}
-}
-
-// BuildUserMessageMetaWithTime constructs metadata with an explicit timestamp
-// and timezone label for user-facing prompts.
-func BuildUserMessageMetaWithTime(messageID, channelIdentityID, displayName, channel, conversationType, conversationName string, attachmentPaths []string, now time.Time, timezone string) UserMessageMeta {
-	meta := BuildUserMessageMeta(messageID, channelIdentityID, displayName, channel, conversationType, conversationName, attachmentPaths)
+		Time:              now,
+		Timezone:          timezone,
+	})
 	if !now.IsZero() {
 		meta.Time = now.Format(time.RFC3339)
 	}
@@ -74,8 +105,8 @@ func (m UserMessageMeta) ToMap() map[string]any {
 // the LLM sees structured context (sender, channel, time, attachments)
 // alongside the raw message. This must be the single source of truth for
 // user-message formatting — the agent gateway must NOT add its own header.
-func FormatUserHeader(messageID, channelIdentityID, displayName, channel, conversationType, conversationName string, attachmentPaths []string, now time.Time, timezone, query string) string {
-	meta := BuildUserMessageMetaWithTime(messageID, channelIdentityID, displayName, channel, conversationType, conversationName, attachmentPaths, now, timezone)
+func FormatUserHeader(input UserMessageHeaderInput, query string) string {
+	meta := BuildUserMessageMetaFromInput(input)
 	return FormatUserHeaderFromMeta(meta, query)
 }
 

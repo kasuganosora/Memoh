@@ -400,18 +400,16 @@ func (p *ChannelInboundProcessor) HandleInbound(ctx context.Context, cfg channel
 	// short-circuit here instead of starting a new stream.
 	if p.dispatcher != nil && !isLocalChannelType(msg.Channel) && inboundMode != ModeParallel {
 		if p.dispatcher.IsActive(routeID) {
-			headerifiedText := flow.FormatUserHeader(
-				strings.TrimSpace(msg.Message.ID),
-				strings.TrimSpace(identity.ChannelIdentityID),
-				strings.TrimSpace(identity.DisplayName),
-				msg.Channel.String(),
-				strings.TrimSpace(msg.Conversation.Type),
-				strings.TrimSpace(msg.Conversation.Name),
-				collectAttachmentPaths(attachments),
-				time.Now().UTC(),
-				"",
-				text,
-			)
+			headerifiedText := flow.FormatUserHeader(flow.UserMessageHeaderInput{
+				MessageID:         strings.TrimSpace(msg.Message.ID),
+				ChannelIdentityID: strings.TrimSpace(identity.ChannelIdentityID),
+				DisplayName:       strings.TrimSpace(identity.DisplayName),
+				Channel:           msg.Channel.String(),
+				ConversationType:  strings.TrimSpace(msg.Conversation.Type),
+				ConversationName:  strings.TrimSpace(msg.Conversation.Name),
+				AttachmentPaths:   collectAttachmentPaths(attachments),
+				Time:              time.Now().UTC(),
+			}, text)
 
 			switch inboundMode {
 			case ModeInject:
@@ -958,18 +956,16 @@ func (p *ChannelInboundProcessor) persistPassiveMessage(
 		}
 	}
 
-	headerifiedText := flow.FormatUserHeader(
-		strings.TrimSpace(msg.Message.ID),
-		strings.TrimSpace(ident.ChannelIdentityID),
-		strings.TrimSpace(ident.DisplayName),
-		msg.Channel.String(),
-		strings.TrimSpace(msg.Conversation.Type),
-		strings.TrimSpace(msg.Conversation.Name),
-		attachmentPaths,
-		time.Now().UTC(),
-		"",
-		trimmedText,
-	)
+	headerifiedText := flow.FormatUserHeader(flow.UserMessageHeaderInput{
+		MessageID:         strings.TrimSpace(msg.Message.ID),
+		ChannelIdentityID: strings.TrimSpace(ident.ChannelIdentityID),
+		DisplayName:       strings.TrimSpace(ident.DisplayName),
+		Channel:           msg.Channel.String(),
+		ConversationType:  strings.TrimSpace(msg.Conversation.Type),
+		ConversationName:  strings.TrimSpace(msg.Conversation.Name),
+		AttachmentPaths:   attachmentPaths,
+		Time:              time.Now().UTC(),
+	}, trimmedText)
 
 	modelMsg := conversation.ModelMessage{Role: "user", Content: conversation.NewTextContent(headerifiedText)}
 	serialized, err := json.Marshal(modelMsg)
@@ -2395,6 +2391,12 @@ func buildRouteMetadata(msg channel.InboundMessage, identity InboundIdentity) ma
 		if k == "username" {
 			m["sender_username"] = v
 		}
+	}
+	if mentions, ok := msg.Metadata["mentions"]; ok && mentions != nil {
+		m["mentions"] = mentions
+	}
+	if targets, ok := msg.Metadata["mentioned_targets"]; ok && targets != nil {
+		m["mentioned_targets"] = targets
 	}
 
 	return m

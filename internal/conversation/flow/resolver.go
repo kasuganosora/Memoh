@@ -221,18 +221,17 @@ func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (r
 
 	displayName := r.resolveDisplayName(ctx, req)
 	mergedAttachments := r.routeAndMergeAttachments(ctx, chatModel, req)
-	headerifiedQuery := FormatUserHeader(
-		strings.TrimSpace(req.ExternalMessageID),
-		strings.TrimSpace(req.SourceChannelIdentityID),
-		displayName,
-		req.CurrentChannel,
-		strings.TrimSpace(req.ConversationType),
-		strings.TrimSpace(req.ConversationName),
-		extractAttachmentPaths(mergedAttachments),
-		time.Now().In(userClockLocation),
-		userTimezoneName,
-		req.Query,
-	)
+	headerifiedQuery := FormatUserHeader(UserMessageHeaderInput{
+		MessageID:         strings.TrimSpace(req.ExternalMessageID),
+		ChannelIdentityID: strings.TrimSpace(req.SourceChannelIdentityID),
+		DisplayName:       displayName,
+		Channel:           req.CurrentChannel,
+		ConversationType:  strings.TrimSpace(req.ConversationType),
+		ConversationName:  strings.TrimSpace(req.ConversationName),
+		AttachmentPaths:   extractAttachmentPaths(mergedAttachments),
+		Time:              time.Now().In(userClockLocation),
+		Timezone:          userTimezoneName,
+	}, req.Query)
 	inlineImages := extractNativeImageParts(mergedAttachments)
 
 	reasoningEffort := ""
