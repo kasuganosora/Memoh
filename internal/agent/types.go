@@ -67,6 +67,7 @@ type RunConfig struct {
 	Identity           SessionContext
 	Skills             []SkillEntry
 	LoopDetection      LoopDetectionConfig
+	Retry              RetryConfig
 
 	// InjectCh receives user messages to inject between tool rounds.
 	// When non-nil, a PrepareStep hook drains this channel and appends

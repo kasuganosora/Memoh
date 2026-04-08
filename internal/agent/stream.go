@@ -20,6 +20,7 @@ const (
 	EventSpeech         StreamEventType = "speech_delta"
 	EventAgentEnd       StreamEventType = "agent_end"
 	EventAgentAbort     StreamEventType = "agent_abort"
+	EventRetry          StreamEventType = "retry"
 	EventError          StreamEventType = "error"
 )
 
@@ -38,6 +39,9 @@ type StreamEvent struct {
 	Usage       json.RawMessage  `json:"usage,omitempty"`
 	Reasoning   []string         `json:"reasoning,omitempty"`
 	Error       string           `json:"error,omitempty"`
+	Attempt     int              `json:"attempt,omitempty"`
+	MaxAttempt  int              `json:"maxAttempt,omitempty"`
+	RetryError  string           `json:"retryError,omitempty"`
 }
 
 // IsTerminal returns true for events that signal end of stream.

@@ -9,6 +9,8 @@ import (
 	"io"
 	"log/slog"
 	"math"
+	"net"
+	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -74,6 +76,7 @@ type Resolver struct {
 	skillLoader       SkillLoader
 	assetLoader       gatewayAssetLoader
 	pipeline          *pipelinepkg.Pipeline
+	streamHTTPClient  *http.Client
 	timeout           time.Duration
 	clockLocation     *time.Location
 	logger            *slog.Logger
@@ -98,17 +101,34 @@ func NewResolver(
 	if clockLocation == nil {
 		clockLocation = time.UTC
 	}
+	// HTTP client with timeouts for LLM provider streaming.
+	// - DialTimeout: fail fast on connection issues
+	// - ResponseHeaderTimeout: catch servers that accept TCP but never respond
+	// - Timeout: overall request lifetime cap (prevents stuck SSE body reads)
+	streamHTTPClient := &http.Client{
+		Timeout: 10 * time.Minute, // overall cap, matches resolver timeout
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ResponseHeaderTimeout: 30 * time.Second,
+		},
+	}
+
 	return &Resolver{
-		agent:           a,
-		modelsService:   modelsService,
-		queries:         queries,
-		conversationSvc: conversationSvc,
-		messageService:  messageService,
-		settingsService: settingsService,
-		accountService:  accountService,
-		timeout:         timeout,
-		clockLocation:   clockLocation,
-		logger:          log.With(slog.String("service", "conversation_resolver")),
+		agent:            a,
+		modelsService:    modelsService,
+		queries:          queries,
+		conversationSvc:  conversationSvc,
+		messageService:   messageService,
+		settingsService:  settingsService,
+		accountService:   accountService,
+		streamHTTPClient: streamHTTPClient,
+		timeout:          timeout,
+		clockLocation:    clockLocation,
+		logger:           log.With(slog.String("service", "conversation_resolver")),
 	}
 }
 
@@ -391,6 +411,7 @@ func (r *Resolver) buildBaseRunConfig(ctx context.Context, p baseRunConfigParams
 		APIKey:          creds.APIKey,
 		CodexAccountID:  creds.CodexAccountID,
 		BaseURL:         provider.BaseUrl,
+		HTTPClient:      r.streamHTTPClient,
 		ReasoningConfig: reasoningConfig,
 	})
 

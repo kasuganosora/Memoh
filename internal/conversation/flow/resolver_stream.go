@@ -50,9 +50,15 @@ func (r *Resolver) StreamChat(ctx context.Context, req conversation.ChatRequest)
 		cfg := rc.runConfig
 		cfg = r.prepareRunConfig(ctx, cfg)
 
-		eventCh := r.agent.Stream(ctx, cfg)
+		// Wrap with idle timeout: if no events arrive within 90s, cancel the stream.
+		idleCtx, idleCancel := withIdleTimeout(ctx)
+		defer idleCancel.Stop()
+
+		eventCh := r.agent.Stream(idleCtx, cfg)
 		stored := false
 		for event := range eventCh {
+			idleCancel.Reset() // each event resets the idle timer
+
 			if event.Type == agentpkg.EventError {
 				r.logger.Error("agent stream error",
 					slog.String("bot_id", streamReq.BotID),
@@ -74,6 +80,15 @@ func (r *Resolver) StreamChat(ctx context.Context, req conversation.ChatRequest)
 				}
 			}
 			chunkCh <- conversation.StreamChunk(data)
+		}
+
+		if idleCancel.DidFire() {
+			r.logger.Warn("agent stream aborted: idle timeout (no events from provider)",
+				slog.String("bot_id", streamReq.BotID),
+				slog.String("chat_id", streamReq.ChatID),
+				slog.String("model_id", rc.model.ID),
+				slog.Duration("idle_timeout", idleTimeout),
+			)
 		}
 	}()
 	return chunkCh, errCh
@@ -112,10 +127,16 @@ func (r *Resolver) StreamChatWS(
 	cfg := rc.runConfig
 	cfg = r.prepareRunConfig(streamCtx, cfg)
 
-	agentEventCh := r.agent.Stream(streamCtx, cfg)
+	// Wrap with idle timeout: if no events arrive within 90s, cancel the stream.
+	idleCtx, idleCancel := withIdleTimeout(streamCtx)
+	defer idleCancel.Stop()
+
+	agentEventCh := r.agent.Stream(idleCtx, cfg)
 	modelID := rc.model.ID
 	stored := false
 	for event := range agentEventCh {
+		idleCancel.Reset() // each event resets the idle timer
+
 		if event.Type == agentpkg.EventError {
 			r.logger.Error("agent stream error",
 				slog.String("bot_id", req.BotID),
@@ -143,6 +164,15 @@ func (r *Resolver) StreamChatWS(
 		case <-ctx.Done():
 			return ctx.Err()
 		}
+	}
+
+	if idleCancel.DidFire() {
+		r.logger.Warn("agent ws stream aborted: idle timeout (no events from provider)",
+			slog.String("bot_id", req.BotID),
+			slog.String("chat_id", req.ChatID),
+			slog.String("model_id", modelID),
+			slog.Duration("idle_timeout", idleTimeout),
+		)
 	}
 
 	return nil

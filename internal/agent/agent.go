@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	sdk "github.com/memohai/twilight-ai/sdk"
 
@@ -149,10 +150,45 @@ func (a *Agent) runStream(ctx context.Context, cfg RunConfig, ch chan<- StreamEv
 
 	opts := a.buildGenerateOptions(cfg, sdkTools, prepareStep)
 
-	streamResult, err := a.client.StreamText(ctx, opts...)
-	if err != nil {
-		ch <- StreamEvent{Type: EventError, Error: fmt.Sprintf("stream start: %v", err)}
-		return
+	retryCfg := cfg.Retry
+	if retryCfg.MaxAttempts <= 0 {
+		retryCfg = DefaultRetryConfig()
+	}
+
+	var streamResult *sdk.StreamResult
+	for attempt := 0; attempt < retryCfg.MaxAttempts; attempt++ {
+		var err error
+		streamResult, err = a.client.StreamText(ctx, opts...)
+		if err == nil {
+			break
+		}
+		if !isRetryableStreamError(err) {
+			ch <- StreamEvent{Type: EventError, Error: fmt.Sprintf("stream start: %v", err)}
+			return
+		}
+		a.logger.Warn("stream start failed, retrying",
+			slog.Int("attempt", attempt+1),
+			slog.Int("max_attempts", retryCfg.MaxAttempts),
+			slog.String("error", err.Error()),
+		)
+		ch <- StreamEvent{
+			Type:       EventRetry,
+			Attempt:    attempt + 1,
+			MaxAttempt: retryCfg.MaxAttempts,
+			RetryError: err.Error(),
+		}
+		if attempt+1 < retryCfg.MaxAttempts {
+			backoff := retryBackoff(attempt, retryCfg)
+			select {
+			case <-time.After(backoff):
+			case <-ctx.Done():
+				ch <- StreamEvent{Type: EventError, Error: fmt.Sprintf("stream start: context cancelled during retry: %v", ctx.Err())}
+				return
+			}
+		} else {
+			ch <- StreamEvent{Type: EventError, Error: fmt.Sprintf("stream start: all %d attempts failed (last: %v)", retryCfg.MaxAttempts, err)}
+			return
+		}
 	}
 
 	ch <- StreamEvent{Type: EventAgentStart}
