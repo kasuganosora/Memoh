@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"errors"
+	"math/rand/v2"
 	"net"
 	"regexp"
 	"strings"
@@ -16,6 +17,13 @@ type RetryConfig struct {
 	BaseDelay    time.Duration // backoff base for non-fast attempts
 	MaxDelay     time.Duration // backoff cap
 }
+
+// err429Pattern matches HTTP 429 status codes in error strings.
+// Requires a non-digit boundary to avoid matching "429" inside larger numbers.
+var err429Pattern = regexp.MustCompile(`(^|[^0-9])429($|[^0-9])`)
+
+// errEOFPattern matches EOF or connection-level resets.
+var errEOFPattern = regexp.MustCompile(`(?i)connection (reset|refused)|EOF$`)
 
 // serverErrPattern matches "api error 5XX" where XX is any two digits.
 var serverErrPattern = regexp.MustCompile(`api error 5\d{2}`)
@@ -48,7 +56,7 @@ func isRetryableStreamError(err error) bool {
 	}
 	// HTTP status errors: retry on 429 and 5xx
 	errStr := err.Error()
-	if strings.Contains(errStr, "429") {
+	if err429Pattern.MatchString(errStr) {
 		return true
 	}
 	if strings.Contains(errStr, "rate limit") || strings.Contains(errStr, "rate_limit") {
@@ -58,9 +66,7 @@ func isRetryableStreamError(err error) bool {
 		return true
 	}
 	// Connection reset / EOF
-	if strings.Contains(errStr, "connection reset") ||
-		strings.Contains(errStr, "EOF") ||
-		strings.Contains(errStr, "connection refused") {
+	if errEOFPattern.MatchString(errStr) {
 		return true
 	}
 	return false
@@ -73,8 +79,14 @@ func retryDelay(attempt int, cfg RetryConfig) time.Duration {
 	if attempt < cfg.FastAttempts {
 		return 0
 	}
-	// Exponential backoff: base * 2^(attempt - fastAttempts)
+	// Exponential backoff: base * 2^(attempt - fastAttempts), capped to prevent overflow
 	backoffIdx := attempt - cfg.FastAttempts
+	if backoffIdx > 20 {
+		backoffIdx = 20
+	}
 	delay := cfg.BaseDelay * time.Duration(1<<uint(backoffIdx))
-	return min(delay, cfg.MaxDelay)
+	delay = min(delay, cfg.MaxDelay)
+	// Add jitter: random value in [0, delay/2), so final delay is in [delay/2, delay)
+	jitter := time.Duration(rand.Int64N(int64(delay / 2)))
+	return delay/2 + jitter
 }
