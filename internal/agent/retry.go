@@ -30,6 +30,11 @@ func isRetryableStreamError(err error) bool {
 	if err == nil {
 		return false
 	}
+	// Context cancelled/expired — do NOT retry (check first since
+	// context.DeadlineExceeded also satisfies net.Error)
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
 	// Network-level errors (connection refused, timeout, DNS)
 	var netErr net.Error
 	if errors.As(err, &netErr) {
@@ -47,10 +52,6 @@ func isRetryableStreamError(err error) bool {
 		if strings.Contains(errStr, fmt.Sprintf("api error %d", code)) {
 			return true
 		}
-	}
-	// Context cancelled/expired — do NOT retry
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return false
 	}
 	// Connection reset / EOF
 	if strings.Contains(errStr, "connection reset") ||

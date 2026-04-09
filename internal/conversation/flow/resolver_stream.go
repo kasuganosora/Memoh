@@ -79,7 +79,11 @@ func (r *Resolver) StreamChat(ctx context.Context, req conversation.ChatRequest)
 					stored = true
 				}
 			}
-			chunkCh <- conversation.StreamChunk(data)
+			select {
+			case chunkCh <- conversation.StreamChunk(data):
+			case <-ctx.Done():
+				return
+			}
 		}
 
 		if idleCancel.DidFire() {
