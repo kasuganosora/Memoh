@@ -1,4 +1,4 @@
--- 0062_revert_local_to_web (rollback)
+-- 0064_revert_local_to_web (rollback)
 -- Re-apply the 'local' convention by converting 'web' back to 'local'.
 
 UPDATE channel_identities SET channel_type = 'local' WHERE channel_type = 'web';

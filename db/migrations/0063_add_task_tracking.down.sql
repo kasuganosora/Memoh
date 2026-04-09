@@ -1,4 +1,4 @@
--- 0061_add_task_tracking (rollback)
+-- 0063_add_task_tracking (rollback)
 -- Remove exec_id and pid columns from tasks table.
 
 DROP INDEX IF EXISTS idx_tasks_pid;
