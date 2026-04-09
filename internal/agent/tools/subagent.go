@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	sdk "github.com/memohai/twilight-ai/sdk"
 
@@ -60,6 +61,10 @@ type SpawnResult struct {
 	Text     string
 	Usage    *sdk.Usage
 }
+
+// subagentTimeout caps total execution time for a single subagent task.
+// This prevents runaway subagent calls from blocking the parent agent forever.
+const subagentTimeout = 10 * time.Minute
 
 // SpawnProvider exposes a "spawn" tool that runs one or more subagent tasks
 // concurrently and returns results to the parent agent.
@@ -199,11 +204,14 @@ func (p *SpawnProvider) runSubagentTask(
 	systemPrompt string,
 	query string,
 ) spawnResult {
+	taskCtx, taskCancel := context.WithTimeout(ctx, subagentTimeout)
+	defer taskCancel()
+
 	res := spawnResult{Task: query}
 
 	var sessionID string
 	if p.sessionService != nil {
-		sess, err := p.sessionService.Create(ctx, sessionpkg.CreateInput{
+		sess, err := p.sessionService.Create(taskCtx, sessionpkg.CreateInput{
 			BotID:           parentSession.BotID,
 			Type:            sessionpkg.TypeSubagent,
 			Title:           truncateTitle(query, 100),
@@ -234,7 +242,7 @@ func (p *SpawnProvider) runSubagentTask(
 		LoopDetection: SpawnLoopConfig{Enabled: true},
 	}
 
-	genResult, err := p.agent.Generate(ctx, cfg)
+	genResult, err := p.agent.Generate(taskCtx, cfg)
 	if err != nil {
 		res.Error = err.Error()
 		return res
@@ -244,7 +252,7 @@ func (p *SpawnProvider) runSubagentTask(
 	res.Success = true
 
 	if p.messageService != nil && sessionID != "" {
-		p.persistMessages(ctx, parentSession.BotID, sessionID, modelID, query, genResult)
+		p.persistMessages(taskCtx, parentSession.BotID, sessionID, modelID, query, genResult)
 	}
 
 	return res

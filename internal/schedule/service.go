@@ -242,6 +242,10 @@ func (s *Service) Trigger(ctx context.Context, scheduleID string) error {
 
 const scheduleTokenTTL = 10 * time.Minute
 
+// scheduleRunTimeout caps how long a single schedule execution may take.
+// This prevents unbounded Generate() calls from hanging forever.
+const scheduleRunTimeout = 5 * time.Minute
+
 func (s *Service) runSchedule(ctx context.Context, sched Schedule) error {
 	if s.triggerer == nil {
 		return errors.New("schedule triggerer not configured")
@@ -486,7 +490,9 @@ func (s *Service) scheduleJob(ctx context.Context, schedule sqlc.Schedule) error
 		return errors.New("schedule id missing")
 	}
 	job := func() {
-		if err := s.runSchedule(context.WithoutCancel(ctx), toSchedule(schedule)); err != nil {
+		runCtx, runCancel := context.WithTimeout(context.WithoutCancel(ctx), scheduleRunTimeout)
+		defer runCancel()
+		if err := s.runSchedule(runCtx, toSchedule(schedule)); err != nil {
 			s.logger.Error("scheduled job failed", slog.String("schedule_id", schedule.ID.String()), slog.Any("error", err))
 		}
 	}

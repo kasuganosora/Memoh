@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"math"
 	"strings"
+	"time"
 
 	sdk "github.com/memohai/twilight-ai/sdk"
 
@@ -15,6 +16,15 @@ import (
 )
 
 const defaultContainerExecWorkDir = "/data"
+
+// containerOpTimeout is the maximum time allowed for individual file
+// operations (read, write, list, edit). Exec has its own timeout.
+const containerOpTimeout = 30 * time.Second
+
+// largeFileThreshold defines the size above which file operations use
+// streaming (async chunked I/O) instead of loading fully into memory.
+// Files <= this threshold use the simpler synchronous gRPC calls.
+const largeFileThreshold = 512 * 1024 // 512 KB
 
 type ContainerProvider struct {
 	clients     bridge.Provider
@@ -156,7 +166,10 @@ func (p *ContainerProvider) getClient(ctx context.Context, botID string) (*bridg
 }
 
 func (p *ContainerProvider) execRead(ctx context.Context, session SessionContext, args map[string]any) (any, error) {
-	client, err := p.getClient(ctx, session.BotID)
+	opCtx, opCancel := context.WithTimeout(ctx, containerOpTimeout)
+	defer opCancel()
+
+	client, err := p.getClient(opCtx, session.BotID)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +201,7 @@ func (p *ContainerProvider) execRead(ctx context.Context, session SessionContext
 		}
 		nLines = int32(n) //nolint:gosec // bounded by readMaxLines
 	}
-	resp, err := client.ReadFile(ctx, filePath, lineOffset, nLines)
+	resp, err := client.ReadFile(opCtx, filePath, lineOffset, nLines)
 	if err != nil {
 		return nil, err
 	}
@@ -196,14 +209,17 @@ func (p *ContainerProvider) execRead(ctx context.Context, session SessionContext
 		if !session.SupportsImageInput {
 			return nil, errors.New("file appears to be binary. Read tool only supports text files (image reading not available for this model)")
 		}
-		return ReadImageFromContainer(ctx, client, filePath, defaultReadMediaMaxBytes), nil
+		return ReadImageFromContainer(opCtx, client, filePath, defaultReadMediaMaxBytes), nil
 	}
 	content := addLineNumbers(resp.GetContent(), lineOffset)
 	return map[string]any{"content": content, "total_lines": resp.GetTotalLines()}, nil
 }
 
 func (p *ContainerProvider) execWrite(ctx context.Context, session SessionContext, args map[string]any) (any, error) {
-	client, err := p.getClient(ctx, session.BotID)
+	opCtx, opCancel := context.WithTimeout(ctx, containerOpTimeout)
+	defer opCancel()
+
+	client, err := p.getClient(opCtx, session.BotID)
 	if err != nil {
 		return nil, err
 	}
@@ -212,14 +228,28 @@ func (p *ContainerProvider) execWrite(ctx context.Context, session SessionContex
 	if filePath == "" {
 		return nil, errors.New("path is required")
 	}
-	if err := client.WriteFile(ctx, filePath, []byte(content)); err != nil {
-		return nil, err
+
+	data := []byte(content)
+	if len(data) > largeFileThreshold {
+		// Large content: use streaming WriteRaw to avoid loading everything
+		// into a single gRPC message and to allow incremental transfer.
+		if _, err := client.WriteRaw(opCtx, filePath, strings.NewReader(content)); err != nil {
+			return nil, err
+		}
+	} else {
+		// Small content: simple synchronous write.
+		if err := client.WriteFile(opCtx, filePath, data); err != nil {
+			return nil, err
+		}
 	}
 	return map[string]any{"ok": true}, nil
 }
 
 func (p *ContainerProvider) execList(ctx context.Context, session SessionContext, args map[string]any) (any, error) {
-	client, err := p.getClient(ctx, session.BotID)
+	opCtx, opCancel := context.WithTimeout(ctx, containerOpTimeout)
+	defer opCancel()
+
+	client, err := p.getClient(opCtx, session.BotID)
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +290,7 @@ func (p *ContainerProvider) execList(ctx context.Context, session SessionContext
 		collapseThreshold = listCollapseThreshold
 	}
 
-	result, err := client.ListDir(ctx, dirPath, recursive, offset, limit, collapseThreshold)
+	result, err := client.ListDir(opCtx, dirPath, recursive, offset, limit, collapseThreshold)
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +318,10 @@ func (p *ContainerProvider) execList(ctx context.Context, session SessionContext
 }
 
 func (p *ContainerProvider) execEdit(ctx context.Context, session SessionContext, args map[string]any) (any, error) {
-	client, err := p.getClient(ctx, session.BotID)
+	opCtx, opCancel := context.WithTimeout(ctx, containerOpTimeout)
+	defer opCancel()
+
+	client, err := p.getClient(opCtx, session.BotID)
 	if err != nil {
 		return nil, err
 	}
@@ -298,21 +331,52 @@ func (p *ContainerProvider) execEdit(ctx context.Context, session SessionContext
 	if filePath == "" || oldText == "" {
 		return nil, errors.New("path, old_text and new_text are required")
 	}
-	reader, err := client.ReadRaw(ctx, filePath)
-	if err != nil {
-		return nil, err
+
+	// Check file size to decide sync vs streaming strategy.
+	stat, statErr := client.Stat(opCtx, filePath)
+	useStreaming := statErr == nil && stat != nil && stat.GetSize() > int64(largeFileThreshold)
+
+	var raw []byte
+	if useStreaming {
+		// Large file: stream-read in chunks to avoid loading a huge gRPC
+		// message, reducing memory pressure and avoiding message-size limits.
+		reader, err := client.ReadRaw(opCtx, filePath)
+		if err != nil {
+			return nil, err
+		}
+		defer func() { _ = reader.Close() }()
+		raw, err = io.ReadAll(reader)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Small file: single synchronous RPC (fast path).
+		reader, err := client.ReadRaw(opCtx, filePath)
+		if err != nil {
+			return nil, err
+		}
+		defer func() { _ = reader.Close() }()
+		raw, err = io.ReadAll(reader)
+		if err != nil {
+			return nil, err
+		}
 	}
-	defer func() { _ = reader.Close() }()
-	raw, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, err
-	}
+
 	updated, err := applyEdit(string(raw), filePath, oldText, newText)
 	if err != nil {
 		return nil, err
 	}
-	if err := client.WriteFile(ctx, filePath, []byte(updated)); err != nil {
-		return nil, err
+
+	updatedBytes := []byte(updated)
+	if len(updatedBytes) > largeFileThreshold {
+		// Large result: stream-write to avoid gRPC message size issues.
+		if _, err := client.WriteRaw(opCtx, filePath, strings.NewReader(updated)); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := client.WriteFile(opCtx, filePath, updatedBytes); err != nil {
+			return nil, err
+		}
 	}
 	return map[string]any{"ok": true}, nil
 }

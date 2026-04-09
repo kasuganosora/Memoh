@@ -24,14 +24,15 @@ import (
 )
 
 const (
-	readMaxLines     = 200
-	readMaxBytes     = 5120
-	readMaxLineLen   = 1000
-	listMaxEntries   = 200
-	binaryProbeBytes = 8 * 1024
-	rawChunkSize     = 64 * 1024
-	defaultWorkDir   = "/data"
-	defaultTimeout   = 30
+	readMaxLines      = 200
+	readMaxBytes      = 5120
+	readMaxLineLen    = 1000
+	listMaxEntries    = 200
+	binaryProbeBytes  = 8 * 1024
+	rawChunkSize      = 64 * 1024
+	defaultWorkDir    = "/data"
+	defaultTimeout    = 30
+	defaultPTYTimeout = 5 * 60 // 5 minutes max for PTY sessions (agent tool calls)
 )
 
 type containerServer struct {
@@ -288,11 +289,18 @@ func execPTY(stream pb.ContainerService_ExecServer, firstMsg *pb.ExecInput) erro
 		workDir = defaultWorkDir
 	}
 
+	timeout := int(firstMsg.GetTimeoutSeconds())
+	if timeout <= 0 {
+		timeout = defaultPTYTimeout
+	}
+	ctx, cancel := context.WithTimeout(stream.Context(), time.Duration(timeout)*time.Second)
+	defer cancel()
+
 	var cmd *exec.Cmd
 	if isBarePath(command) {
-		cmd = exec.CommandContext(stream.Context(), command) //nolint:gosec // G204: intentional
+		cmd = exec.CommandContext(ctx, command) //nolint:gosec // G204: intentional
 	} else {
-		cmd = exec.CommandContext(stream.Context(), "/bin/sh", "-c", command) //nolint:gosec // G204: intentional
+		cmd = exec.CommandContext(ctx, "/bin/sh", "-c", command) //nolint:gosec // G204: intentional
 	}
 	cmd.Dir = workDir
 	cmd.Env = append(os.Environ(), firstMsg.GetEnv()...)
