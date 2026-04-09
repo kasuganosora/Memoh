@@ -9,22 +9,25 @@ import (
 	"time"
 )
 
-// RetryConfig controls retry behavior for initial stream failures.
+// RetryConfig controls retry behavior for stream failures.
 type RetryConfig struct {
-	MaxAttempts int
-	BaseDelay   time.Duration
-	MaxDelay    time.Duration
+	MaxAttempts  int           // total retry attempts
+	FastAttempts int           // first N attempts with no delay
+	BaseDelay    time.Duration // backoff base for non-fast attempts
+	MaxDelay     time.Duration // backoff cap
 }
 
 // serverErrPattern matches "api error 5XX" where XX is any two digits.
 var serverErrPattern = regexp.MustCompile(`api error 5\d{2}`)
 
-// DefaultRetryConfig returns sensible defaults for LLM provider retries.
+// DefaultRetryConfig returns the default retry strategy: 10 attempts total,
+// first 5 fast (no delay), last 5 with exponential backoff.
 func DefaultRetryConfig() RetryConfig {
 	return RetryConfig{
-		MaxAttempts: 3,
-		BaseDelay:   1 * time.Second,
-		MaxDelay:    10 * time.Second,
+		MaxAttempts:  10,
+		FastAttempts: 5,
+		BaseDelay:    1 * time.Second,
+		MaxDelay:     30 * time.Second,
 	}
 }
 
@@ -63,7 +66,15 @@ func isRetryableStreamError(err error) bool {
 	return false
 }
 
-func retryBackoff(attempt int, cfg RetryConfig) time.Duration {
-	delay := cfg.BaseDelay * time.Duration(1<<uint(attempt)) // exponential
+// retryDelay returns the delay before the next retry attempt.
+// For fast attempts (0-indexed < FastAttempts): no delay.
+// For backoff attempts: exponential delay with jitter, capped at MaxDelay.
+func retryDelay(attempt int, cfg RetryConfig) time.Duration {
+	if attempt < cfg.FastAttempts {
+		return 0
+	}
+	// Exponential backoff: base * 2^(attempt - fastAttempts)
+	backoffIdx := attempt - cfg.FastAttempts
+	delay := cfg.BaseDelay * time.Duration(1<<uint(backoffIdx))
 	return min(delay, cfg.MaxDelay)
 }

@@ -185,17 +185,16 @@ func (a *Agent) runStream(ctx context.Context, cfg RunConfig, ch chan<- StreamEv
 			MaxAttempt: retryCfg.MaxAttempts,
 			RetryError: err.Error(),
 		}
-		if attempt+1 < retryCfg.MaxAttempts {
-			backoff := retryBackoff(attempt, retryCfg)
-			select {
-			case <-time.After(backoff):
-			case <-ctx.Done():
-				ch <- StreamEvent{Type: EventError, Error: fmt.Sprintf("stream start: context cancelled during retry: %v", ctx.Err())}
-				return
-			}
-		} else {
+		if attempt+1 >= retryCfg.MaxAttempts {
 			ch <- StreamEvent{Type: EventError, Error: fmt.Sprintf("stream start: all %d attempts failed (last: %v)", retryCfg.MaxAttempts, err)}
 			return
+		}
+		delay := retryDelay(attempt, retryCfg)
+		if delay > 0 {
+			if err := sleepWithContext(ctx, delay); err != nil {
+				ch <- StreamEvent{Type: EventError, Error: fmt.Sprintf("stream start: context cancelled during retry: %v", err)}
+				return
+			}
 		}
 	}
 
@@ -679,27 +678,26 @@ func (a *Agent) runMidStreamRetry(
 	errMsg string,
 	allText *strings.Builder,
 ) (*sdk.StreamResult, bool) {
-	midRetryCfg := defaultMidStreamRetryConfig
-	for retryAttempt := 0; retryAttempt < midRetryCfg.MaxAttempts; retryAttempt++ {
+	retryCfg := DefaultRetryConfig()
+	for attempt := 0; attempt < retryCfg.MaxAttempts; attempt++ {
 		a.logger.Warn("mid-stream error, retrying",
 			slog.Int("step", stepNumber),
-			slog.Int("retry_attempt", retryAttempt+1),
+			slog.Int("attempt", attempt+1),
+			slog.Int("max_attempts", retryCfg.MaxAttempts),
 			slog.String("error", errMsg),
 		)
 		ch <- StreamEvent{
 			Type:       EventRetry,
-			Attempt:    retryAttempt + 1,
-			MaxAttempt: midRetryCfg.MaxAttempts,
+			Attempt:    attempt + 1,
+			MaxAttempt: retryCfg.MaxAttempts,
 			RetryError: errMsg,
 		}
 
-		backoff := retryBackoff(retryAttempt, RetryConfig{
-			MaxAttempts: midRetryCfg.MaxAttempts,
-			BaseDelay:   midRetryCfg.BaseDelay,
-			MaxDelay:    10 * time.Second,
-		})
-		if err := sleepWithContext(ctx, backoff); err != nil {
-			return prevResult, true // aborted
+		delay := retryDelay(attempt, retryCfg)
+		if delay > 0 {
+			if err := sleepWithContext(ctx, delay); err != nil {
+				return prevResult, true // aborted
+			}
 		}
 
 		// Re-invoke StreamText with accumulated messages
@@ -723,7 +721,7 @@ func (a *Agent) runMidStreamRetry(
 		retryResult, retryErr := a.client.StreamText(ctx, retryOpts...)
 		if retryErr != nil {
 			a.logger.Warn("mid-stream retry failed to start",
-				slog.Int("retry_attempt", retryAttempt+1),
+				slog.Int("attempt", attempt+1),
 				slog.String("error", retryErr.Error()),
 			)
 			continue
@@ -800,15 +798,4 @@ func sleepWithContext(ctx context.Context, d time.Duration) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-}
-
-// midStreamRetryConfig holds configuration for mid-stream retries.
-type midStreamRetryConfig struct {
-	MaxAttempts int
-	BaseDelay   time.Duration
-}
-
-var defaultMidStreamRetryConfig = midStreamRetryConfig{
-	MaxAttempts: 2,
-	BaseDelay:   2 * time.Second,
 }
