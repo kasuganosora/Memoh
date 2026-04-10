@@ -143,6 +143,8 @@
   },
   "chat": {
     "greeting": "Hi! How can I help you today?",
+    "emptySubagent": "No messages recorded for this subagent task",
+    "emptySystemSession": "No messages recorded for this system session",
     "selectBot": "Select a Bot",
     "selectBotHint": "Choose a bot from the sidebar to start chatting",
     "thinking": "Thinking…",
