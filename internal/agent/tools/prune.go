@@ -10,9 +10,9 @@ const (
 	toolOutputHeadLines = 150
 	toolOutputTailLines = 50
 
-	readMaxLines      = 200
-	readMaxBytes      = 5120
-	readMaxLineLength = 1000
+	readMaxLines      = 2000
+	readMaxBytes      = 0  // 0 = no byte limit
+	readMaxLineLength = 0  // 0 = no per-line truncation
 	readHeadBytes     = 3072
 	readTailBytes     = 1024
 	readHeadLines     = 120

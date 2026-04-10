@@ -24,9 +24,9 @@ import (
 )
 
 const (
-	readMaxLines      = 200
-	readMaxBytes      = 5120
-	readMaxLineLen    = 1000
+	readMaxLines      = 2000
+	readMaxBytes      = 0 // 0 = no byte limit (line count only)
+	readMaxLineLen    = 0 // 0 = no per-line truncation
 	listMaxEntries    = 200
 	binaryProbeBytes  = 8 * 1024
 	rawChunkSize      = 64 * 1024
@@ -90,12 +90,12 @@ func (*containerServer) ReadFile(_ context.Context, req *pb.ReadFileRequest) (*p
 		}
 
 		line := scanner.Text()
-		if utf8.RuneCountInString(line) > readMaxLineLen {
+		if readMaxLineLen > 0 && utf8.RuneCountInString(line) > readMaxLineLen {
 			line = truncateRunes(line, readMaxLineLen) + "..."
 		}
 
 		entry := line + "\n"
-		if bytesWritten+len(entry) > readMaxBytes {
+		if readMaxBytes > 0 && bytesWritten+len(entry) > readMaxBytes {
 			break
 		}
 		out.WriteString(entry)

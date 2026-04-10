@@ -91,7 +91,10 @@ func main() {
 		return
 	}
 
-	srv := grpc.NewServer()
+	srv := grpc.NewServer(
+		grpc.MaxRecvMsgSize(16*1024*1024),
+		grpc.MaxSendMsgSize(16*1024*1024),
+	)
 	pb.RegisterContainerServiceServer(srv, &containerServer{})
 	reflection.Register(srv)
 

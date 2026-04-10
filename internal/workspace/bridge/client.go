@@ -51,6 +51,10 @@ func Dial(_ context.Context, target string) (*Client, error) {
 			Timeout:             10 * time.Second, // wait 10s for ping ack
 			PermitWithoutStream: true,             // ping even with no active RPC
 		}),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(16*1024*1024),
+			grpc.MaxCallSendMsgSize(16*1024*1024),
+		),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("grpc dial %s: %w", target, err)

@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -47,7 +48,7 @@ func (p *ContainerProvider) Tools(_ context.Context, session SessionContext) ([]
 	wd := p.execWorkDir
 	sess := session
 
-	readDesc := fmt.Sprintf("Read file content inside the bot container. Supports pagination for large files. Max %d lines / %d bytes per call.", readMaxLines, readMaxBytes)
+	readDesc := fmt.Sprintf("Read file content inside the bot container. Reads the full file by default; use line_offset and n_lines for pagination. Files up to ~16 MB are supported.")
 	if sess.SupportsImageInput {
 		readDesc += " Also supports reading image files (PNG, JPEG, GIF, WebP) — binary images are loaded into model context automatically."
 	}
@@ -61,7 +62,7 @@ func (p *ContainerProvider) Tools(_ context.Context, session SessionContext) ([]
 				"properties": map[string]any{
 					"path":        map[string]any{"type": "string", "description": fmt.Sprintf("File path (relative to %s or absolute inside container)", wd)},
 					"line_offset": map[string]any{"type": "integer", "description": "Line number to start reading from (1-indexed). Default: 1.", "minimum": 1, "default": 1},
-					"n_lines":     map[string]any{"type": "integer", "description": fmt.Sprintf("Number of lines to read per call. Default: %d. Max: %d.", readMaxLines, readMaxLines), "minimum": 1, "maximum": readMaxLines, "default": readMaxLines},
+					"n_lines":     map[string]any{"type": "integer", "description": "Number of lines to read. Default: read entire file.", "minimum": 1},
 				},
 				"required": []string{"path"},
 			},
@@ -71,7 +72,7 @@ func (p *ContainerProvider) Tools(_ context.Context, session SessionContext) ([]
 		},
 		{
 			Name:        "write",
-			Description: "Write file content inside the bot container.",
+			Description: "Write file content inside the bot container. Creates parent directories automatically. Handles files of any size.",
 			Parameters: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -177,42 +178,76 @@ func (p *ContainerProvider) execRead(ctx context.Context, session SessionContext
 	if filePath == "" {
 		return nil, errors.New("path is required")
 	}
-	lineOffset := int32(1)
+
+	lineOffset := 1
 	if offset, ok, err := IntArg(args, "line_offset"); err != nil {
 		return nil, fmt.Errorf("invalid line_offset: %w", err)
 	} else if ok {
 		if offset < 1 {
 			return nil, errors.New("line_offset must be >= 1")
 		}
-		if offset > math.MaxInt32 {
-			return nil, errors.New("line_offset exceeds maximum")
-		}
-		lineOffset = int32(offset)
+		lineOffset = offset
 	}
-	nLines := int32(readMaxLines)
+	nLines := 0 // 0 = read entire file
 	if n, ok, err := IntArg(args, "n_lines"); err != nil {
 		return nil, fmt.Errorf("invalid n_lines: %w", err)
-	} else if ok {
-		if n < 1 {
-			return nil, errors.New("n_lines must be >= 1")
-		}
-		if n > readMaxLines {
-			n = readMaxLines
-		}
-		nLines = int32(n) //nolint:gosec // bounded by readMaxLines
+	} else if ok && n > 0 {
+		nLines = n
 	}
-	resp, err := client.ReadFile(opCtx, filePath, lineOffset, nLines)
+
+	// Stream-read the full file content.
+	reader, err := client.ReadRaw(opCtx, filePath)
 	if err != nil {
 		return nil, err
 	}
-	if resp.GetBinary() {
+	defer func() { _ = reader.Close() }()
+
+	// Probe for binary content.
+	probe := make([]byte, 8*1024)
+	probeN, probeErr := reader.Read(probe)
+	if probeErr != nil && probeErr != io.EOF {
+		return nil, fmt.Errorf("read probe: %w", probeErr)
+	}
+	if bytes.IndexByte(probe[:probeN], 0) >= 0 {
 		if !session.SupportsImageInput {
 			return nil, errors.New("file appears to be binary. Read tool only supports text files (image reading not available for this model)")
 		}
 		return ReadImageFromContainer(opCtx, client, filePath, defaultReadMediaMaxBytes), nil
 	}
-	content := addLineNumbers(resp.GetContent(), lineOffset)
-	return map[string]any{"content": content, "total_lines": resp.GetTotalLines()}, nil
+
+	// Read remaining content after probe.
+	var buf strings.Builder
+	buf.Write(probe[:probeN])
+	if probeErr != io.EOF {
+		remaining, readErr := io.ReadAll(reader)
+		if readErr != nil {
+			return nil, fmt.Errorf("read file: %w", readErr)
+		}
+		buf.Write(remaining)
+	}
+
+	fullContent := buf.String()
+	lines := strings.Split(fullContent, "\n")
+	totalLines := len(lines)
+
+	// Apply line_offset and n_lines.
+	start := lineOffset - 1 // convert to 0-based
+	if start > totalLines {
+		start = totalLines
+	}
+	end := totalLines
+	if nLines > 0 && start+nLines < end {
+		end = start + nLines
+	}
+
+	selectedLines := lines[start:end]
+	content := strings.Join(selectedLines, "\n")
+	if !strings.HasSuffix(content, "\n") && end < totalLines {
+		content += "\n"
+	}
+
+	content = addLineNumbers(content, int32(lineOffset))
+	return map[string]any{"content": content, "total_lines": totalLines}, nil
 }
 
 func (p *ContainerProvider) execWrite(ctx context.Context, session SessionContext, args map[string]any) (any, error) {
