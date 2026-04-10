@@ -260,8 +260,8 @@ func provideWorkspaceManager(log *slog.Logger, service ctr.Service, cfg config.C
 	return workspace.NewManager(log, service, cfg.Workspace, cfg.Containerd.Namespace, conn)
 }
 
-func provideMemoryLLM(modelsService *models.Service, queries *dbsqlc.Queries, log *slog.Logger) memprovider.LLM {
-	return &lazyLLMClient{modelsService: modelsService, queries: queries, timeout: 30 * time.Second, logger: log}
+func provideMemoryLLM(modelsService *models.Service, settingsService *settings.Service, queries *dbsqlc.Queries, log *slog.Logger) memprovider.LLM {
+	return &lazyLLMClient{modelsService: modelsService, settingsService: settingsService, queries: queries, timeout: 30 * time.Second, logger: log}
 }
 
 func provideMemoryProviderRegistry(log *slog.Logger, llm memprovider.LLM, chatService *conversation.Service, accountService *accounts.Service, manager *workspace.Manager, queries *dbsqlc.Queries, cfg config.Config) *memprovider.Registry {
@@ -1000,14 +1000,15 @@ func ensureAdminUser(ctx context.Context, log *slog.Logger, queries *dbsqlc.Quer
 }
 
 type lazyLLMClient struct {
-	modelsService *models.Service
-	queries       *dbsqlc.Queries
-	timeout       time.Duration
-	logger        *slog.Logger
+	modelsService   *models.Service
+	settingsService *settings.Service
+	queries         *dbsqlc.Queries
+	timeout         time.Duration
+	logger          *slog.Logger
 }
 
 func (c *lazyLLMClient) Extract(ctx context.Context, req memprovider.ExtractRequest) (memprovider.ExtractResponse, error) {
-	client, err := c.resolve(ctx)
+	client, err := c.resolve(ctx, req.BotID)
 	if err != nil {
 		return memprovider.ExtractResponse{}, err
 	}
@@ -1015,7 +1016,7 @@ func (c *lazyLLMClient) Extract(ctx context.Context, req memprovider.ExtractRequ
 }
 
 func (c *lazyLLMClient) Decide(ctx context.Context, req memprovider.DecideRequest) (memprovider.DecideResponse, error) {
-	client, err := c.resolve(ctx)
+	client, err := c.resolve(ctx, req.BotID)
 	if err != nil {
 		return memprovider.DecideResponse{}, err
 	}
@@ -1023,7 +1024,7 @@ func (c *lazyLLMClient) Decide(ctx context.Context, req memprovider.DecideReques
 }
 
 func (c *lazyLLMClient) Compact(ctx context.Context, req memprovider.CompactRequest) (memprovider.CompactResponse, error) {
-	client, err := c.resolve(ctx)
+	client, err := c.resolve(ctx, "")
 	if err != nil {
 		return memprovider.CompactResponse{}, err
 	}
@@ -1031,18 +1032,32 @@ func (c *lazyLLMClient) Compact(ctx context.Context, req memprovider.CompactRequ
 }
 
 func (c *lazyLLMClient) DetectLanguage(ctx context.Context, text string) (string, error) {
-	client, err := c.resolve(ctx)
+	client, err := c.resolve(ctx, "")
 	if err != nil {
 		return "", err
 	}
 	return client.DetectLanguage(ctx, text)
 }
 
-func (c *lazyLLMClient) resolve(ctx context.Context) (memprovider.LLM, error) {
+func (c *lazyLLMClient) resolve(ctx context.Context, botID string) (memprovider.LLM, error) {
 	if c.modelsService == nil || c.queries == nil {
 		return nil, errors.New("models service not configured")
 	}
-	memoryModel, memoryProvider, err := models.SelectMemoryModelForBot(ctx, c.modelsService, c.queries, "")
+
+	// Try to use the bot's configured chat model for memory operations.
+	chatModelID := ""
+	if c.settingsService != nil && strings.TrimSpace(botID) != "" {
+		if botSettings, err := c.settingsService.GetBot(ctx, botID); err == nil {
+			// Prefer compaction model (smaller/cheaper), then chat model.
+			if id := strings.TrimSpace(botSettings.CompactionModelID); id != "" {
+				chatModelID = id
+			} else if id := strings.TrimSpace(botSettings.ChatModelID); id != "" {
+				chatModelID = id
+			}
+		}
+	}
+
+	memoryModel, memoryProvider, err := models.SelectMemoryModelForBot(ctx, c.modelsService, c.queries, chatModelID)
 	if err != nil {
 		return nil, err
 	}
