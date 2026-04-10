@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"strings"
 
 	"github.com/google/uuid"
@@ -185,33 +186,36 @@ func (s *Service) UpsertBot(ctx context.Context, botID string, req UpsertRequest
 	}
 	contextTokenBudgetValue := pgtype.Int4{}
 	if req.ContextTokenBudget != nil && *req.ContextTokenBudget >= 0 {
-		current.ContextTokenBudget = *req.ContextTokenBudget
-		contextTokenBudgetValue = pgtype.Int4{Int32: int32(*req.ContextTokenBudget), Valid: true}
+		v := *req.ContextTokenBudget
+		if v > math.MaxInt32 {
+			v = math.MaxInt32
+		}
+		contextTokenBudgetValue = pgtype.Int4{Int32: int32(v), Valid: true} //nolint:gosec // G115: clamped above
 	}
 
 	updated, err := s.queries.UpsertBotSettings(ctx, sqlc.UpsertBotSettingsParams{
-		ID:                      pgID,
-		Timezone:                timezoneValue,
-		Language:                current.Language,
-		ReasoningEnabled:        current.ReasoningEnabled,
-		ReasoningEffort:         current.ReasoningEffort,
-		HeartbeatEnabled:        current.HeartbeatEnabled,
-		HeartbeatInterval:       int32(current.HeartbeatInterval), //nolint:gosec // bounded by positive-only setter above
-		HeartbeatPrompt:         "",
-		CompactionEnabled:       current.CompactionEnabled,
-		CompactionThreshold:     int32(current.CompactionThreshold), //nolint:gosec // bounded by non-negative setter above
-		CompactionRatio:         int32(current.CompactionRatio),     //nolint:gosec // bounded 1-100 above
-		ChatModelID:             chatModelUUID,
-		HeartbeatModelID:        heartbeatModelUUID,
-		CompactionModelID:       compactionModelUUID,
-		TitleModelID:            titleModelUUID,
-		ImageModelID:            imageModelUUID,
-		SearchProviderID:        searchProviderUUID,
-		MemoryProviderID:        memoryProviderUUID,
-		TtsModelID:              ttsModelUUID,
-		BrowserContextID:        browserContextUUID,
-		ContextTokenBudget:      contextTokenBudgetValue,
-		PersistFullToolResults:  current.PersistFullToolResults,
+		ID:                     pgID,
+		Timezone:               timezoneValue,
+		Language:               current.Language,
+		ReasoningEnabled:       current.ReasoningEnabled,
+		ReasoningEffort:        current.ReasoningEffort,
+		HeartbeatEnabled:       current.HeartbeatEnabled,
+		HeartbeatInterval:      int32(current.HeartbeatInterval), //nolint:gosec // bounded by positive-only setter above
+		HeartbeatPrompt:        "",
+		CompactionEnabled:      current.CompactionEnabled,
+		CompactionThreshold:    int32(current.CompactionThreshold), //nolint:gosec // bounded by non-negative setter above
+		CompactionRatio:        int32(current.CompactionRatio),     //nolint:gosec // bounded 1-100 above
+		ChatModelID:            chatModelUUID,
+		HeartbeatModelID:       heartbeatModelUUID,
+		CompactionModelID:      compactionModelUUID,
+		TitleModelID:           titleModelUUID,
+		ImageModelID:           imageModelUUID,
+		SearchProviderID:       searchProviderUUID,
+		MemoryProviderID:       memoryProviderUUID,
+		TtsModelID:             ttsModelUUID,
+		BrowserContextID:       browserContextUUID,
+		ContextTokenBudget:     contextTokenBudgetValue,
+		PersistFullToolResults: current.PersistFullToolResults,
 	})
 	if err != nil {
 		return Settings{}, err

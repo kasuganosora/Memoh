@@ -149,11 +149,11 @@ type DeleteResponse struct {
 }
 
 type ExtractRequest struct {
-	BotID             string         `json:"bot_id,omitempty"`
-	Messages          []Message      `json:"messages"`
-	Filters           map[string]any `json:"filters,omitempty"`
-	Metadata          map[string]any `json:"metadata,omitempty"`
-	TimezoneLocation  *time.Location `json:"-"`
+	BotID            string         `json:"bot_id,omitempty"`
+	Messages         []Message      `json:"messages"`
+	Filters          map[string]any `json:"filters,omitempty"`
+	Metadata         map[string]any `json:"metadata,omitempty"`
+	TimezoneLocation *time.Location `json:"-"`
 }
 
 type ExtractResponse struct {

@@ -320,7 +320,7 @@ func (p *BrowserProvider) buildScreenshotResult(ctx context.Context, botID, base
 
 // emitScreenshotAttachment pushes the screenshot as an image attachment into the
 // agent stream so it gets delivered to the user's chat.
-func (p *BrowserProvider) emitScreenshotAttachment(session SessionContext, base64Data, mimeType string, size int64) {
+func (*BrowserProvider) emitScreenshotAttachment(session SessionContext, base64Data, mimeType string, size int64) {
 	if session.Emitter == nil {
 		return
 	}

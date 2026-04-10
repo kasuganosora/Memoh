@@ -10,14 +10,6 @@ const (
 	toolOutputHeadLines = 150
 	toolOutputTailLines = 50
 
-	readMaxLines      = 2000
-	readMaxBytes      = 0  // 0 = no byte limit
-	readMaxLineLength = 0  // 0 = no per-line truncation
-	readHeadBytes     = 3072
-	readTailBytes     = 1024
-	readHeadLines     = 120
-	readTailLines     = 40
-
 	listMaxEntries        = 200
 	listCollapseThreshold = 50
 )

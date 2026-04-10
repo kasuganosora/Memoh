@@ -48,7 +48,7 @@ func (p *ContainerProvider) Tools(_ context.Context, session SessionContext) ([]
 	wd := p.execWorkDir
 	sess := session
 
-	readDesc := fmt.Sprintf("Read file content inside the bot container. Reads the full file by default; use line_offset and n_lines for pagination. Files up to ~16 MB are supported.")
+	readDesc := "Read file content inside the bot container. Reads the full file by default; use line_offset and n_lines for pagination. Files up to ~16 MB are supported."
 	if sess.SupportsImageInput {
 		readDesc += " Also supports reading image files (PNG, JPEG, GIF, WebP) — binary images are loaded into model context automatically."
 	}
@@ -193,6 +193,16 @@ func (p *ContainerProvider) execRead(ctx context.Context, session SessionContext
 		return nil, fmt.Errorf("invalid n_lines: %w", err)
 	} else if ok && n > 0 {
 		nLines = n
+	}
+
+	// Pre-check file size to avoid loading excessively large files into
+	// memory. The gRPC transport is capped at 16 MB, so anything larger
+	// would fail anyway; reject early with a clear message.
+	const maxReadBytes = 16 * 1024 * 1024 // 16 MB
+	if stat, err := client.Stat(opCtx, filePath); err == nil && stat != nil {
+		if stat.GetSize() > maxReadBytes {
+			return nil, fmt.Errorf("file is too large (%d bytes, limit %d bytes). Use exec with head/tail/sed for partial reads", stat.GetSize(), maxReadBytes)
+		}
 	}
 
 	// Stream-read the full file content.
@@ -367,34 +377,15 @@ func (p *ContainerProvider) execEdit(ctx context.Context, session SessionContext
 		return nil, errors.New("path, old_text and new_text are required")
 	}
 
-	// Check file size to decide sync vs streaming strategy.
-	stat, statErr := client.Stat(opCtx, filePath)
-	useStreaming := statErr == nil && stat != nil && stat.GetSize() > int64(largeFileThreshold)
-
-	var raw []byte
-	if useStreaming {
-		// Large file: stream-read in chunks to avoid loading a huge gRPC
-		// message, reducing memory pressure and avoiding message-size limits.
-		reader, err := client.ReadRaw(opCtx, filePath)
-		if err != nil {
-			return nil, err
-		}
-		defer func() { _ = reader.Close() }()
-		raw, err = io.ReadAll(reader)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		// Small file: single synchronous RPC (fast path).
-		reader, err := client.ReadRaw(opCtx, filePath)
-		if err != nil {
-			return nil, err
-		}
-		defer func() { _ = reader.Close() }()
-		raw, err = io.ReadAll(reader)
-		if err != nil {
-			return nil, err
-		}
+	// Read file content via streaming RPC.
+	reader, err := client.ReadRaw(opCtx, filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = reader.Close() }()
+	raw, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
 	}
 
 	updated, err := applyEdit(string(raw), filePath, oldText, newText)

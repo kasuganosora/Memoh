@@ -233,8 +233,8 @@ func (a *Agent) runStream(ctx context.Context, cfg RunConfig, ch chan<- StreamEv
 			stepNumber++
 			ch <- StreamEvent{Type: EventTextEnd}
 			ch <- StreamEvent{
-				Type:          EventProgress,
-				StepNumber:    stepNumber,
+				Type:           EventProgress,
+				StepNumber:     stepNumber,
 				ProgressStatus: "text",
 			}
 
@@ -273,9 +273,9 @@ func (a *Agent) runStream(ctx context.Context, cfg RunConfig, ch chan<- StreamEv
 				Result:     p.Output,
 			}
 			ch <- StreamEvent{
-				Type:          EventProgress,
-				StepNumber:    stepNumber,
-				ToolName:      p.ToolName,
+				Type:           EventProgress,
+				StepNumber:     stepNumber,
+				ToolName:       p.ToolName,
 				ProgressStatus: "tool_result",
 			}
 			if shouldAbort {
@@ -813,9 +813,9 @@ func (a *Agent) runMidStreamRetry(
 					Result:     rp.Output,
 				}
 				ch <- StreamEvent{
-					Type:          EventProgress,
-					StepNumber:    stepNumber,
-					ToolName:      rp.ToolName,
+					Type:           EventProgress,
+					StepNumber:     stepNumber,
+					ToolName:       rp.ToolName,
 					ProgressStatus: "tool_result",
 				}
 			case *sdk.StreamToolErrorPart:

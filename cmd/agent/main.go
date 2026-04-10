@@ -363,11 +363,11 @@ func provideWorkspaceManager(log *slog.Logger, service ctr.Service, cfg config.C
 
 func provideMemoryLLM(modelsService *models.Service, settingsService *settings.Service, queries *dbsqlc.Queries, log *slog.Logger) memprovider.LLM {
 	return &lazyLLMClient{
-		modelsService:  modelsService,
+		modelsService:   modelsService,
 		settingsService: settingsService,
-		queries:        queries,
-		timeout:        30 * time.Second,
-		logger:         log,
+		queries:         queries,
+		timeout:         30 * time.Second,
+		logger:          log,
 	}
 }
 
@@ -1079,11 +1079,11 @@ func ensureAdminUser(ctx context.Context, log *slog.Logger, queries *dbsqlc.Quer
 // ---------------------------------------------------------------------------
 
 type lazyLLMClient struct {
-	modelsService  *models.Service
+	modelsService   *models.Service
 	settingsService *settings.Service
-	queries        *dbsqlc.Queries
-	timeout        time.Duration
-	logger         *slog.Logger
+	queries         *dbsqlc.Queries
+	timeout         time.Duration
+	logger          *slog.Logger
 }
 
 func (c *lazyLLMClient) Extract(ctx context.Context, req memprovider.ExtractRequest) (memprovider.ExtractResponse, error) {

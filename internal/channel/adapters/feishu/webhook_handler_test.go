@@ -97,7 +97,7 @@ func TestWebhookHandler_URLVerification(t *testing.T) {
 			h := NewWebhookHandler(nil, store, manager)
 
 			e := echo.New()
-			req := httptest.NewRequest(http.MethodPost, "/channels/feishu/webhook/"+testWebhookConfigID, strings.NewReader(tc.body))
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/channels/feishu/webhook/"+testWebhookConfigID, strings.NewReader(tc.body))
 			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 			rec := httptest.NewRecorder()
 			c := e.NewContext(req, rec)
@@ -165,7 +165,7 @@ func TestWebhookHandler_URLVerificationWithEncryptKeyWithoutVerificationToken(t 
 	}
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodPost, "/channels/feishu/webhook/"+testWebhookConfigID, strings.NewReader(`{"encrypt":"`+encrypt+`"}`))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/channels/feishu/webhook/"+testWebhookConfigID, strings.NewReader(`{"encrypt":"`+encrypt+`"}`))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
@@ -192,7 +192,7 @@ func TestWebhookHandler_Probe(t *testing.T) {
 	h := NewWebhookHandler(nil, &fakeWebhookStore{}, &fakeWebhookManager{})
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/channels/feishu/webhook/"+testWebhookConfigID, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/channels/feishu/webhook/"+testWebhookConfigID, nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.SetParamNames("config_id")
@@ -216,7 +216,7 @@ func TestWebhookHandler_ConfigLookupRejectsNotFound(t *testing.T) {
 	h := NewWebhookHandler(nil, store, &fakeWebhookManager{})
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodPost, "/channels/feishu/webhook/not-found", strings.NewReader(`{}`))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/channels/feishu/webhook/not-found", strings.NewReader(`{}`))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
@@ -262,7 +262,7 @@ func TestWebhookHandler_EventCallbackDispatchesInbound(t *testing.T) {
 
 	e := echo.New()
 	body := `{"schema":"2.0","header":{"event_id":"evt_1","event_type":"im.message.receive_v1","token":"verify-token"},"event":{"sender":{"sender_id":{"open_id":"ou_user_1","user_id":"u_user_1"}},"message":{"message_id":"om_1","chat_id":"oc_1","chat_type":"p2p","message_type":"text","content":"{\"text\":\"hello\"}"}},"type":"event_callback"}`
-	req := httptest.NewRequest(http.MethodPost, "/channels/feishu/webhook/"+testWebhookConfigID, strings.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/channels/feishu/webhook/"+testWebhookConfigID, strings.NewReader(body))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
@@ -311,7 +311,7 @@ func TestWebhookHandler_EventCallbackUsesExternalIdentityForMentionFilter(t *tes
 
 	e := echo.New()
 	body := `{"schema":"2.0","header":{"event_id":"evt_2","event_type":"im.message.receive_v1","token":"verify-token"},"event":{"sender":{"sender_id":{"open_id":"ou_user_2","user_id":"u_user_2"}},"message":{"message_id":"om_2","chat_id":"oc_group_1","chat_type":"group","message_type":"text","content":"{\"text\":\"<at user_id=\\\"ou_other_user\\\"></at> hello\"}"}},"type":"event_callback"}`
-	req := httptest.NewRequest(http.MethodPost, "/channels/feishu/webhook/"+testWebhookConfigID, strings.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/channels/feishu/webhook/"+testWebhookConfigID, strings.NewReader(body))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
@@ -389,7 +389,7 @@ func TestWebhookHandler_EventCallbackRejectsInvalidTokenWhenEncryptKeyMissing(t 
 			h := NewWebhookHandler(nil, store, manager)
 
 			e := echo.New()
-			req := httptest.NewRequest(http.MethodPost, "/channels/feishu/webhook/"+testWebhookConfigID, strings.NewReader(tc.body))
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/channels/feishu/webhook/"+testWebhookConfigID, strings.NewReader(tc.body))
 			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 			rec := httptest.NewRecorder()
 			c := e.NewContext(req, rec)
@@ -436,7 +436,7 @@ func TestWebhookHandler_RejectsOversizedBody(t *testing.T) {
 	h := NewWebhookHandler(nil, store, manager)
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodPost, "/channels/feishu/webhook/"+testWebhookConfigID, strings.NewReader(strings.Repeat("x", int(webhookMaxBodyBytes)+1)))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/channels/feishu/webhook/"+testWebhookConfigID, strings.NewReader(strings.Repeat("x", int(webhookMaxBodyBytes)+1)))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)

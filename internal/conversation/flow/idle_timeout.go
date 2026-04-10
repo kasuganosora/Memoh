@@ -9,12 +9,12 @@ import (
 // idleCancel wraps a resettable idle timer. If Reset() is not called before
 // the timer fires, the underlying context is cancelled.
 type idleCancel struct {
-	cancel     context.CancelFunc
-	timer      *time.Timer
-	mu         sync.Mutex
-	fired      bool
+	cancel      context.CancelFunc
+	timer       *time.Timer
+	mu          sync.Mutex
+	fired       bool
 	baseTimeout time.Duration
-	toolCalls  int
+	toolCalls   int
 }
 
 func (ic *idleCancel) Reset() {

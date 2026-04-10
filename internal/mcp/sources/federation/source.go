@@ -177,22 +177,22 @@ func (s *Source) buildToolsAndRoutes(ctx context.Context, botID string) ([]mcpgw
 				}
 				return items[i].Name < items[j].Name
 			})
-		for _, connection := range items {
-			var connTools []mcpgw.ToolDescriptor
-			listCtx, listCancel := context.WithTimeout(ctx, mcpCallTimeout)
-			switch strings.ToLower(strings.TrimSpace(connection.Type)) {
-			case "http":
-				connTools, err = s.gateway.ListHTTPConnectionTools(listCtx, connection)
-			case "sse":
-				connTools, err = s.gateway.ListSSEConnectionTools(listCtx, connection)
-			case "stdio":
-				connTools, err = s.gateway.ListStdioConnectionTools(listCtx, botID, connection)
-			default:
+			for _, connection := range items {
+				var connTools []mcpgw.ToolDescriptor
+				listCtx, listCancel := context.WithTimeout(ctx, mcpCallTimeout)
+				switch strings.ToLower(strings.TrimSpace(connection.Type)) {
+				case "http":
+					connTools, err = s.gateway.ListHTTPConnectionTools(listCtx, connection)
+				case "sse":
+					connTools, err = s.gateway.ListSSEConnectionTools(listCtx, connection)
+				case "stdio":
+					connTools, err = s.gateway.ListStdioConnectionTools(listCtx, botID, connection)
+				default:
+					listCancel()
+					s.logger.Warn("unsupported mcp connection type", slog.String("connection_id", connection.ID), slog.String("type", connection.Type))
+					continue
+				}
 				listCancel()
-				s.logger.Warn("unsupported mcp connection type", slog.String("connection_id", connection.ID), slog.String("type", connection.Type))
-				continue
-			}
-			listCancel()
 				if err != nil {
 					s.logger.Warn("list tools from connection failed", slog.String("connection_id", connection.ID), slog.String("name", connection.Name), slog.Any("error", err))
 					continue

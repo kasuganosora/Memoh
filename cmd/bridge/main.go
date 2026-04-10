@@ -49,7 +49,7 @@ func initDataDir() {
 		if err != nil {
 			continue
 		}
-		if err := os.WriteFile(dst, data, fs.FileMode(0o644)); err != nil {
+		if err := os.WriteFile(dst, data, fs.FileMode(0o644)); err != nil { //nolint:gosec // G703: dst is built from filepath.Join(defaultWorkDir, e.Name()) where e comes from os.ReadDir
 			logger.Warn("failed to seed template", slog.String("file", e.Name()), slog.Any("error", err))
 		}
 	}
