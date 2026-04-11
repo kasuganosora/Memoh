@@ -328,6 +328,11 @@ func (p *SpawnProvider) runSubagentTask(
 		}
 	}
 
+	p.logger.Warn("subagent failed after all retries",
+		slog.String("session_id", sessionID),
+		slog.Int("attempts", subagentMaxRetries+1),
+		slog.String("error", lastErr.Error()),
+	)
 	res.Error = fmt.Sprintf("all %d attempts failed (last: %v)", subagentMaxRetries+1, lastErr)
 	return res
 }

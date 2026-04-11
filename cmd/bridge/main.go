@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 
 	"github.com/memohai/memoh/internal/logger"
@@ -94,6 +95,17 @@ func main() {
 	srv := grpc.NewServer(
 		grpc.MaxRecvMsgSize(16*1024*1024),
 		grpc.MaxSendMsgSize(16*1024*1024),
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			MaxConnectionIdle:     5 * time.Minute,
+			MaxConnectionAge:      30 * time.Minute,
+			MaxConnectionAgeGrace: 10 * time.Second,
+			Time:                  60 * time.Second,
+			Timeout:               15 * time.Second,
+		}),
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             10 * time.Second,
+			PermitWithoutStream: true,
+		}),
 	)
 	pb.RegisterContainerServiceServer(srv, &containerServer{})
 	reflection.Register(srv)
