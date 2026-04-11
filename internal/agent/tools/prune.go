@@ -5,10 +5,10 @@ import (
 )
 
 const (
-	toolOutputHeadBytes = 4 * 1024
-	toolOutputTailBytes = 1 * 1024
-	toolOutputHeadLines = 150
-	toolOutputTailLines = 50
+	toolOutputHeadBytes = 32 * 1024
+	toolOutputTailBytes = 8 * 1024
+	toolOutputHeadLines = 500
+	toolOutputTailLines = 100
 
 	listMaxEntries        = 200
 	listCollapseThreshold = 50
