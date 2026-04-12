@@ -360,7 +360,6 @@ import { getBotsById, putBotsById, getBotsByBotIdSettings, putBotsByBotIdSetting
 import type { SettingsSettings } from '@memohai/sdk'
 import type { Ref } from 'vue'
 import { resolveApiErrorMessage } from '@/utils/api-error'
-import { useUserStore } from '@/store/user'
 import { emptyTimezoneValue } from '@/utils/timezones'
 
 const props = defineProps<{
@@ -369,7 +368,6 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const router = useRouter()
-const userStore = useUserStore()
 
 const botIdRef = computed(() => props.botId) as Ref<string>
 

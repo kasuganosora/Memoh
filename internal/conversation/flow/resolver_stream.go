@@ -20,11 +20,6 @@ type WSStreamEvent = json.RawMessage
 func (r *Resolver) StreamChat(ctx context.Context, req conversation.ChatRequest) (<-chan conversation.StreamChunk, <-chan error) {
 	chunkCh := make(chan conversation.StreamChunk)
 	errCh := make(chan error, 1)
-	r.logger.Info("agent stream start",
-		slog.String("bot_id", req.BotID),
-		slog.String("chat_id", req.ChatID),
-	)
-
 	go func() {
 		defer close(chunkCh)
 		defer close(errCh)
@@ -133,6 +128,10 @@ func (r *Resolver) StreamChatWS(
 ) error {
 	rc, err := r.resolve(ctx, req)
 	if err != nil {
+		r.logger.Error("StreamChatWS: resolve failed",
+			slog.String("bot_id", req.BotID),
+			slog.Any("error", err),
+		)
 		return fmt.Errorf("resolve: %w", err)
 	}
 	if req.RawQuery == "" {
@@ -230,7 +229,6 @@ func (r *Resolver) StreamChatWS(
 	return nil
 }
 
-// tryStoreStream attempts to extract final messages from a stream event and persist them.
 func (r *Resolver) tryStoreStream(ctx context.Context, req conversation.ChatRequest, data []byte, modelID string, rc resolvedContext) (bool, error) {
 	var envelope struct {
 		Type     string          `json:"type"`
@@ -286,12 +284,13 @@ func (r *Resolver) persistPartialResult(ctx context.Context, req conversation.Ch
 			slog.String("bot_id", req.BotID),
 			slog.Any("error", err),
 		)
-	} else {
-		r.logger.Info("persisted partial result after interruption",
-			slog.String("bot_id", req.BotID),
-			slog.Int("tool_calls", toolCallCount),
-			slog.String("reason", reason),
-		)
+	}
+
+	// Trigger compaction on failure path so that oversized contexts don't
+	// create a deadlock where the LLM can never succeed (and therefore
+	// compaction never fires). Use the estimated token count from resolve.
+	if rc.estimatedTokens > 0 {
+		r.maybeCompact(context.WithoutCancel(ctx), req, rc, rc.estimatedTokens)
 	}
 }
 

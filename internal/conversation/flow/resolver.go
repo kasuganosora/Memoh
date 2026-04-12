@@ -179,6 +179,7 @@ type resolvedContext struct {
 	provider        sqlc.Provider
 	query           string // headerified query
 	injectedRecords *[]conversation.InjectedMessageRecord
+	estimatedTokens int // estimated input token count for compaction
 }
 
 func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (resolvedContext, error) {
@@ -207,9 +208,12 @@ func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (r
 		ReasoningEffort:   req.ReasoningEffort,
 	})
 	if err != nil {
+		r.logger.Error("resolve: buildBaseRunConfig failed",
+			slog.String("bot_id", req.BotID),
+			slog.Any("error", err),
+		)
 		return resolvedContext{}, err
 	}
-
 	memoryMsg := r.loadMemoryContextMessage(ctx, req)
 	reqMessages := pruneMessagesForGateway(nonNilModelMessages(req.Messages))
 	if memoryMsg != nil {
@@ -235,17 +239,58 @@ func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (r
 	}
 
 	var messages []conversation.ModelMessage
+	var estimatedTokens int
 	if usePipeline {
 		messages = r.buildMessagesFromPipeline(ctx, req, contextTokenBudget)
 	} else if r.conversationSvc != nil {
 		loaded, loadErr := r.loadMessages(ctx, req.ChatID, req.SessionID, defaultMaxContextMinutes)
 		if loadErr != nil {
+			r.logger.Error("resolve: loadMessages failed",
+				slog.String("bot_id", req.BotID),
+				slog.Any("error", loadErr),
+			)
 			return resolvedContext{}, loadErr
 		}
 		loaded = pruneHistoryForGateway(loaded)
 		loaded = dedupePersistedCurrentUserMessage(loaded, req)
 		loaded = r.replaceCompactedMessages(ctx, loaded)
-		messages = trimMessagesByTokens(r.logger, loaded, contextTokenBudget)
+		messages, estimatedTokens = trimMessagesByTokens(r.logger, loaded, contextTokenBudget)
+		// When context reaches 70% of the contextTokenBudget (the user-configured
+		// budget cap), run synchronous compaction before sending the request.
+		// contextTokenBudget is the authoritative limit for how much context
+		// the user wants to send to the LLM. We compact at 70% to keep the
+		// context healthy and avoid edge-case timeouts.
+		compactionThreshold := 0
+		if contextTokenBudget > 0 {
+			compactionThreshold = contextTokenBudget * 70 / 100
+		}
+		if compactionThreshold > 0 && estimatedTokens >= compactionThreshold {
+			r.logger.Warn("resolve: context reached compaction threshold, running synchronous compaction",
+				slog.String("bot_id", req.BotID),
+				slog.Int("estimated_tokens", estimatedTokens),
+				slog.Int("context_token_budget", contextTokenBudget),
+				slog.Int("compaction_threshold", compactionThreshold),
+			)
+			r.runCompactionSync(ctx, req, estimatedTokens)
+			// Reload messages after compaction.
+			loaded, loadErr = r.loadMessages(ctx, req.ChatID, req.SessionID, defaultMaxContextMinutes)
+			if loadErr != nil {
+				r.logger.Error("resolve: reload messages after compaction failed",
+					slog.String("bot_id", req.BotID),
+					slog.Any("error", loadErr),
+				)
+				return resolvedContext{}, loadErr
+			}
+			loaded = pruneHistoryForGateway(loaded)
+			loaded = dedupePersistedCurrentUserMessage(loaded, req)
+			loaded = r.replaceCompactedMessages(ctx, loaded)
+			messages, estimatedTokens = trimMessagesByTokens(r.logger, loaded, contextTokenBudget)
+			// Remove tool messages from the recent context — they are large
+			// and unnecessary when we already have a summary. Keep only
+			// user/assistant conversation turns.
+			messages = stripToolMessages(messages)
+		}
+		_ = estimatedTokens
 	}
 	if memoryMsg != nil {
 		messages = append(messages, *memoryMsg)
@@ -254,6 +299,12 @@ func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (r
 		messages = append(messages, reqMessages...)
 	}
 	messages = sanitizeMessages(messages)
+	// Strip tool messages and tool-call-only assistant messages from context.
+	// Tool outputs are large and waste tokens; the LLM doesn't need raw tool
+	// results when summaries and memory tools are available for lookup.
+	if len(messages) > 10 {
+		messages = stripToolMessages(messages)
+	}
 
 	displayName := r.resolveDisplayName(ctx, req)
 	mergedAttachments := r.routeAndMergeAttachments(ctx, chatModel, req)
@@ -322,6 +373,7 @@ func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (r
 		provider:        provider,
 		query:           headerifiedQuery,
 		injectedRecords: injectedRecords,
+		estimatedTokens: estimatedTokens,
 	}, nil
 }
 

@@ -43,6 +43,11 @@ func (s *Service) TriggerCompaction(ctx context.Context, cfg TriggerConfig) {
 	}()
 }
 
+// RunCompactionSync runs compaction synchronously and returns any error.
+func (s *Service) RunCompactionSync(ctx context.Context, cfg TriggerConfig) error {
+	return s.runCompaction(ctx, cfg)
+}
+
 func (s *Service) runCompaction(ctx context.Context, cfg TriggerConfig) error {
 	botUUID, err := db.ParseUUID(cfg.BotID)
 	if err != nil {
@@ -78,11 +83,36 @@ func (s *Service) doCompaction(ctx context.Context, logID pgtype.UUID, sessionUU
 		return nil
 	}
 
-	toCompact := splitByRatio(messages, cfg.TotalInputTokens, cfg.Ratio)
+	var toCompact []sqlc.ListUncompactedMessagesBySessionRow
+	if cfg.TargetTokens > 0 {
+		// Sync compaction: compress enough messages to bring context
+		// down to TargetTokens. Calculate how many tokens to keep
+		// (newest messages) and compact everything older.
+		toCompact = splitByTarget(messages, cfg.TargetTokens)
+	} else {
+		toCompact = splitByRatio(messages, cfg.TotalInputTokens, cfg.Ratio)
+	}
 	if len(toCompact) == 0 {
 		s.completeLog(ctx, logID, "ok", "", "", 0, nil, pgtype.UUID{})
 		return nil
 	}
+
+	// Cap the compaction input to avoid exceeding the compaction model's
+	// context window. MaxCompactTokens is typically set to 90% of the model's
+	// window. If not set, use a conservative default of 30K tokens.
+	maxCompactTokens := cfg.MaxCompactTokens
+	if maxCompactTokens <= 0 {
+		maxCompactTokens = 30000
+	}
+	s.logger.Info("compaction: before trim",
+		slog.Int("messages", len(toCompact)),
+		slog.Int("total_uncompacted", len(messages)),
+		slog.Int("max_compact_tokens", maxCompactTokens),
+	)
+	toCompact = trimCompactMessages(toCompact, maxCompactTokens)
+	s.logger.Info("compaction: after trim",
+		slog.Int("messages", len(toCompact)),
+	)
 
 	priorLogs, err := s.queries.ListCompactionLogsBySession(ctx, sessionUUID)
 	if err != nil {
@@ -266,6 +296,29 @@ func splitByRatio(messages []sqlc.ListUncompactedMessagesBySessionRow, totalInpu
 	return messages[:cutoff]
 }
 
+// splitByTarget returns the oldest messages to compact so that the remaining
+// newest messages fit within targetTokens. This is used for synchronous
+// compaction where the goal is to reduce context to a specific size.
+func splitByTarget(messages []sqlc.ListUncompactedMessagesBySessionRow, targetTokens int) []sqlc.ListUncompactedMessagesBySessionRow {
+	if targetTokens <= 0 || len(messages) == 0 {
+		return nil
+	}
+	// Scan from newest to oldest, keeping messages that fit within target.
+	accumulated := 0
+	cutoff := 0
+	for i := len(messages) - 1; i >= 0; i-- {
+		accumulated += estimateRowTokens(messages[i])
+		if accumulated > targetTokens {
+			cutoff = i + 1
+			break
+		}
+	}
+	if cutoff <= 0 {
+		return nil
+	}
+	return messages[:cutoff]
+}
+
 type usagePayload struct {
 	OutputTokens *int `json:"output_tokens"`
 }
@@ -278,4 +331,33 @@ func estimateRowTokens(m sqlc.ListUncompactedMessagesBySessionRow) int {
 		}
 	}
 	return len(m.Content) / 4
+}
+
+// trimCompactMessages trims the compaction input from the tail (oldest)
+// so the total estimated tokens stay within maxTokens.
+func trimCompactMessages(messages []sqlc.ListUncompactedMessagesBySessionRow, maxTokens int) []sqlc.ListUncompactedMessagesBySessionRow {
+	if len(messages) == 0 || maxTokens <= 0 {
+		return messages
+	}
+	total := 0
+	for _, m := range messages {
+		total += estimateRowTokens(m)
+	}
+	if total <= maxTokens {
+		return messages
+	}
+	// Drop oldest messages from the tail until within budget.
+	accumulated := 0
+	cutoff := len(messages)
+	for i := len(messages) - 1; i >= 0; i-- {
+		accumulated += estimateRowTokens(messages[i])
+		if accumulated > maxTokens {
+			cutoff = i + 1
+			break
+		}
+	}
+	if cutoff >= len(messages) {
+		return messages
+	}
+	return messages[cutoff:]
 }

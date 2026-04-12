@@ -117,13 +117,17 @@ func estimateMessageTokens(msg conversation.ModelMessage) int {
 	return len(text) / 4
 }
 
-func trimMessagesByTokens(log *slog.Logger, messages []messageWithUsage, maxTokens int) []conversation.ModelMessage {
+func trimMessagesByTokens(log *slog.Logger, messages []messageWithUsage, maxTokens int) ([]conversation.ModelMessage, int) {
 	if maxTokens == 0 || len(messages) == 0 {
 		result := make([]conversation.ModelMessage, len(messages))
 		for i, m := range messages {
 			result[i] = m.Message
 		}
-		return result
+		totalTokens := 0
+		for _, m := range messages {
+			totalTokens += estimateMessageTokens(m.Message)
+		}
+		return result, totalTokens
 	}
 
 	// Scan from newest to oldest, accumulating per-message estimated context
@@ -158,10 +162,23 @@ func trimMessagesByTokens(log *slog.Logger, messages []messageWithUsage, maxToke
 	}
 
 	result := make([]conversation.ModelMessage, 0, len(messages)-cutoff)
+	if cutoff > 0 {
+		// Add a truncation notice at the beginning so the LLM knows earlier
+		// context was trimmed and it can use tools (memory, search) to look up
+		// past information if needed.
+		result = append(result, conversation.ModelMessage{
+			Role: "system",
+			Content: conversation.NewTextContent(
+				"[System Notice] Earlier conversation history has been trimmed to fit the context window. " +
+					"If you need information from earlier in the conversation, use the available tools " +
+					"(such as memory_read or web search) to retrieve it.",
+			),
+		})
+	}
 	for _, m := range messages[cutoff:] {
 		result = append(result, m.Message)
 	}
-	return result
+	return result, totalTokens
 }
 
 func (r *Resolver) replaceCompactedMessages(ctx context.Context, messages []messageWithUsage) []messageWithUsage {
@@ -326,4 +343,27 @@ func (r *Resolver) loadTurnResponses(ctx context.Context, sessionID string) []pi
 		})
 	}
 	return trs
+}
+
+// stripToolMessages removes tool messages and their associated assistant
+// tool-call messages from the context. After synchronous compaction, the
+// summary already captures the tool interactions — keeping raw tool output
+// only wastes context tokens.
+func stripToolMessages(messages []conversation.ModelMessage) []conversation.ModelMessage {
+	filtered := make([]conversation.ModelMessage, 0, len(messages))
+	for _, m := range messages {
+		role := strings.TrimSpace(m.Role)
+		if strings.EqualFold(role, "tool") {
+			continue
+		}
+		// Remove assistant messages that contain tool calls (without text content).
+		if strings.EqualFold(role, "assistant") && len(m.ToolCalls) > 0 {
+			text := m.TextContent()
+			if strings.TrimSpace(text) == "" {
+				continue
+			}
+		}
+		filtered = append(filtered, m)
+	}
+	return filtered
 }
