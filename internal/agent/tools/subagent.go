@@ -28,6 +28,7 @@ import (
 // It is satisfied by *agent.Agent and avoids an import cycle.
 type SpawnAgent interface {
 	Generate(ctx context.Context, cfg SpawnRunConfig) (*SpawnResult, error)
+	GenerateWithWatchdog(ctx context.Context, cfg SpawnRunConfig, touchFn func()) (*SpawnResult, error)
 }
 
 // SpawnRunConfig mirrors agent.RunConfig fields needed by spawn.
@@ -65,8 +66,9 @@ type SpawnResult struct {
 	Usage    *sdk.Usage
 }
 
-// subagentTimeout caps total execution time for a single subagent task attempt.
-// This prevents runaway subagent calls from blocking the parent agent forever.
+// subagentTimeout caps total execution time as a safety net per attempt.
+// This prevents runaway subagent calls from blocking the parent agent forever,
+// even if the watchdog keeps getting touched (e.g., tiny tokens but no convergence).
 const subagentTimeout = 10 * time.Minute
 
 // spawnHeartbeatInterval controls how often a progress event is emitted during
@@ -76,10 +78,17 @@ const spawnHeartbeatInterval = 30 * time.Second
 // subagentMaxRetries is the maximum number of retry attempts for a failed
 // subagent task. Only transient errors (rate limits, network failures) are
 // retried; fatal errors (bad config, invalid input) fail immediately.
-const subagentMaxRetries = 2
+const subagentMaxRetries = 3
 
 // subagentRetryBaseDelay is the initial backoff delay between retry attempts.
 const subagentRetryBaseDelay = 2 * time.Second
+
+// ErrWatchdogTimedOut is returned when the subagent watchdog fires
+// (no activity within the timeout period).
+var ErrWatchdogTimedOut = errors.New("subagent watchdog: no activity within timeout")
+
+// subagentWatchdogTimeout is the default inactivity timeout for the watchdog.
+const subagentWatchdogTimeout = 3 * time.Minute
 
 var (
 	// err429Pattern matches HTTP 429 status codes in error strings.
@@ -87,8 +96,100 @@ var (
 	// errEOFPattern matches EOF or connection-level resets.
 	errEOFPattern = regexp.MustCompile(`(?i)connection (reset|refused)|EOF$`)
 	// serverErrPattern matches "api error 5XX" where XX is any two digits.
-	serverErrPattern = regexp.MustCompile(`api error 5\d{2}`)
+	serverErrPattern = regexp.MustCompile(`api error 5\\d{2}`)
 )
+
+// SubagentWatchdog implements an activity-based timeout for subagent execution.
+// It is "touched" (fed/reset) on each activity signal from the LLM or tools.
+// If no touch occurs within the configured timeout, it fires by cancelling
+// its associated context.
+//
+// Lifecycle:
+//  1. Call NewSubagentWatchdog to create a watchdog context.
+//  2. Call Touch() on each activity signal.
+//  3. Call Stop() when the watched operation completes normally.
+//
+// The watchdog respects parent context cancellation: if the parent context
+// is cancelled, the watchdog's context is also cancelled immediately.
+type SubagentWatchdog struct {
+	timeout time.Duration
+	touchCh chan struct{}
+	cancel  context.CancelCauseFunc
+	done    chan struct{}
+	logger  *slog.Logger
+}
+
+// NewSubagentWatchdog creates a watchdog that cancels the returned context
+// after timeout of inactivity. The returned context is derived from parentCtx.
+// If parentCtx is cancelled, the watchdog context is also cancelled.
+func NewSubagentWatchdog(parentCtx context.Context, timeout time.Duration, logger *slog.Logger) (context.Context, *SubagentWatchdog) {
+	if timeout <= 0 {
+		timeout = subagentWatchdogTimeout
+	}
+	ctx, cancel := context.WithCancelCause(parentCtx)
+
+	wd := &SubagentWatchdog{
+		timeout: timeout,
+		touchCh: make(chan struct{}, 1),
+		cancel:  cancel,
+		done:    make(chan struct{}),
+		logger:  logger,
+	}
+
+	go wd.run(ctx)
+
+	return ctx, wd
+}
+
+// Touch resets the watchdog timer. It is non-blocking and safe to call
+// from any goroutine.
+func (w *SubagentWatchdog) Touch() {
+	select {
+	case w.touchCh <- struct{}{}:
+	default:
+		// Already a pending touch, no need to queue another.
+	}
+}
+
+// Stop terminates the watchdog goroutine and releases resources.
+// Call this when the watched operation completes normally.
+func (w *SubagentWatchdog) Stop() {
+	w.cancel(context.Canceled)
+	<-w.done
+}
+
+// run is the watchdog loop. It watches for touches and fires if none arrive
+// within the configured timeout.
+func (w *SubagentWatchdog) run(ctx context.Context) {
+	defer close(w.done)
+
+	timer := time.NewTimer(w.timeout)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			// Parent cancelled or Stop() called.
+			return
+		case <-w.touchCh:
+			// Activity detected; reset the timer.
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+			timer.Reset(w.timeout)
+		case <-timer.C:
+			// No activity within timeout -- fire!
+			w.logger.Warn("subagent watchdog fired",
+				slog.Duration("timeout", w.timeout),
+			)
+			w.cancel(ErrWatchdogTimedOut)
+			return
+		}
+	}
+}
 
 // maxTasksPerSpawn caps the number of tasks accepted in a single spawn call.
 const maxTasksPerSpawn = 5
@@ -354,11 +455,18 @@ func (p *SpawnProvider) runSubagentTask(
 			}
 		}
 
+		// Create a two-layer timeout per attempt:
+		// 1. Safety net: wall-clock timeout (subagentTimeout) via context.WithTimeout.
+		// 2. Watchdog: activity-based timeout (subagentWatchdogTimeout) that fires
+		//    when no stream events (tokens, tool output) are received.
 		// Use context.WithoutCancel so retries get a fresh timeout even if
 		// the parent stream was cancelled (e.g. by idle timeout).
-		taskCtx, taskCancel := context.WithTimeout(context.WithoutCancel(ctx), subagentTimeout)
-		genResult, err := p.agent.Generate(taskCtx, cfg)
-		taskCancel()
+		safetyCtx, safetyCancel := context.WithTimeout(context.WithoutCancel(ctx), subagentTimeout)
+		wdCtx, wd := NewSubagentWatchdog(safetyCtx, subagentWatchdogTimeout, p.logger)
+
+		genResult, err := p.agent.GenerateWithWatchdog(wdCtx, cfg, wd.Touch)
+		wd.Stop()
+		safetyCancel()
 
 		if err == nil {
 			res.Text = genResult.Text
@@ -370,6 +478,24 @@ func (p *SpawnProvider) runSubagentTask(
 		}
 
 		lastErr = err
+
+		// Check if the true parent context was cancelled (not watchdog, not safety timeout).
+		// If the parent is done, don't retry.
+		if ctx.Err() != nil && !errors.Is(err, ErrWatchdogTimedOut) {
+			res.Error = fmt.Sprintf("parent cancelled: %v", ctx.Err())
+			return res
+		}
+
+		// Watchdog timeouts are always retryable.
+		if errors.Is(err, ErrWatchdogTimedOut) {
+			p.logger.Warn("subagent watchdog fired, will retry",
+				slog.String("session_id", sessionID),
+				slog.Int("attempt", attempt+1),
+				slog.Int("max_attempts", subagentMaxRetries+1),
+			)
+			continue
+		}
+
 		if !isRetryableSubagentError(err) {
 			res.Error = err.Error()
 			return res
