@@ -2,7 +2,7 @@
   <button
     v-if="!isEditing"
     class="group flex items-center h-12 w-full rounded-lg px-2.5 text-left transition-colors cursor-pointer"
-    :class="isActive ? 'bg-background' : 'hover:bg-background/60'"
+    :class="isActive ? 'bg-sidebar-accent' : 'hover:bg-sidebar-accent/60'"
     @click="$emit('select', session)"
     @dblclick="startEditing"
   >
