@@ -21,6 +21,7 @@ import (
 
 	"github.com/memohai/memoh/internal/accounts"
 	agentpkg "github.com/memohai/memoh/internal/agent"
+	"github.com/memohai/memoh/internal/agent/background"
 	"github.com/memohai/memoh/internal/compaction"
 	"github.com/memohai/memoh/internal/conversation"
 	"github.com/memohai/memoh/internal/db/sqlc"
@@ -28,6 +29,7 @@ import (
 	messagepkg "github.com/memohai/memoh/internal/message"
 	messageevent "github.com/memohai/memoh/internal/message/event"
 	"github.com/memohai/memoh/internal/models"
+	"github.com/memohai/memoh/internal/oauthctx"
 	pipelinepkg "github.com/memohai/memoh/internal/pipeline"
 	"github.com/memohai/memoh/internal/providers"
 	"github.com/memohai/memoh/internal/settings"
@@ -71,12 +73,18 @@ type Resolver struct {
 	settingsService   *settings.Service
 	accountService    *accounts.Service
 	sessionService    SessionService
+	routeService      RouteService
 	compactionService *compaction.Service
 	eventPublisher    messageevent.Publisher
 	skillLoader       SkillLoader
 	assetLoader       gatewayAssetLoader
 	pipeline          *pipelinepkg.Pipeline
 	streamHTTPClient  *http.Client
+	bgManager         *background.Manager
+	outboundFn        func(ctx context.Context, botID, channelType, target, text string) error
+	bgNotifDeferred   sync.Map // key: "botID:sessionID" → wake arrived while a session turn was active
+	sessionTurnMu     sync.Mutex
+	sessionTurnRefs   map[string]int // key: "botID:sessionID" → active turn refcount
 	timeout           time.Duration
 	clockLocation     *time.Location
 	logger            *slog.Logger
@@ -129,6 +137,7 @@ func NewResolver(
 		settingsService:  settingsService,
 		accountService:   accountService,
 		streamHTTPClient: streamHTTPClient,
+		sessionTurnRefs:  make(map[string]int),
 		timeout:          timeout,
 		clockLocation:    clockLocation,
 		logger:           log.With(slog.String("service", "conversation_resolver")),
@@ -156,6 +165,19 @@ func (r *Resolver) SetCompactionService(s *compaction.Service) {
 	r.compactionService = s
 }
 
+// SetBackgroundManager configures the background task manager so that
+// background exec notifications are injected into the agent loop.
+func (r *Resolver) SetBackgroundManager(m *background.Manager) {
+	r.bgManager = m
+}
+
+// SetOutboundFn configures the function used to deliver background notification
+// responses to the user. The agent's text output is delivered through the same
+// path as normal responses.
+func (r *Resolver) SetOutboundFn(fn func(ctx context.Context, botID, channelType, target, text string) error) {
+	r.outboundFn = fn
+}
+
 // SetPipeline configures the DCP pipeline for RC-based context assembly.
 // When set, resolve() will use RC from the pipeline instead of loading
 // history from bot_history_messages for sessions that have pipeline data.
@@ -166,6 +188,39 @@ func (r *Resolver) SetPipeline(p *pipelinepkg.Pipeline) {
 // Pipeline returns the configured pipeline, or nil.
 func (r *Resolver) Pipeline() *pipelinepkg.Pipeline {
 	return r.pipeline
+}
+
+// InlineImageAttachments resolves image content hashes to sdk.ImagePart values
+// using the configured asset loader. Intended for the discuss driver to inline
+// images from new RC segments before calling the LLM.
+func (r *Resolver) InlineImageAttachments(ctx context.Context, botID string, refs []pipelinepkg.ImageAttachmentRef) []sdk.ImagePart {
+	if r == nil || r.assetLoader == nil || len(refs) == 0 {
+		return nil
+	}
+	var parts []sdk.ImagePart
+	for _, ref := range refs {
+		contentHash := strings.TrimSpace(ref.ContentHash)
+		if contentHash == "" {
+			continue
+		}
+		dataURL, mime, err := r.inlineAssetAsDataURL(ctx, botID, contentHash, "image", strings.TrimSpace(ref.Mime))
+		if err != nil {
+			if r.logger != nil {
+				r.logger.Warn(
+					"inline discuss image attachment failed",
+					slog.Any("error", err),
+					slog.String("bot_id", botID),
+					slog.String("content_hash", contentHash),
+				)
+			}
+			continue
+		}
+		parts = append(parts, sdk.ImagePart{
+			Image:     dataURL,
+			MediaType: mime,
+		})
+	}
+	return parts
 }
 
 type usageInfo struct {
@@ -379,6 +434,9 @@ func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (r
 
 // Chat sends a synchronous chat request and stores the result.
 func (r *Resolver) Chat(ctx context.Context, req conversation.ChatRequest) (conversation.ChatResponse, error) {
+	doneTurn := r.enterSessionTurn(ctx, req.BotID, req.SessionID)
+	defer doneTurn()
+
 	rc, err := r.resolve(ctx, req)
 	if err != nil {
 		return conversation.ChatResponse{}, err
@@ -466,7 +524,8 @@ func (r *Resolver) buildBaseRunConfig(ctx context.Context, p baseRunConfigParams
 	}
 
 	authResolver := providers.NewService(nil, r.queries, "")
-	creds, err := authResolver.ResolveModelCredentials(ctx, provider)
+	authCtx := oauthctx.WithUserID(ctx, p.UserID)
+	creds, err := authResolver.ResolveModelCredentials(authCtx, provider)
 	if err != nil {
 		return agentpkg.RunConfig{}, models.GetResponse{}, sqlc.Provider{}, fmt.Errorf("resolve provider credentials: %w", err)
 	}
@@ -516,8 +575,9 @@ func (r *Resolver) buildBaseRunConfig(ctx context.Context, p baseRunConfigParams
 			TimezoneLocation:  userClockLocation,
 			SessionToken:      p.SessionToken,
 		},
-		Skills:        agentSkills,
-		LoopDetection: agentpkg.LoopDetectionConfig{Enabled: loopDetectionEnabled},
+		Skills:            agentSkills,
+		LoopDetection:     agentpkg.LoopDetectionConfig{Enabled: loopDetectionEnabled},
+		BackgroundManager: r.bgManager,
 	}
 
 	return cfg, chatModel, provider, nil

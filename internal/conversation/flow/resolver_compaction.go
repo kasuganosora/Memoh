@@ -7,6 +7,7 @@ import (
 	"github.com/memohai/memoh/internal/compaction"
 	"github.com/memohai/memoh/internal/conversation"
 	"github.com/memohai/memoh/internal/models"
+	"github.com/memohai/memoh/internal/oauthctx"
 	"github.com/memohai/memoh/internal/providers"
 	"github.com/memohai/memoh/internal/settings"
 )
@@ -115,7 +116,8 @@ func (r *Resolver) buildCompactionConfig(ctx context.Context, req conversation.C
 		return compaction.TriggerConfig{}, err
 	}
 	authResolver := providers.NewService(nil, r.queries, "")
-	creds, err := authResolver.ResolveModelCredentials(ctx, compactProvider)
+	authCtx := oauthctx.WithUserID(ctx, req.UserID)
+	creds, err := authResolver.ResolveModelCredentials(authCtx, compactProvider)
 	if err != nil {
 		return compaction.TriggerConfig{}, err
 	}
@@ -137,7 +139,6 @@ func (r *Resolver) buildCompactionConfig(ctx context.Context, req conversation.C
 	if compactModel.Config.ContextWindow != nil && *compactModel.Config.ContextWindow > 0 {
 		cfg.MaxCompactTokens = *compactModel.Config.ContextWindow * 90 / 100
 	}
-
 	// For sync compaction: keep only the last few messages (~2000 tokens ≈ 3 messages).
 	// The summary provides reference context; if the LLM needs details,
 	// it will use tools (memory_read, search) to look them up.

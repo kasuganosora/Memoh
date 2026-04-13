@@ -23,8 +23,10 @@ func (r *Resolver) StreamChat(ctx context.Context, req conversation.ChatRequest)
 	go func() {
 		defer close(chunkCh)
 		defer close(errCh)
-
 		streamReq := req
+		doneTurn := r.enterSessionTurn(ctx, streamReq.BotID, streamReq.SessionID)
+		defer doneTurn()
+
 		rc, err := r.resolve(ctx, streamReq)
 		if err != nil {
 			r.logger.Error("agent stream resolve failed",
@@ -126,6 +128,9 @@ func (r *Resolver) StreamChatWS(
 	eventCh chan<- WSStreamEvent,
 	abortCh <-chan struct{},
 ) error {
+	doneTurn := r.enterSessionTurn(ctx, req.BotID, req.SessionID)
+	defer doneTurn()
+
 	rc, err := r.resolve(ctx, req)
 	if err != nil {
 		r.logger.Error("StreamChatWS: resolve failed",
@@ -286,10 +291,10 @@ func (r *Resolver) persistPartialResult(ctx context.Context, req conversation.Ch
 		)
 	}
 
-	// Trigger synchronous compaction on the failure path so that oversized
-	// contexts don't create a deadlock where the LLM can never succeed (and
-	// therefore compaction never fires). Use the estimated token count from
-	// resolve. Synchronous (not async) ensures the compressed context is
+	// Trigger compaction on failure path so that oversized contexts don't
+	// create a deadlock where the LLM can never succeed (and therefore
+	// compaction never fires). Use the estimated token count from resolve.
+	// Synchronous (not async) ensures the compressed context is
 	// persisted before the next request arrives.
 	if rc.estimatedTokens > 0 {
 		r.runCompactionSync(context.WithoutCancel(ctx), req, rc.estimatedTokens)
