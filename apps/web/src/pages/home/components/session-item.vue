@@ -1,8 +1,10 @@
 <template>
   <button
-    class="group flex items-center h-12 w-full rounded-lg px-2.5 text-left transition-colors"
+    v-if="!isEditing"
+    class="group flex items-center h-12 w-full rounded-lg px-2.5 text-left transition-colors cursor-pointer"
     :class="isActive ? 'bg-background' : 'hover:bg-background/60'"
     @click="$emit('select', session)"
+    @dblclick="startEditing"
   >
     <div class="relative shrink-0 mr-2.5">
       <Avatar
@@ -59,13 +61,32 @@
       </div>
     </div>
   </button>
+
+  <!-- Inline edit mode (only for web sessions) -->
+  <div
+    v-else
+    class="flex items-center h-12 w-full rounded-lg px-2.5 bg-background"
+  >
+    <input
+      ref="editInput"
+      v-model="editTitle"
+      class="flex-1 min-w-0 text-xs font-medium text-foreground bg-transparent border border-border rounded px-1.5 py-1 outline-none focus:border-primary"
+      maxlength="100"
+      @keydown.enter="saveTitle"
+      @keydown.escape="cancelEditing"
+      @blur="saveTitle"
+    >
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed, type Component } from 'vue'
+import { computed, nextTick, ref, type Component } from 'vue'
 import { HeartPulse, Clock, GitBranch, MessageSquare } from 'lucide-vue-next'
 import { useI18n } from 'vue-i18n'
 import type { SessionSummary } from '@/composables/api/useChat'
+import { updateSessionTitle } from '@/composables/api/useChat.chat-api'
+import { useChatStore } from '@/store/chat-list'
+import { storeToRefs } from 'pinia'
 import { Avatar, AvatarImage, AvatarFallback } from '@memohai/ui'
 import ChannelBadge from '@/components/chat-list/channel-badge/index.vue'
 
@@ -79,6 +100,8 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
+const chatStore = useChatStore()
+const { currentBotId } = storeToRefs(chatStore)
 
 const WEB_CHANNELS = new Set(['local', ''])
 
@@ -86,6 +109,50 @@ const isIMSession = computed(() => {
   const ct = (props.session.channel_type ?? '').trim().toLowerCase()
   return ct !== '' && !WEB_CHANNELS.has(ct)
 })
+
+const isWebSession = computed(() => {
+  const ct = (props.session.channel_type ?? '').trim().toLowerCase()
+  return WEB_CHANNELS.has(ct)
+})
+
+// --- Rename logic ---
+const isEditing = ref(false)
+const editTitle = ref('')
+const editInput = ref<HTMLInputElement | null>(null)
+
+function startEditing() {
+  if (!isWebSession.value) return
+  editTitle.value = props.session.title || ''
+  isEditing.value = true
+  nextTick(() => {
+    editInput.value?.focus()
+    editInput.value?.select()
+  })
+}
+
+async function saveTitle() {
+  if (!isEditing.value) return
+  const newTitle = editTitle.value.trim()
+  isEditing.value = false
+
+  if (newTitle === props.session.title) return
+
+  const botId = currentBotId.value
+  if (!botId) return
+
+  try {
+    await updateSessionTitle(botId, props.session.id, newTitle)
+    // Update local store immediately so UI reflects the change
+    const target = chatStore.sessions.find(s => s.id === props.session.id)
+    if (target) target.title = newTitle
+  } catch {
+    // Revert on error
+  }
+}
+
+function cancelEditing() {
+  isEditing.value = false
+}
 
 const iconComponent = computed<Component>(() => {
   switch (props.session.type) {
