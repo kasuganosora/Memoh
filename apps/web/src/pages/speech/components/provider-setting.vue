@@ -13,6 +13,23 @@
         </p>
       </div>
       <div class="ml-auto flex items-center gap-2">
+        <ConfirmPopover
+          :message="$t('speech.deleteConfirm')"
+          :loading="deleteLoading"
+          @confirm="handleDeleteProvider"
+        >
+          <template #trigger>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              class="size-8"
+              :aria-label="$t('common.delete')"
+            >
+              <Trash2 class="size-4" />
+            </Button>
+          </template>
+        </ConfirmPopover>
         <span class="text-xs text-muted-foreground">
           {{ $t('common.enable') }}
         </span>
@@ -96,12 +113,13 @@ import {
   Button,
 } from '@memohai/ui'
 import ModelConfigEditor from './model-config-editor.vue'
-import { Volume2, ChevronUp, ChevronDown } from 'lucide-vue-next'
+import ConfirmPopover from '@/components/confirm-popover/index.vue'
+import { Volume2, ChevronUp, ChevronDown, Trash2 } from 'lucide-vue-next'
 import { computed, inject, ref } from 'vue'
 import { toast } from 'vue-sonner'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useQueryCache } from '@pinia/colada'
-import { getSpeechProvidersMeta, getSpeechModels, putProvidersById, postModels } from '@memohai/sdk'
+import { getSpeechProvidersMeta, getSpeechModels, putProvidersById, postModels, deleteProvidersById, deleteModelsById } from '@memohai/sdk'
 import type { TtsSpeechProviderResponse, TtsProviderMetaResponse, TtsModelInfo } from '@memohai/sdk'
 
 const { t } = useI18n()
@@ -202,6 +220,32 @@ async function handleToggleEnable(value: boolean) {
     toast.error(t('common.saveFailed'))
   } finally {
     enableLoading.value = false
+  }
+}
+
+const deleteLoading = ref(false)
+async function handleDeleteProvider() {
+  if (!curProviderId.value) return
+  deleteLoading.value = true
+  try {
+    // Delete associated speech models first
+    for (const model of providerModels.value) {
+      if (model.id) {
+        try {
+          await deleteModelsById({ path: { id: model.id }, throwOnError: true })
+        } catch {
+          // Model may already be gone, continue
+        }
+      }
+    }
+    await deleteProvidersById({ path: { id: curProviderId.value }, throwOnError: true })
+    queryCache.invalidateQueries({ key: ['speech-providers'] })
+    queryCache.invalidateQueries({ key: ['speech-models'] })
+    curProvider.value = undefined
+  } catch {
+    toast.error(t('common.saveFailed'))
+  } finally {
+    deleteLoading.value = false
   }
 }
 
