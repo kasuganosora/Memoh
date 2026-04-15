@@ -146,7 +146,7 @@ func provideMemoryLLM(modelsService *models.Service, settingsService *settings.S
 		modelsService:   modelsService,
 		settingsService: settingsService,
 		queries:         queries,
-		timeout:         30 * time.Second,
+		timeout:         models.DefaultProviderRequestTimeout,
 		logger:          log,
 	}
 }
