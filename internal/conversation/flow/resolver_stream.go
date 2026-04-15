@@ -473,6 +473,10 @@ func (r *Resolver) tryStoreStream(ctx context.Context, req conversation.ChatRequ
 // if compaction actually ran and succeeded.
 func (r *Resolver) runCompactionSyncWithResult(ctx context.Context, req conversation.ChatRequest, estimatedTokens int) bool {
 	if estimatedTokens <= 0 {
+		r.logger.Warn("compaction sync skipped: no estimated tokens",
+			slog.String("bot_id", req.BotID),
+			slog.String("session_id", req.SessionID),
+		)
 		return false
 	}
 	return r.runCompactionSync(ctx, req, estimatedTokens)
