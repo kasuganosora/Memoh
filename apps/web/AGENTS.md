@@ -36,7 +36,7 @@ src/
 ├── router.ts                  # Route definitions, auth guard, chunk error recovery
 ├── style.css                  # Tailwind imports (delegates to @memohai/ui/style.css)
 ├── i18n.ts                    # vue-i18n configuration
-├── assets/                    # Static assets (logo.png)
+├── assets/                    # Static assets (logo.svg)
 ├── components/                # Shared components
 │   ├── sidebar/               #   Bot list sidebar (collapsible, bot items, settings link)
 │   │   ├── index.vue          #     Sidebar with bot list + settings gear footer

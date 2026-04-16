@@ -951,11 +951,22 @@ export type HandlersSessionInfoResponse = {
 export type HandlersSkillItem = {
     content?: string;
     description?: string;
+    managed?: boolean;
     metadata?: {
         [key: string]: unknown;
     };
     name?: string;
     raw?: string;
+    shadowed_by?: string;
+    source_kind?: string;
+    source_path?: string;
+    source_root?: string;
+    state?: string;
+};
+
+export type HandlersSkillsActionRequest = {
+    action?: string;
+    target_path?: string;
 };
 
 export type HandlersSkillsDeleteRequest = {
@@ -3045,6 +3056,47 @@ export type PostBotsByBotIdContainerSkillsResponses = {
 };
 
 export type PostBotsByBotIdContainerSkillsResponse = PostBotsByBotIdContainerSkillsResponses[keyof PostBotsByBotIdContainerSkillsResponses];
+
+export type PostBotsByBotIdContainerSkillsActionsData = {
+    /**
+     * Skill action payload
+     */
+    body: HandlersSkillsActionRequest;
+    path: {
+        /**
+         * Bot ID
+         */
+        bot_id: string;
+    };
+    query?: never;
+    url: '/bots/{bot_id}/container/skills/actions';
+};
+
+export type PostBotsByBotIdContainerSkillsActionsErrors = {
+    /**
+     * Bad Request
+     */
+    400: HandlersErrorResponse;
+    /**
+     * Not Found
+     */
+    404: HandlersErrorResponse;
+    /**
+     * Internal Server Error
+     */
+    500: HandlersErrorResponse;
+};
+
+export type PostBotsByBotIdContainerSkillsActionsError = PostBotsByBotIdContainerSkillsActionsErrors[keyof PostBotsByBotIdContainerSkillsActionsErrors];
+
+export type PostBotsByBotIdContainerSkillsActionsResponses = {
+    /**
+     * OK
+     */
+    200: HandlersSkillsOpResponse;
+};
+
+export type PostBotsByBotIdContainerSkillsActionsResponse = PostBotsByBotIdContainerSkillsActionsResponses[keyof PostBotsByBotIdContainerSkillsActionsResponses];
 
 export type GetBotsByBotIdContainerSnapshotsData = {
     body?: never;

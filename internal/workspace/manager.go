@@ -18,6 +18,7 @@ import (
 	ctr "github.com/memohai/memoh/internal/containerd"
 	dbsqlc "github.com/memohai/memoh/internal/db/sqlc"
 	"github.com/memohai/memoh/internal/identity"
+	skillset "github.com/memohai/memoh/internal/skills"
 	"github.com/memohai/memoh/internal/workspace/bridge"
 )
 
@@ -243,9 +244,10 @@ func (m *Manager) buildWorkspaceContainerSpec(botID string, gpu WorkspaceGPUConf
 	tzMounts, tzEnv := ctr.TimezoneSpec()
 	mounts = append(mounts, tzMounts...)
 
-	env := make([]string, 0, len(tzEnv)+1)
+	env := make([]string, 0, len(tzEnv)+1+len(skillset.ContainerEnv()))
 	env = append(env, tzEnv...)
 	env = append(env, "BRIDGE_SOCKET_PATH=/run/memoh/bridge.sock")
+	env = append(env, skillset.ContainerEnv()...)
 
 	return ctr.ContainerSpec{
 		Cmd:        []string{"/opt/memoh/bridge"},

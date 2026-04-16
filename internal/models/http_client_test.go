@@ -10,6 +10,7 @@ func TestNewProviderHTTPClientWithoutTimeoutKeepsStreamingFriendlyBehavior(t *te
 	client := NewProviderHTTPClient(0)
 	if client == nil {
 		t.Fatal("expected client")
+		return
 	}
 	if client.Timeout != 0 {
 		t.Fatalf("expected no client timeout, got %s", client.Timeout)
@@ -29,6 +30,7 @@ func TestNewProviderHTTPClientWithTimeout(t *testing.T) {
 	client := NewProviderHTTPClient(timeout)
 	if client == nil {
 		t.Fatal("expected client")
+		return
 	}
 	if client.Timeout != timeout {
 		t.Fatalf("expected timeout %s, got %s", timeout, client.Timeout)
