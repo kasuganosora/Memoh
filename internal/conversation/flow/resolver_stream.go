@@ -45,8 +45,13 @@ func compactionRetryDelay(attempt int) time.Duration {
 }
 
 // sendWSErrorEvent sends an EventError to the client via the WS event channel.
-// Returns true if sent, false if context was cancelled.
+// Returns true if sent, false if context was cancelled or timed out.
 func sendWSErrorEvent(ctx context.Context, eventCh chan<- WSStreamEvent, errMsg string) bool {
+	return sendWSErrorEventWithTimeout(ctx, eventCh, errMsg, 5*time.Second)
+}
+
+// sendWSErrorEventWithTimeout sends an EventError with an explicit timeout.
+func sendWSErrorEventWithTimeout(ctx context.Context, eventCh chan<- WSStreamEvent, errMsg string, timeout time.Duration) bool {
 	evt := agentpkg.StreamEvent{
 		Type:  agentpkg.EventError,
 		Error: errMsg,
@@ -59,6 +64,8 @@ func sendWSErrorEvent(ctx context.Context, eventCh chan<- WSStreamEvent, errMsg 
 	case eventCh <- json.RawMessage(data):
 		return true
 	case <-ctx.Done():
+		return false
+	case <-time.After(timeout):
 		return false
 	}
 }
@@ -249,6 +256,12 @@ func (r *Resolver) StreamChat(ctx context.Context, req conversation.ChatRequest)
 		}
 
 		// All retries exhausted. Persist a final error for the record.
+		r.logger.Warn("stream chat: all retry attempts exhausted",
+			slog.String("bot_id", streamReq.BotID),
+			slog.String("session_id", streamReq.SessionID),
+			slog.Int("attempts", compactionMaxAttempts),
+			slog.Int("last_tool_calls", lastToolCallCount),
+		)
 		r.persistFinalError(context.WithoutCancel(ctx), streamReq, lastRC, lastToolCallCount, lastIdleTimeout)
 		sendChunkErrorEvent(ctx, chunkCh, fmt.Sprintf("all %d attempts exhausted after compaction", compactionMaxAttempts))
 	}()
@@ -429,8 +442,14 @@ func (r *Resolver) StreamChatWS(
 	}
 
 	// All retries exhausted. Persist a final error for the record.
+	r.logger.Warn("stream ws: all retry attempts exhausted",
+		slog.String("bot_id", req.BotID),
+		slog.String("session_id", req.SessionID),
+		slog.Int("attempts", compactionMaxAttempts),
+		slog.Int("last_tool_calls", lastToolCallCount),
+	)
 	r.persistFinalError(context.WithoutCancel(ctx), req, lastRC, lastToolCallCount, lastIdleTimeout)
-	sendWSErrorEvent(ctx, eventCh, fmt.Sprintf("all %d attempts exhausted after compaction", compactionMaxAttempts))
+	sendWSErrorEventWithTimeout(ctx, eventCh, fmt.Sprintf("all %d attempts exhausted after compaction", compactionMaxAttempts), 5*time.Second)
 	return nil
 }
 
