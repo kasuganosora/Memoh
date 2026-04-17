@@ -233,7 +233,7 @@ jobs:
   merge:
     name: publish ${{ matrix.image }}${{ matrix.variant != '' && format(' ({0})', matrix.variant) || '' }}
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/v') || startsWith(github.ref, 'refs/tags/') || github.event_name == 'release') && secrets.DOCKERHUB_USERNAME != ''
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/v') || startsWith(github.ref, 'refs/tags/') || github.event_name == 'release')
     needs: [detect-changes, build]
     strategy:
       matrix:
@@ -260,6 +260,12 @@ jobs:
       - name: Check if publish is needed
         id: should-publish
         run: |
+          # Skip publish entirely when Docker Hub credentials are not configured (e.g. fork repos).
+          if [[ -z "${{ secrets.DOCKERHUB_USERNAME }}" ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Skipping publish — DOCKERHUB_USERNAME secret not configured"
+            exit 0
+          fi
           FORCE="false"
           if [[ "${{ github.ref }}" == refs/tags/* ]] || \
              [[ "${{ github.event_name }}" == "release" ]] || \
