@@ -236,18 +236,6 @@
       />
     </div>
 
-    <!-- Timezone -->
-    <div class="space-y-2">
-      <Label>{{ $t('bots.timezone') }}</Label>
-      <TimezoneSelect
-        :model-value="form.timezone || emptyTimezoneValue"
-        :placeholder="$t('bots.timezonePlaceholder')"
-        allow-empty
-        :empty-label="$t('bots.timezoneInherited')"
-        @update:model-value="(val: string) => form.timezone = val === emptyTimezoneValue ? '' : val"
-      />
-    </div>
-
     <Separator />
 
     <!-- Reasoning -->
