@@ -96,7 +96,7 @@ var (
 	// errEOFPattern matches EOF or connection-level resets.
 	errEOFPattern = regexp.MustCompile(`(?i)connection (reset|refused)|EOF$`)
 	// serverErrPattern matches "api error 5XX" where XX is any two digits.
-	serverErrPattern = regexp.MustCompile(`api error 5\\d{2}`)
+	serverErrPattern = regexp.MustCompile(`api error 5\d{2}`)
 )
 
 // SubagentWatchdog implements an activity-based timeout for subagent execution.
@@ -360,13 +360,14 @@ func (p *SpawnProvider) execSpawn(ctx context.Context, session SessionContext, a
 	for i, task := range tasks {
 		statuses[i] = SubagentStatus{Index: i, Task: task, Status: "running"}
 	}
+	var statusesMu sync.Mutex
 
 	// Start a heartbeat goroutine that emits progress events into the
 	// parent stream at regular intervals. This keeps the stream's idle
 	// timeout from firing while subagents are running.
 	heartbeatCtx, heartbeatCancel := context.WithCancel(sessionCtx)
 	defer heartbeatCancel()
-	p.startSpawnHeartbeat(heartbeatCtx, session, len(tasks), statuses)
+	p.startSpawnHeartbeat(heartbeatCtx, session, len(tasks), &statusesMu, statuses)
 
 	p.logger.Info("spawn start",
 		slog.String("bot_id", session.BotID),
@@ -389,11 +390,13 @@ func (p *SpawnProvider) execSpawn(ctx context.Context, session SessionContext, a
 			}()
 			result := p.runSubagentTask(sessionCtx, session, sdkModel, modelID, systemPrompt, query)
 			results[idx] = result
+			statusesMu.Lock()
 			if result.Success {
 				statuses[idx] = SubagentStatus{Index: idx, Task: query, Status: "completed"}
 			} else {
 				statuses[idx] = SubagentStatus{Index: idx, Task: query, Status: "failed"}
 			}
+			statusesMu.Unlock()
 		}(i, task)
 	}
 	wg.Wait()
@@ -420,7 +423,7 @@ func (p *SpawnProvider) execSpawn(ctx context.Context, session SessionContext, a
 // startSpawnHeartbeat emits periodic progress events into the parent agent
 // stream to prevent the idle timeout from firing while spawn tasks run.
 // Each heartbeat carries a progress status so the frontend can display it.
-func (*SpawnProvider) startSpawnHeartbeat(ctx context.Context, session SessionContext, _ int, statuses []SubagentStatus) {
+func (*SpawnProvider) startSpawnHeartbeat(ctx context.Context, session SessionContext, _ int, statusesMu *sync.Mutex, statuses []SubagentStatus) {
 	emitter := session.Emitter
 	if emitter == nil {
 		return
@@ -438,8 +441,10 @@ func (*SpawnProvider) startSpawnHeartbeat(ctx context.Context, session SessionCo
 				// appropriate wire-level progress event, which resets the
 				// idle timeout timer in the resolver.
 				// Carry subagent statuses so the frontend can show progress.
+				statusesMu.Lock()
 				statusCopy := make([]SubagentStatus, len(statuses))
 				copy(statusCopy, statuses)
+				statusesMu.Unlock()
 				emitter(ToolStreamEvent{
 					Type:     StreamEventSpawnHeartbeat,
 					Progress: statusCopy,

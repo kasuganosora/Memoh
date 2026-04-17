@@ -51,6 +51,9 @@ func (r *Resolver) maybeCompact(ctx context.Context, req conversation.ChatReques
 		r.logger.Warn("compaction: failed to build config", slog.Any("error", err))
 		return
 	}
+	if cfg.ModelID == "" {
+		return
+	}
 	r.compactionService.TriggerCompaction(ctx, cfg)
 }
 

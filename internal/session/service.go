@@ -263,13 +263,28 @@ func (s *Service) SoftDelete(ctx context.Context, sessionID string) error {
 	}
 
 	// 5. Delete session events, heartbeat logs, compaction logs, schedule logs.
-	_ = q.DeleteSessionEventsBySession(ctx, pgID)
-	_ = q.DeleteHeartbeatLogsBySession(ctx, pgID)
-	_ = q.DeleteCompactionLogsBySession(ctx, pgID)
-	_ = q.DeleteScheduleLogsBySession(ctx, pgID)
+	for _, fn := range []struct {
+		name string
+		call func(context.Context, pgtype.UUID) error
+	}{
+		{"session_events", q.DeleteSessionEventsBySession},
+		{"heartbeat_logs", q.DeleteHeartbeatLogsBySession},
+		{"compaction_logs", q.DeleteCompactionLogsBySession},
+		{"schedule_logs", q.DeleteScheduleLogsBySession},
+	} {
+		if err := fn.call(ctx, pgID); err != nil {
+			s.logger.Warn("cascade delete: failed to clean up "+fn.name,
+				slog.String("session_id", sessionID),
+				slog.Any("error", err))
+		}
+	}
 
 	// 6. Clear route active_session_id references.
-	_, _ = q.ClearRouteActiveSessionRef(ctx, pgID)
+	if _, err := q.ClearRouteActiveSessionRef(ctx, pgID); err != nil {
+		s.logger.Warn("cascade delete: failed to clear route ref",
+			slog.String("session_id", sessionID),
+			slog.Any("error", err))
+	}
 
 	// 7. Finally, soft-delete the session itself.
 	if err := q.SoftDeleteSession(ctx, pgID); err != nil {
@@ -354,10 +369,14 @@ func toSession(row sqlc.BotSession) Session {
 	if row.ParentSessionID.Valid {
 		parentID = row.ParentSessionID.String()
 	}
+	routeID := ""
+	if row.RouteID.Valid {
+		routeID = row.RouteID.String()
+	}
 	return Session{
 		ID:              row.ID.String(),
 		BotID:           row.BotID.String(),
-		RouteID:         row.RouteID.String(),
+		RouteID:         routeID,
 		ChannelType:     dbpkg.TextToString(row.ChannelType),
 		Type:            row.Type,
 		Title:           row.Title,
@@ -385,10 +404,14 @@ func parseJSONMap(data []byte) map[string]any {
 }
 
 func toSessionFromListRow(row sqlc.ListSessionsByBotRow) Session {
+	routeID := ""
+	if row.RouteID.Valid {
+		routeID = row.RouteID.String()
+	}
 	return Session{
 		ID:                    row.ID.String(),
 		BotID:                 row.BotID.String(),
-		RouteID:               row.RouteID.String(),
+		RouteID:               routeID,
 		ChannelType:           dbpkg.TextToString(row.ChannelType),
 		Type:                  row.Type,
 		Title:                 row.Title,

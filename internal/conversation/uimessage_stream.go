@@ -13,10 +13,11 @@ type uiToolStreamState struct {
 
 // UIMessageStreamConverter converts low-level stream events into complete UI messages.
 type UIMessageStreamConverter struct {
-	nextID    int
-	text      *uiTextStreamState
-	reasoning *uiTextStreamState
-	tools     map[string]*uiToolStreamState
+	nextID         int
+	text           *uiTextStreamState
+	reasoning      *uiTextStreamState
+	tools          map[string]*uiToolStreamState
+	completedTools []UIMessage
 }
 
 // NewUIMessageStreamConverter creates a new UI stream converter.
@@ -138,6 +139,7 @@ func (c *UIMessageStreamConverter) HandleEvent(event UIMessageStreamEvent) []UIM
 		state.Message.Running = uiBoolPtr(false)
 		if state.Message.ToolCallID != "" {
 			delete(c.tools, state.Message.ToolCallID)
+			c.completedTools = append(c.completedTools, cloneToolStreamMessage(state.Message))
 		}
 		return []UIMessage{cloneToolStreamMessage(state.Message)}
 
@@ -212,6 +214,7 @@ func (c *UIMessageStreamConverter) Snapshot() []UIMessage {
 	for _, state := range c.tools {
 		msgs = append(msgs, cloneToolStreamMessage(state.Message))
 	}
+	msgs = append(msgs, c.completedTools...)
 	return msgs
 }
 

@@ -32,9 +32,7 @@ const curProvider = ref<TtsSpeechProviderResponse>()
 const showAddProvider = ref(false)
 provide('curTtsProvider', curProvider)
 
-const selectProvider = (name: string) => computed(() => {
-  return curProvider.value?.name === name
-})
+
 
 const filteredProviders = computed(() => {
   if (!Array.isArray(providerData.value)) return []
@@ -78,7 +76,7 @@ watch(filteredProviders, (list) => {
           >
             <Toggle
               :class="['py-4 border', curProvider?.id === item.id ? 'border-border' : 'border-transparent']"
-              :model-value="selectProvider(item.name ?? '').value"
+              :model-value="curProvider?.name === item.name"
               @update:model-value="(isSelect) => { if (isSelect) curProvider = item }"
             >
               <span class="relative shrink-0">

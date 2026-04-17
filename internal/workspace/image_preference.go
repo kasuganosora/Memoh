@@ -237,6 +237,10 @@ func (m *Manager) updateBotWorkspaceImagePreference(ctx context.Context, botID, 
 	if err != nil {
 		return err
 	}
+
+	unlock := m.lockContainer(botID)
+	defer unlock()
+
 	row, err := m.queries.GetBotByID(ctx, botUUID)
 	if err != nil {
 		return err
@@ -327,6 +331,10 @@ func (m *Manager) updateBotWorkspaceGPUPreference(ctx context.Context, botID str
 	if err != nil {
 		return err
 	}
+
+	unlock := m.lockContainer(botID)
+	defer unlock()
+
 	row, err := m.queries.GetBotByID(ctx, botUUID)
 	if err != nil {
 		return err

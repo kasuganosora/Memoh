@@ -182,6 +182,7 @@
     "toolEmailAccounts": "{count} accounts",
     "toolSpawnCount": "{count} tasks",
     "toolRetry": "Retry",
+    "toolRetryTask": "Retry the failed spawn task: {task}",
     "unknownUser": "{platform} User",
     "files": "Files",
     "clearMessages": "Clear Messages",

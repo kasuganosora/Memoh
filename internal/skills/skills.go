@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"path"
 	"slices"
@@ -143,7 +144,9 @@ func List(ctx context.Context, client fileClient, rawCompatRoots []string) ([]En
 	idx := readIndex(ctx, client)
 	items := scan(ctx, client, DiscoveryRoots(rawCompatRoots))
 	resolved := resolve(items, idx.Overrides)
-	writeIndex(ctx, client, idx.withItems(resolved))
+	if err := writeIndex(ctx, client, idx.withItems(resolved)); err != nil {
+		return nil, fmt.Errorf("write skill index: %w", err)
+	}
 	return resolved, nil
 }
 
@@ -178,7 +181,9 @@ func ApplyAction(ctx context.Context, client fileClient, rawCompatRoots []string
 			idx.Overrides = make(map[string]indexOverride)
 		}
 		idx.Overrides[targetPath] = indexOverride{Disabled: true}
-		writeIndex(ctx, client, idx.withItems(resolve(items, idx.Overrides)))
+		if err := writeIndex(ctx, client, idx.withItems(resolve(items, idx.Overrides))); err != nil {
+			return fmt.Errorf("write skill index: %w", err)
+		}
 		return nil
 	case ActionEnable:
 		idx := readIndex(ctx, client)
@@ -187,7 +192,9 @@ func ApplyAction(ctx context.Context, client fileClient, rawCompatRoots []string
 			return bridge.ErrNotFound
 		}
 		delete(idx.Overrides, targetPath)
-		writeIndex(ctx, client, idx.withItems(resolve(items, idx.Overrides)))
+		if err := writeIndex(ctx, client, idx.withItems(resolve(items, idx.Overrides))); err != nil {
+			return fmt.Errorf("write skill index: %w", err)
+		}
 		return nil
 	case ActionAdopt:
 		items := scan(ctx, client, DiscoveryRoots(rawCompatRoots))
@@ -214,7 +221,9 @@ func ApplyAction(ctx context.Context, client fileClient, rawCompatRoots []string
 			return err
 		}
 		idx := readIndex(ctx, client)
-		writeIndex(ctx, client, idx.withItems(resolve(scan(ctx, client, DiscoveryRoots(rawCompatRoots)), idx.Overrides)))
+		if err := writeIndex(ctx, client, idx.withItems(resolve(scan(ctx, client, DiscoveryRoots(rawCompatRoots)), idx.Overrides))); err != nil {
+			return fmt.Errorf("write skill index: %w", err)
+		}
 		return nil
 	default:
 		return bridge.ErrBadRequest
@@ -501,15 +510,18 @@ func readIndex(ctx context.Context, client fileClient) indexState {
 	return idx
 }
 
-func writeIndex(ctx context.Context, client fileClient, idx indexState) {
+func writeIndex(ctx context.Context, client fileClient, idx indexState) error {
 	if err := client.Mkdir(ctx, IndexDirPath); err != nil {
-		return
+		return fmt.Errorf("mkdir %s: %w", IndexDirPath, err)
 	}
 	data, err := json.MarshalIndent(idx, "", "  ")
 	if err != nil {
-		return
+		return fmt.Errorf("marshal index: %w", err)
 	}
-	_, _ = client.WriteRaw(ctx, IndexFilePath, strings.NewReader(string(data)))
+	if _, err := client.WriteRaw(ctx, IndexFilePath, strings.NewReader(string(data))); err != nil {
+		return fmt.Errorf("write index: %w", err)
+	}
+	return nil
 }
 
 func (i indexState) withItems(items []Entry) indexState {

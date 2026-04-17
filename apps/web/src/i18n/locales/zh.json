@@ -178,6 +178,7 @@
     "toolEmailAccounts": "{count} 个账户",
     "toolSpawnCount": "{count} 个任务",
     "toolRetry": "重试",
+    "toolRetryTask": "请重试 spawn 中失败的任务：{task}",
     "unknownUser": "{platform}用户",
     "files": "文件管理",
     "clearMessages": "清除消息",

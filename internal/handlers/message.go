@@ -267,15 +267,15 @@ func (h *MessageHandler) StreamMessageEvents(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
-	c.Response().Header().Set(echo.HeaderContentType, "text/event-stream")
-	c.Response().Header().Set(echo.HeaderCacheControl, "no-cache")
-	c.Response().Header().Set(echo.HeaderConnection, "keep-alive")
-	c.Response().WriteHeader(http.StatusOK)
-
 	flusher, ok := c.Response().Writer.(http.Flusher)
 	if !ok {
 		return echo.NewHTTPError(http.StatusInternalServerError, "streaming not supported")
 	}
+
+	c.Response().Header().Set(echo.HeaderContentType, "text/event-stream")
+	c.Response().Header().Set(echo.HeaderCacheControl, "no-cache")
+	c.Response().Header().Set(echo.HeaderConnection, "keep-alive")
+	c.Response().WriteHeader(http.StatusOK)
 	writer := bufio.NewWriter(c.Response().Writer)
 
 	sentMessageIDs := map[string]struct{}{}

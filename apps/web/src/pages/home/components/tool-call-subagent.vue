@@ -163,6 +163,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Check, LoaderCircle, GitBranch, ChevronRight, CircleCheck, CircleX, ExternalLink } from 'lucide-vue-next'
 import { Badge, Collapsible, CollapsibleTrigger, CollapsibleContent } from '@memohai/ui'
 import { useRouter } from 'vue-router'
@@ -243,8 +244,10 @@ function navigateToSession(sessionId: string) {
   })
 }
 
+const { t } = useI18n()
+
 function retryTask(task: string) {
   if (!task) return
-  chatStore.sendMessage(`请重试 spawn 中失败的任务：${task}`)
+  chatStore.sendMessage(t('chat.toolRetryTask', { task }))
 }
 </script>

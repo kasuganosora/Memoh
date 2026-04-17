@@ -457,6 +457,12 @@ func (m *Manager) Delete(ctx context.Context, botID string, preserveData bool) e
 
 	m.clearLegacyRoute(botID)
 
+	// Clean up per-bot/container locks to prevent unbounded map growth.
+	m.containerLockMu.Lock()
+	delete(m.containerLocks, containerID)
+	delete(m.containerLocks, botID)
+	m.containerLockMu.Unlock()
+
 	if err := m.service.RemoveNetwork(ctx, ctr.NetworkSetupRequest{
 		ContainerID: containerID,
 		CNIBinDir:   m.cfg.CNIBinaryDir,
