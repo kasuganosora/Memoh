@@ -210,11 +210,6 @@ func (s *Service) UpsertBot(ctx context.Context, botID string, req UpsertRequest
 	if err != nil {
 		return Settings{}, err
 	}
-	createdByUserID := ""
-	if botRow.OwnerUserID.Valid {
-		createdByUserID = uuid.UUID(botRow.OwnerUserID.Bytes).String()
-	}
-	_ = createdByUserID
 	if err := s.setDefaultEffect(ctx, botID, current.AclDefaultEffect); err != nil {
 		return Settings{}, err
 	}

@@ -88,6 +88,10 @@ func retryDelay(attempt int, cfg RetryConfig) time.Duration {
 	delay = min(delay, cfg.MaxDelay)
 	// Add jitter: random value in [0, delay/2), so final delay is in [delay/2, delay).
 	// math/rand is intentional here — cryptographic randomness is not needed for backoff jitter.
-	jitter := time.Duration(rand.Int64N(int64(delay / 2))) //nolint:gosec // G404: jitter does not need crypto/rand
+	half := int64(delay / 2)
+	if half <= 0 {
+		return delay
+	}
+	jitter := time.Duration(rand.Int64N(half)) //nolint:gosec // G404: jitter does not need crypto/rand
 	return delay/2 + jitter
 }

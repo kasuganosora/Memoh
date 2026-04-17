@@ -137,6 +137,10 @@ func (h *SettingsHandler) Delete(c echo.Context) error {
 	if err := h.service.Delete(c.Request().Context(), botID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
+	// Cancel any heartbeat schedule for the deleted bot.
+	if err := h.heartbeatService.Reschedule(c.Request().Context(), botID); err != nil {
+		h.logger.Error("failed to cancel heartbeat after settings delete", slog.String("bot_id", botID), slog.Any("error", err))
+	}
 	return c.NoContent(http.StatusNoContent)
 }
 

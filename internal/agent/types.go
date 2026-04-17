@@ -2,6 +2,7 @@ package agent
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -162,7 +163,7 @@ type ReasoningConfig struct {
 func mustMarshal(v any) json.RawMessage {
 	data, err := json.Marshal(v)
 	if err != nil {
-		return nil
+		panic(fmt.Sprintf("mustMarshal: %v", err))
 	}
 	return data
 }

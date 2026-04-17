@@ -463,7 +463,10 @@ func SelectMemoryModel(ctx context.Context, modelsService *Service, queries *sql
 		return GetResponse{}, sqlc.Provider{}, errors.New("queries not configured")
 	}
 	candidates, err := modelsService.ListEnabledByType(ctx, ModelTypeChat)
-	if err != nil || len(candidates) == 0 {
+	if err != nil {
+		return GetResponse{}, sqlc.Provider{}, fmt.Errorf("failed to list chat models: %w", err)
+	}
+	if len(candidates) == 0 {
 		return GetResponse{}, sqlc.Provider{}, errors.New("no enabled chat models available for memory operations")
 	}
 	selected := candidates[0]
