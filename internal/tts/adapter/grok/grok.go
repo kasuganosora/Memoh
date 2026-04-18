@@ -49,14 +49,20 @@ func (*GrokAdapter) DefaultModel() string {
 }
 
 var grokVoices = []tts.VoiceInfo{
-	{ID: "eve", Name: "Eve", Lang: "en"},
-	{ID: "ara", Name: "Ara", Lang: "en"},
-	{ID: "rex", Name: "Rex", Lang: "en"},
-	{ID: "sal", Name: "Sal", Lang: "en"},
-	{ID: "leo", Name: "Leo", Lang: "en"},
+	{ID: "eve", Name: "Eve"},
+	{ID: "ara", Name: "Ara"},
+	{ID: "rex", Name: "Rex"},
+	{ID: "sal", Name: "Sal"},
+	{ID: "leo", Name: "Leo"},
 }
 
-var grokFormats = []string{"mp3"}
+// BCP-47 language codes supported by Grok TTS (from official docs).
+var grokLanguages = []string{
+	"auto", "en", "ar-EG", "ar-SA", "ar-AE", "bn", "zh", "fr", "de", "hi",
+	"id", "it", "ja", "ko", "pt-BR", "pt-PT", "ru", "es-MX", "es-ES", "tr", "vi",
+}
+
+var grokFormats = []string{"mp3", "wav", "pcm", "mulaw", "alaw"}
 
 func (*GrokAdapter) Models() []tts.ModelInfo {
 	return []tts.ModelInfo{
@@ -65,8 +71,9 @@ func (*GrokAdapter) Models() []tts.ModelInfo {
 			Name:        "Grok TTS",
 			Description: "xAI Grok text-to-speech with expressive voices",
 			Capabilities: tts.ModelCapabilities{
-				Voices:  grokVoices,
-				Formats: grokFormats,
+				Voices:    grokVoices,
+				Languages: grokLanguages,
+				Formats:   grokFormats,
 			},
 		},
 	}

@@ -282,6 +282,8 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
+const capsData = computed(() => props.capabilities as Record<string, unknown> | null)
+
 const caps = computed(() => props.capabilities)
 
 const configData = reactive<Record<string, unknown>>({})
@@ -300,6 +302,12 @@ watch(() => props.config, (cfg) => {
 }, { immediate: true })
 
 const availableLanguages = computed(() => {
+  // Use explicit languages list from capabilities if available.
+  const languages = capsData.value?.languages as string[] | undefined
+  if (languages && languages.length > 0) {
+    return [...languages].sort()
+  }
+  // Fallback: derive from voice.lang.
   if (!caps.value?.voices) return []
   const langs = new Set(caps.value.voices.map((v: TtsVoiceInfo) => v.lang ?? '').filter(Boolean))
   return [...langs].sort()
@@ -307,6 +315,9 @@ const availableLanguages = computed(() => {
 
 const filteredVoices = computed(() => {
   if (!caps.value?.voices) return []
+  // If voices are language-agnostic (no lang set), show all voices regardless of language selection.
+  const hasLangBinding = caps.value.voices.some((v: TtsVoiceInfo) => !!v.lang)
+  if (!hasLangBinding) return caps.value.voices
   const lang = configData.voice_lang
   if (!lang) return caps.value.voices
   return caps.value.voices.filter((v: TtsVoiceInfo) => v.lang === lang)
@@ -314,9 +325,13 @@ const filteredVoices = computed(() => {
 
 function onLangChange(lang: string) {
   configData.voice_lang = lang
-  const voices = caps.value?.voices?.filter((v: TtsVoiceInfo) => v.lang === lang)
-  if (voices && voices.length > 0 && !voices.some((v: TtsVoiceInfo) => v.id === configData.voice_id)) {
-    configData.voice_id = voices[0].id ?? ''
+  // Only reset voice when voices are bound to languages.
+  const hasLangBinding = caps.value?.voices?.some((v: TtsVoiceInfo) => !!v.lang)
+  if (hasLangBinding) {
+    const voices = caps.value?.voices?.filter((v: TtsVoiceInfo) => v.lang === lang)
+    if (voices && voices.length > 0 && !voices.some((v: TtsVoiceInfo) => v.id === configData.voice_id)) {
+      configData.voice_id = voices[0].id ?? ''
+    }
   }
 }
 
