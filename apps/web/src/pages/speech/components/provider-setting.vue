@@ -151,6 +151,7 @@
             :model-name="model.model_id ?? ''"
             :config="model.config || {}"
             :capabilities="getModelCapabilities(model.model_id ?? '')"
+            @save="(cfg) => handleSaveModelConfig(model.id ?? '', cfg)"
             @test="(text, cfg) => handleTestModel(model.id ?? '', text, cfg)"
           />
         </div>
@@ -175,7 +176,7 @@ import { computed, inject, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useQueryCache } from '@pinia/colada'
-import { getSpeechProvidersMeta, getSpeechModels, getProvidersById, putProvidersById, postModels, deleteProvidersById, deleteModelsById } from '@memohai/sdk'
+import { getSpeechProvidersMeta, getSpeechModels, getProvidersById, putProvidersById, putModelsById, postModels, deleteProvidersById, deleteModelsById } from '@memohai/sdk'
 import type { TtsSpeechProviderResponse, TtsProviderMetaResponse, TtsModelInfo } from '@memohai/sdk'
 
 const CREDENTIAL_REQUIRED_TYPES = new Set(['grok-speech', 'gemini-speech'])
@@ -373,6 +374,21 @@ async function handleDeleteProvider() {
     toast.error(t('common.saveFailed'))
   } finally {
     deleteLoading.value = false
+  }
+}
+
+async function handleSaveModelConfig(modelId: string, config: Record<string, unknown>) {
+  if (!modelId) return
+  try {
+    await putModelsById({
+      path: { id: modelId },
+      body: { config },
+      throwOnError: true,
+    })
+    queryCache.invalidateQueries({ key: ['speech-models'] })
+    toast.success(t('speech.importSuccess'))
+  } catch {
+    toast.error(t('common.saveFailed'))
   }
 }
 
