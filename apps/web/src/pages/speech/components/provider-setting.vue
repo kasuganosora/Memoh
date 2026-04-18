@@ -256,9 +256,15 @@ const { data: metaList } = useQuery({
   },
 })
 
+// client_type -> adapter type mapping (e.g. "grok-speech" -> "grok")
+function clientTypeToAdapterType(clientType: string): string {
+  return clientType.replace(/-speech$/, '')
+}
+
 const currentMeta = computed<TtsProviderMetaResponse | null>(() => {
   if (!metaList.value || !curProvider.value?.client_type) return null
-  return (metaList.value as TtsProviderMetaResponse[]).find((m) => m.provider === curProvider.value?.client_type) ?? null
+  const adapterType = clientTypeToAdapterType(curProvider.value.client_type)
+  return (metaList.value as TtsProviderMetaResponse[]).find((m) => m.provider === adapterType) ?? null
 })
 
 function getModelCapabilities(modelId: string) {
