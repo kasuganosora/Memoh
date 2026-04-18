@@ -379,10 +379,18 @@ async function handleDeleteProvider() {
 
 async function handleSaveModelConfig(modelId: string, config: Record<string, unknown>) {
   if (!modelId) return
+  const model = providerModels.value.find((m) => m.id === modelId)
+  if (!model) return
   try {
     await putModelsById({
       path: { id: modelId },
-      body: { config },
+      body: {
+        model_id: model.model_id ?? '',
+        name: model.name ?? '',
+        provider_id: model.provider_id ?? '',
+        type: model.type ?? 'speech',
+        config,
+      },
       throwOnError: true,
     })
     queryCache.invalidateQueries({ key: ['speech-models'] })
