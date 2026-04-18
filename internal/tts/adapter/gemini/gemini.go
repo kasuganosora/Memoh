@@ -227,9 +227,18 @@ func (a *GeminiAdapter) SynthesizeWithCreds(ctx context.Context, text string, mo
 		if !retry {
 			break
 		}
-		a.logger.Warn("gemini tts: retryable error, retrying",
-			slog.Int("attempt", attempt+1),
-			slog.Any("error", reqErr))
+		if attempt < maxRetries {
+			backoff := time.Duration(1<<attempt) * time.Second
+			a.logger.Warn("gemini tts: retryable error, retrying",
+				slog.Int("attempt", attempt+1),
+				slog.Any("error", reqErr),
+				slog.Duration("backoff", backoff))
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(backoff):
+			}
+		}
 	}
 	return nil, lastErr
 }

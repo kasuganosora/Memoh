@@ -1,6 +1,7 @@
 package tts
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -142,6 +143,10 @@ func (s *Service) Synthesize(ctx context.Context, modelID string, text string, o
 	}
 
 	contentType := resolveContentType(audioCfg.Format)
+	// If the configured format doesn't match the actual audio bytes, detect from content.
+	if detected := detectAudioContentType(audio); detected != "" {
+		contentType = detected
+	}
 	return audio, contentType, nil
 }
 
@@ -183,7 +188,7 @@ func (s *Service) StreamToFile(ctx context.Context, modelID string, text string,
 		if _, writeErr := w.Write(audio); writeErr != nil {
 			return "", fmt.Errorf("write audio: %w", writeErr)
 		}
-		return resolveContentType(audioCfg.Format), nil
+		return resolveAudioContentType(audioCfg.Format, audio), nil
 	}
 
 	dataCh, errCh := adapter.Stream(ctx, text, resolvedModel, audioCfg)
@@ -206,6 +211,43 @@ func (s *Service) StreamToFile(ctx context.Context, modelID string, text string,
 	}
 
 	return resolveContentType(audioCfg.Format), nil
+}
+
+// resolveAudioContentType resolves content type, falling back to byte-signature
+// detection when the configured format may not match actual output.
+func resolveAudioContentType(format string, audio []byte) string {
+	if detected := detectAudioContentType(audio); detected != "" {
+		return detected
+	}
+	return resolveContentType(format)
+}
+
+// detectAudioContentType detects audio format from magic bytes.
+func detectAudioContentType(data []byte) string {
+	if len(data) < 4 {
+		return ""
+	}
+	// WAV: "RIFF"
+	if bytes.HasPrefix(data, []byte("RIFF")) {
+		return "audio/wav"
+	}
+	// MP3: ID3 tag or sync word 0xFF 0xFB / 0xFF 0xF3 / 0xFF 0xF2
+	if bytes.HasPrefix(data, []byte("ID3")) || (data[0] == 0xFF && data[1]&0xE0 == 0xE0) {
+		return "audio/mpeg"
+	}
+	// OGG: "OggS"
+	if bytes.HasPrefix(data, []byte("OggS")) {
+		return "audio/ogg"
+	}
+	// WebM: "\x1A\x45\xDF\xA3"
+	if len(data) >= 4 && data[0] == 0x1A && data[1] == 0x45 && data[2] == 0xDF && data[3] == 0xA3 {
+		return "audio/webm"
+	}
+	// Opus: "OpusHead"
+	if bytes.HasPrefix(data, []byte("OpusHead")) {
+		return "audio/opus"
+	}
+	return ""
 }
 
 // ---------------------------------------------------------------------------

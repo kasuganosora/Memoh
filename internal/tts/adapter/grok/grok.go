@@ -58,7 +58,7 @@ var grokVoices = []tts.VoiceInfo{
 
 // BCP-47 language codes supported by Grok TTS (from official docs).
 var grokLanguages = []string{
-	"auto", "en", "ar-EG", "ar-SA", "ar-AE", "bn", "zh", "fr", "de", "hi",
+	"en", "ar-EG", "ar-SA", "ar-AE", "bn", "zh", "fr", "de", "hi",
 	"id", "it", "ja", "ko", "pt-BR", "pt-PT", "ru", "es-MX", "es-ES", "tr", "vi",
 }
 
@@ -96,9 +96,10 @@ func (*GrokAdapter) Synthesize(_ context.Context, _ string, _ string, _ tts.Audi
 }
 
 type ttsRequest struct {
-	Text     string `json:"text"`
-	VoiceID  string `json:"voice_id"`
-	Language string `json:"language"`
+	Text           string `json:"text"`
+	VoiceID        string `json:"voice_id"`
+	Language       string `json:"language"`
+	ResponseFormat string `json:"response_format,omitempty"`
 }
 
 // SynthesizeWithCreds performs TTS using provider API key and base URL.
@@ -120,9 +121,10 @@ func (a *GrokAdapter) SynthesizeWithCreds(ctx context.Context, text string, _ st
 	endpoint := strings.TrimRight(baseURL, "/") + "/tts"
 
 	body := ttsRequest{
-		Text:     text,
-		VoiceID:  voiceID,
-		Language: lang,
+		Text:           text,
+		VoiceID:        voiceID,
+		Language:       lang,
+		ResponseFormat: config.Format,
 	}
 	payload, err := json.Marshal(body)
 	if err != nil {
@@ -151,6 +153,12 @@ func (a *GrokAdapter) SynthesizeWithCreds(ctx context.Context, text string, _ st
 			if readErr != nil {
 				return nil, fmt.Errorf("grok tts: read response: %w", readErr)
 			}
+			if ct := resp.Header.Get("Content-Type"); ct != "" {
+				// Store actual content-type from API response for downstream use.
+				// The caller (service.go) will use resolveContentType(config.Format)
+				// but we log the actual type here for debugging.
+				a.logger.Debug("grok tts: response content-type", slog.String("content_type", ct))
+			}
 			return audio, nil
 		}
 
@@ -161,9 +169,18 @@ func (a *GrokAdapter) SynthesizeWithCreds(ctx context.Context, text string, _ st
 			resp.StatusCode == http.StatusInternalServerError ||
 			resp.StatusCode == http.StatusServiceUnavailable {
 			lastErr = fmt.Errorf("grok tts: API returned %d: %s", resp.StatusCode, string(respBody))
-			a.logger.Warn("grok tts: retryable error, retrying",
-				slog.Int("attempt", attempt+1),
-				slog.Int("status", resp.StatusCode))
+			if attempt < maxRetries {
+				backoff := time.Duration(1<<attempt) * time.Second
+				a.logger.Warn("grok tts: retryable error, retrying",
+					slog.Int("attempt", attempt+1),
+					slog.Int("status", resp.StatusCode),
+					slog.Duration("backoff", backoff))
+				select {
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				case <-time.After(backoff):
+				}
+			}
 			continue
 		}
 
