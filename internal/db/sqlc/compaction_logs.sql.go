@@ -111,6 +111,15 @@ func (q *Queries) DeleteCompactionLogsByBot(ctx context.Context, botID pgtype.UU
 	return err
 }
 
+const deleteCompactionLogsBySession = `-- name: DeleteCompactionLogsBySession :exec
+DELETE FROM bot_history_message_compacts WHERE session_id = $1
+`
+
+func (q *Queries) DeleteCompactionLogsBySession(ctx context.Context, sessionID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteCompactionLogsBySession, sessionID)
+	return err
+}
+
 const getCompactionLogByID = `-- name: GetCompactionLogByID :one
 SELECT id, bot_id, session_id, status, summary, message_count, error_message, usage, model_id, started_at, completed_at
 FROM bot_history_message_compacts
@@ -219,13 +228,4 @@ func (q *Queries) ListCompactionLogsBySession(ctx context.Context, sessionID pgt
 		return nil, err
 	}
 	return items, nil
-}
-
-const deleteCompactionLogsBySession = `-- name: DeleteCompactionLogsBySession :exec
-DELETE FROM bot_history_message_compacts WHERE session_id = $1
-`
-
-func (q *Queries) DeleteCompactionLogsBySession(ctx context.Context, sessionID pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, deleteCompactionLogsBySession, sessionID)
-	return err
 }

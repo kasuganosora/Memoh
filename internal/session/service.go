@@ -273,7 +273,8 @@ func (s *Service) SoftDelete(ctx context.Context, sessionID string) error {
 		{"schedule_logs", q.DeleteScheduleLogsBySession},
 	} {
 		if err := fn.call(ctx, pgID); err != nil {
-			s.logger.Warn("cascade delete: failed to clean up "+fn.name,
+			s.logger.Warn("cascade delete: failed to clean up",
+				slog.String("table", fn.name),
 				slog.String("session_id", sessionID),
 				slog.Any("error", err))
 		}

@@ -18,7 +18,7 @@ SELECT * FROM providers WHERE name = sqlc.arg(name);
 
 -- name: ListProviders :many
 SELECT * FROM providers
-WHERE client_type NOT IN ('edge-speech')
+WHERE client_type NOT IN ('edge-speech', 'grok-speech', 'gemini-speech')
 ORDER BY created_at DESC;
 
 -- name: UpdateProvider :one
@@ -39,7 +39,7 @@ DELETE FROM providers WHERE id = sqlc.arg(id);
 
 -- name: CountProviders :one
 SELECT COUNT(*) FROM providers
-WHERE client_type NOT IN ('edge-speech');
+WHERE client_type NOT IN ('edge-speech', 'grok-speech', 'gemini-speech');
 
 -- name: CreateModel :one
 INSERT INTO models (model_id, name, provider_id, type, config)
@@ -184,7 +184,8 @@ ORDER BY weight DESC, created_at DESC;
 -- name: GetSpeechModelWithProvider :one
 SELECT
   m.*,
-  p.client_type AS provider_type
+  p.client_type AS provider_type,
+  p.config AS provider_config
 FROM models m
 JOIN providers p ON p.id = m.provider_id
 WHERE m.id = sqlc.arg(id)
@@ -192,7 +193,7 @@ WHERE m.id = sqlc.arg(id)
 
 -- name: ListSpeechProviders :many
 SELECT * FROM providers
-WHERE client_type IN ('edge-speech')
+WHERE client_type IN ('edge-speech', 'grok-speech', 'gemini-speech')
 ORDER BY created_at DESC;
 
 -- name: ListSpeechModels :many

@@ -125,9 +125,20 @@ func (s *Service) Synthesize(ctx context.Context, modelID string, text string, o
 	}
 
 	resolvedModel, _ := adapter.ResolveModel(modelRow.ModelID)
-	audio, synthErr := adapter.Synthesize(ctx, text, resolvedModel, audioCfg)
-	if synthErr != nil {
-		return nil, "", fmt.Errorf("synthesize: %w", synthErr)
+
+	var audio []byte
+	if credAdapter, ok := adapter.(CredentialledTtsAdapter); ok {
+		apiKey, baseURL := extractProviderCreds(modelRow.ProviderConfig)
+		if apiKey != "" {
+			audio, err = credAdapter.SynthesizeWithCreds(ctx, text, resolvedModel, audioCfg, apiKey, baseURL)
+		} else {
+			err = errors.New("provider has no API key configured")
+		}
+	} else {
+		audio, err = adapter.Synthesize(ctx, text, resolvedModel, audioCfg)
+	}
+	if err != nil {
+		return nil, "", fmt.Errorf("synthesize: %w", err)
 	}
 
 	contentType := resolveContentType(audioCfg.Format)
@@ -158,6 +169,23 @@ func (s *Service) StreamToFile(ctx context.Context, modelID string, text string,
 	}
 
 	resolvedModel, _ := adapter.ResolveModel(modelRow.ModelID)
+
+	// For credentialled adapters, synthesize directly and write in one shot.
+	if credAdapter, ok := adapter.(CredentialledTtsAdapter); ok {
+		apiKey, baseURL := extractProviderCreds(modelRow.ProviderConfig)
+		if apiKey == "" {
+			return "", errors.New("provider has no API key configured")
+		}
+		audio, synthErr := credAdapter.SynthesizeWithCreds(ctx, text, resolvedModel, audioCfg, apiKey, baseURL)
+		if synthErr != nil {
+			return "", fmt.Errorf("synthesize: %w", synthErr)
+		}
+		if _, writeErr := w.Write(audio); writeErr != nil {
+			return "", fmt.Errorf("write audio: %w", writeErr)
+		}
+		return resolveContentType(audioCfg.Format), nil
+	}
+
 	dataCh, errCh := adapter.Stream(ctx, text, resolvedModel, audioCfg)
 	if dataCh == nil {
 		select {
@@ -216,9 +244,31 @@ func clientTypeToTtsType(clientType string) TtsType {
 	switch clientType {
 	case "edge-speech":
 		return "edge"
+	case "grok-speech":
+		return "grok"
+	case "gemini-speech":
+		return "gemini"
 	default:
 		return TtsType(clientType)
 	}
+}
+
+// extractProviderCreds parses api_key and base_url from the provider config JSONB.
+func extractProviderCreds(config []byte) (apiKey, baseURL string) {
+	if len(config) == 0 {
+		return "", ""
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(config, &cfg); err != nil {
+		return "", ""
+	}
+	if v, ok := cfg["api_key"].(string); ok {
+		apiKey = v
+	}
+	if v, ok := cfg["base_url"].(string); ok {
+		baseURL = v
+	}
+	return apiKey, baseURL
 }
 
 func parseModelConfig(raw []byte) map[string]any {

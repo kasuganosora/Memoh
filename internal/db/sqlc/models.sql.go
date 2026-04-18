@@ -36,7 +36,7 @@ func (q *Queries) CountModelsByType(ctx context.Context, type_ string) (int64, e
 
 const countProviders = `-- name: CountProviders :one
 SELECT COUNT(*) FROM providers
-WHERE client_type NOT IN ('edge-speech')
+WHERE client_type NOT IN ('edge-speech', 'grok-speech', 'gemini-speech')
 `
 
 func (q *Queries) CountProviders(ctx context.Context) (int64, error) {
@@ -312,7 +312,8 @@ func (q *Queries) GetProviderByName(ctx context.Context, name string) (Provider,
 const getSpeechModelWithProvider = `-- name: GetSpeechModelWithProvider :one
 SELECT
   m.id, m.model_id, m.name, m.provider_id, m.type, m.config, m.created_at, m.updated_at,
-  p.client_type AS provider_type
+  p.client_type AS provider_type,
+  p.config AS provider_config
 FROM models m
 JOIN providers p ON p.id = m.provider_id
 WHERE m.id = $1
@@ -320,15 +321,16 @@ WHERE m.id = $1
 `
 
 type GetSpeechModelWithProviderRow struct {
-	ID           pgtype.UUID        `json:"id"`
-	ModelID      string             `json:"model_id"`
-	Name         pgtype.Text        `json:"name"`
-	ProviderID   pgtype.UUID        `json:"provider_id"`
-	Type         string             `json:"type"`
-	Config       []byte             `json:"config"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
-	ProviderType string             `json:"provider_type"`
+	ID             pgtype.UUID        `json:"id"`
+	ModelID        string             `json:"model_id"`
+	Name           pgtype.Text        `json:"name"`
+	ProviderID     pgtype.UUID        `json:"provider_id"`
+	Type           string             `json:"type"`
+	Config         []byte             `json:"config"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	ProviderType   string             `json:"provider_type"`
+	ProviderConfig []byte             `json:"provider_config"`
 }
 
 func (q *Queries) GetSpeechModelWithProvider(ctx context.Context, id pgtype.UUID) (GetSpeechModelWithProviderRow, error) {
@@ -344,6 +346,7 @@ func (q *Queries) GetSpeechModelWithProvider(ctx context.Context, id pgtype.UUID
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ProviderType,
+		&i.ProviderConfig,
 	)
 	return i, err
 }
@@ -717,7 +720,7 @@ func (q *Queries) ListModelsByType(ctx context.Context, type_ string) ([]Model, 
 
 const listProviders = `-- name: ListProviders :many
 SELECT id, name, client_type, icon, enable, config, metadata, created_at, updated_at FROM providers
-WHERE client_type NOT IN ('edge-speech')
+WHERE client_type NOT IN ('edge-speech', 'grok-speech', 'gemini-speech')
 ORDER BY created_at DESC
 `
 
@@ -840,7 +843,7 @@ func (q *Queries) ListSpeechModelsByProviderID(ctx context.Context, providerID p
 
 const listSpeechProviders = `-- name: ListSpeechProviders :many
 SELECT id, name, client_type, icon, enable, config, metadata, created_at, updated_at FROM providers
-WHERE client_type IN ('edge-speech')
+WHERE client_type IN ('edge-speech', 'grok-speech', 'gemini-speech')
 ORDER BY created_at DESC
 `
 

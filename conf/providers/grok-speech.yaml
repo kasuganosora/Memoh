@@ -1,0 +1,9 @@
+name: xAI Grok (Speech)
+client_type: grok-speech
+icon: xai
+base_url: https://api.x.ai/v1
+
+models:
+  - model_id: grok-tts
+    name: Grok TTS
+    type: speech

@@ -62,6 +62,15 @@ func (q *Queries) CreateSessionEvent(ctx context.Context, arg CreateSessionEvent
 	return id, err
 }
 
+const deleteSessionEventsBySession = `-- name: DeleteSessionEventsBySession :exec
+DELETE FROM bot_session_events WHERE session_id = $1
+`
+
+func (q *Queries) DeleteSessionEventsBySession(ctx context.Context, sessionID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteSessionEventsBySession, sessionID)
+	return err
+}
+
 const listSessionEventsBySession = `-- name: ListSessionEventsBySession :many
 SELECT id, bot_id, session_id, event_kind, event_data, external_message_id, sender_channel_identity_id, received_at_ms, created_at FROM bot_session_events
 WHERE session_id = $1
@@ -137,13 +146,4 @@ func (q *Queries) ListSessionEventsBySessionAfter(ctx context.Context, arg ListS
 		return nil, err
 	}
 	return items, nil
-}
-
-const deleteSessionEventsBySession = `-- name: DeleteSessionEventsBySession :exec
-DELETE FROM bot_session_events WHERE session_id = $1
-`
-
-func (q *Queries) DeleteSessionEventsBySession(ctx context.Context, sessionID pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, deleteSessionEventsBySession, sessionID)
-	return err
 }

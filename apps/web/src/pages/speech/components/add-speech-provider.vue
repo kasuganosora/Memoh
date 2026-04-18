@@ -97,6 +97,8 @@ const { run } = useDialogMutation()
 
 const SPEECH_CLIENT_TYPES = [
   { value: 'edge-speech', label: 'Edge Speech', hint: 'Microsoft Edge Read Aloud TTS' },
+  { value: 'grok-speech', label: 'xAI Grok (Speech)', hint: 'xAI Grok text-to-speech API' },
+  { value: 'gemini-speech', label: 'Google Gemini (Speech)', hint: 'Gemini 3.1 Flash TTS' },
 ] as const
 
 const providerTypeOptions = computed(() =>

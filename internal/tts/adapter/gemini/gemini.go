@@ -1,0 +1,330 @@
+package gemini
+
+import (
+	"bytes"
+	"context"
+	"encoding/base64"
+	"encoding/binary"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/memohai/memoh/internal/tts"
+)
+
+const TtsTypeGemini tts.TtsType = "gemini"
+
+const geminiModelTTS = "gemini-3.1-flash-tts-preview"
+
+type GeminiAdapter struct {
+	logger *slog.Logger
+	client *http.Client
+}
+
+const defaultGeminiBaseURL = "https://generativelanguage.googleapis.com/v1beta"
+
+func NewGeminiAdapter(log *slog.Logger) *GeminiAdapter {
+	return &GeminiAdapter{
+		logger: log.With(slog.String("adapter", "gemini")),
+		client: &http.Client{Timeout: 120 * time.Second},
+	}
+}
+
+func (*GeminiAdapter) Type() tts.TtsType {
+	return TtsTypeGemini
+}
+
+func (*GeminiAdapter) Meta() tts.TtsMeta {
+	return tts.TtsMeta{
+		Provider:    "Google Gemini",
+		Description: "Gemini text-to-speech via generateContent API",
+	}
+}
+
+func (*GeminiAdapter) DefaultModel() string {
+	return geminiModelTTS
+}
+
+var geminiVoices = []tts.VoiceInfo{
+	{ID: "Zephyr", Name: "Zephyr", Lang: "en"},
+	{ID: "Puck", Name: "Puck", Lang: "en"},
+	{ID: "Charon", Name: "Charon", Lang: "en"},
+	{ID: "Kore", Name: "Kore", Lang: "en"},
+	{ID: "Fenrir", Name: "Fenrir", Lang: "en"},
+	{ID: "Leda", Name: "Leda", Lang: "en"},
+	{ID: "Orus", Name: "Orus", Lang: "en"},
+	{ID: "Aoede", Name: "Aoede", Lang: "en"},
+	{ID: "Callirrhoe", Name: "Callirrhoe", Lang: "en"},
+	{ID: "Autonoe", Name: "Autonoe", Lang: "en"},
+	{ID: "Enceladus", Name: "Enceladus", Lang: "en"},
+	{ID: "Iapetus", Name: "Iapetus", Lang: "en"},
+	{ID: "Umbriel", Name: "Umbriel", Lang: "en"},
+	{ID: "Algieba", Name: "Algieba", Lang: "en"},
+	{ID: "Despina", Name: "Despina", Lang: "en"},
+	{ID: "Erinome", Name: "Erinome", Lang: "en"},
+	{ID: "Algenib", Name: "Algenib", Lang: "en"},
+	{ID: "Rasalgethi", Name: "Rasalgethi", Lang: "en"},
+	{ID: "Laomedeia", Name: "Laomedeia", Lang: "en"},
+	{ID: "Achernar", Name: "Achernar", Lang: "en"},
+	{ID: "Alnilam", Name: "Alnilam", Lang: "en"},
+	{ID: "Schedar", Name: "Schedar", Lang: "en"},
+	{ID: "Gacrux", Name: "Gacrux", Lang: "en"},
+	{ID: "Pulcherrima", Name: "Pulcherrima", Lang: "en"},
+	{ID: "Achird", Name: "Achird", Lang: "en"},
+	{ID: "Zubenelgenubi", Name: "Zubenelgenubi", Lang: "en"},
+	{ID: "Vindemiatrix", Name: "Vindemiatrix", Lang: "en"},
+	{ID: "Sadachbia", Name: "Sadachbia", Lang: "en"},
+	{ID: "Sadaltager", Name: "Sadaltager", Lang: "en"},
+	{ID: "Sulafat", Name: "Sulafat", Lang: "en"},
+}
+
+var geminiFormats = []string{"wav"}
+
+func (*GeminiAdapter) Models() []tts.ModelInfo {
+	return []tts.ModelInfo{
+		{
+			ID:          geminiModelTTS,
+			Name:        "Gemini 3.1 Flash TTS",
+			Description: "Google Gemini text-to-speech with 30 expressive voices",
+			Capabilities: tts.ModelCapabilities{
+				Voices:  geminiVoices,
+				Formats: geminiFormats,
+			},
+		},
+	}
+}
+
+func (*GeminiAdapter) ResolveModel(model string) (string, error) {
+	trimmed := strings.TrimSpace(model)
+	if trimmed == "" {
+		return geminiModelTTS, nil
+	}
+	// Accept any model that looks like a Gemini TTS model ID.
+	return trimmed, nil
+}
+
+// Synthesize is not supported without credentials — use SynthesizeWithCreds.
+func (*GeminiAdapter) Synthesize(_ context.Context, _ string, _ string, _ tts.AudioConfig) ([]byte, error) {
+	return nil, errors.New("gemini tts: requires provider credentials, use SynthesizeWithCreds")
+}
+
+// Request types for Gemini generateContent API with audio output.
+type geminiRequest struct {
+	Model            string           `json:"model"`
+	Contents         []geminiContent  `json:"contents"`
+	GenerationConfig *geminiGenConfig `json:"generationConfig,omitempty"`
+}
+
+type geminiContent struct {
+	Parts []geminiPart `json:"parts"`
+}
+
+type geminiPart struct {
+	Text       string            `json:"text,omitempty"`
+	InlineData *geminiInlineData `json:"inlineData,omitempty"`
+}
+
+type geminiInlineData struct {
+	MimeType string `json:"mimeType"`
+	Data     string `json:"data"`
+}
+
+type geminiGenConfig struct {
+	ResponseModalities []string         `json:"responseModalities"`
+	SpeechConfig       *geminiSpeechCfg `json:"speechConfig,omitempty"`
+}
+
+type geminiSpeechCfg struct {
+	VoiceConfig *geminiVoiceCfg `json:"voiceConfig,omitempty"`
+}
+
+type geminiVoiceCfg struct {
+	PrebuiltVoiceConfig *geminiPrebuiltVoice `json:"prebuiltVoiceConfig,omitempty"`
+}
+
+type geminiPrebuiltVoice struct {
+	VoiceName string `json:"voiceName"`
+}
+
+type geminiResponse struct {
+	Candidates []geminiCandidate `json:"candidates"`
+	Error      *geminiAPIError   `json:"error,omitempty"`
+}
+
+type geminiCandidate struct {
+	Content *geminiContent `json:"content,omitempty"`
+}
+
+type geminiAPIError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Status  string `json:"status"`
+}
+
+// SynthesizeWithCreds performs TTS using Gemini generateContent API with provider API key.
+func (a *GeminiAdapter) SynthesizeWithCreds(ctx context.Context, text string, model string, config tts.AudioConfig, apiKey, baseURL string) ([]byte, error) {
+	if apiKey == "" {
+		return nil, errors.New("gemini tts: API key is required")
+	}
+	resolvedModel, err := a.ResolveModel(model)
+	if err != nil {
+		return nil, err
+	}
+	voiceName := config.Voice.ID
+	if voiceName == "" {
+		voiceName = "Kore"
+	}
+	if baseURL == "" {
+		baseURL = defaultGeminiBaseURL
+	}
+
+	endpoint := strings.TrimRight(baseURL, "/") + "/models/" + resolvedModel + ":generateContent"
+
+	reqBody := geminiRequest{
+		Model: resolvedModel,
+		Contents: []geminiContent{
+			{Parts: []geminiPart{{Text: text}}},
+		},
+		GenerationConfig: &geminiGenConfig{
+			ResponseModalities: []string{"AUDIO"},
+			SpeechConfig: &geminiSpeechCfg{
+				VoiceConfig: &geminiVoiceCfg{
+					PrebuiltVoiceConfig: &geminiPrebuiltVoice{
+						VoiceName: voiceName,
+					},
+				},
+			},
+		},
+	}
+
+	payload, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("gemini tts: marshal request: %w", err)
+	}
+
+	// Gemini docs recommend retrying on 500 errors caused by occasional
+	// text-token returns instead of audio tokens.
+	const maxRetries = 2
+	var lastErr error
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		audio, retry, reqErr := a.doGenerateRequest(ctx, endpoint, apiKey, payload)
+		if reqErr == nil {
+			return audio, nil
+		}
+		lastErr = reqErr
+		if !retry {
+			break
+		}
+		a.logger.Warn("gemini tts: retryable error, retrying",
+			slog.Int("attempt", attempt+1),
+			slog.Any("error", reqErr))
+	}
+	return nil, lastErr
+}
+
+// doGenerateRequest executes a single generateContent HTTP request.
+// Returns (audio, retryable, error). retryable=true means the caller should retry.
+func (a *GeminiAdapter) doGenerateRequest(ctx context.Context, endpoint, apiKey string, payload []byte) ([]byte, bool, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return nil, false, fmt.Errorf("gemini tts: create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-goog-api-key", apiKey)
+
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return nil, false, fmt.Errorf("gemini tts: request failed: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, false, fmt.Errorf("gemini tts: read response: %w", err)
+	}
+
+	if resp.StatusCode == http.StatusInternalServerError {
+		return nil, true, errors.New("gemini tts: server error 500")
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		var errResp geminiAPIError
+		if json.Unmarshal(respBody, &errResp) == nil && errResp.Message != "" {
+			return nil, false, fmt.Errorf("gemini tts: API returned %d: %s", resp.StatusCode, errResp.Message)
+		}
+		return nil, false, fmt.Errorf("gemini tts: API returned %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var gemResp geminiResponse
+	if err := json.Unmarshal(respBody, &gemResp); err != nil {
+		return nil, false, fmt.Errorf("gemini tts: decode response: %w", err)
+	}
+
+	if gemResp.Error != nil {
+		return nil, false, fmt.Errorf("gemini tts: API error: %s", gemResp.Error.Message)
+	}
+
+	if len(gemResp.Candidates) == 0 || gemResp.Candidates[0].Content == nil || len(gemResp.Candidates[0].Content.Parts) == 0 {
+		return nil, false, errors.New("gemini tts: no audio data in response")
+	}
+
+	inlineData := gemResp.Candidates[0].Content.Parts[0].InlineData
+	if inlineData == nil || inlineData.Data == "" {
+		return nil, false, errors.New("gemini tts: empty audio data in response")
+	}
+
+	pcm, err := base64.StdEncoding.DecodeString(inlineData.Data)
+	if err != nil {
+		return nil, false, fmt.Errorf("gemini tts: decode base64 audio: %w", err)
+	}
+
+	return pcmToWav(pcm), false, nil
+}
+
+// pcmToWav wraps raw PCM audio data (24kHz, 16-bit, mono) into a WAV container.
+func pcmToWav(pcm []byte) []byte { //nolint:gosec // PCM size is bounded by TTS output
+	const (
+		numChannels   = 1
+		sampleRate    = 24000
+		bitsPerSample = 16
+	)
+	byteRate := sampleRate * numChannels * bitsPerSample / 8
+	blockAlign := numChannels * bitsPerSample / 8
+	dataSize := uint32(len(pcm)) //nolint:gosec // PCM size bounded by TTS output
+
+	buf := new(bytes.Buffer)
+	// RIFF header
+	buf.WriteString("RIFF")
+	_ = binary.Write(buf, binary.LittleEndian, 36+dataSize)
+	buf.WriteString("WAVE")
+	// fmt chunk
+	buf.WriteString("fmt ")
+	_ = binary.Write(buf, binary.LittleEndian, uint32(16)) // chunk size
+	_ = binary.Write(buf, binary.LittleEndian, uint16(1))  // PCM format
+	_ = binary.Write(buf, binary.LittleEndian, uint16(numChannels))
+	_ = binary.Write(buf, binary.LittleEndian, uint32(sampleRate))
+	_ = binary.Write(buf, binary.LittleEndian, uint32(byteRate))
+	_ = binary.Write(buf, binary.LittleEndian, uint16(blockAlign))
+	_ = binary.Write(buf, binary.LittleEndian, uint16(bitsPerSample))
+	// data chunk
+	buf.WriteString("data")
+	_ = binary.Write(buf, binary.LittleEndian, dataSize)
+	buf.Write(pcm)
+
+	return buf.Bytes()
+}
+
+func (*GeminiAdapter) Stream(_ context.Context, _ string, _ string, _ tts.AudioConfig) (chan []byte, chan error) {
+	dataCh := make(chan []byte, 1)
+	errCh := make(chan error, 1)
+
+	errCh <- errors.New("gemini tts: streaming requires provider credentials")
+	close(errCh)
+	close(dataCh)
+	return dataCh, errCh
+}

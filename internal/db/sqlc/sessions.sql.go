@@ -11,6 +11,20 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const clearRouteActiveSessionRef = `-- name: ClearRouteActiveSessionRef :execrows
+UPDATE bot_channel_routes
+SET active_session_id = NULL
+WHERE active_session_id = $1
+`
+
+func (q *Queries) ClearRouteActiveSessionRef(ctx context.Context, sessionID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, clearRouteActiveSessionRef, sessionID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const createSession = `-- name: CreateSession :one
 INSERT INTO bot_sessions (
   bot_id, route_id, channel_type, type, title, metadata, parent_session_id
@@ -62,6 +76,19 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (B
 		&i.DeletedAt,
 	)
 	return i, err
+}
+
+const deleteSessionAssets = `-- name: DeleteSessionAssets :exec
+DELETE FROM bot_history_message_assets
+WHERE message_id IN (
+  SELECT m.id FROM bot_history_messages m
+  WHERE m.session_id = $1
+)
+`
+
+func (q *Queries) DeleteSessionAssets(ctx context.Context, sessionID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteSessionAssets, sessionID)
+	return err
 }
 
 const getActiveSessionForRoute = `-- name: GetActiveSessionForRoute :one
@@ -280,6 +307,17 @@ func (q *Queries) SoftDeleteSessionsByBot(ctx context.Context, botID pgtype.UUID
 	return err
 }
 
+const softDeleteSubSessions = `-- name: SoftDeleteSubSessions :exec
+UPDATE bot_sessions
+SET deleted_at = now(), updated_at = now()
+WHERE parent_session_id = $1 AND deleted_at IS NULL
+`
+
+func (q *Queries) SoftDeleteSubSessions(ctx context.Context, parentSessionID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, softDeleteSubSessions, parentSessionID)
+	return err
+}
+
 const touchSession = `-- name: TouchSession :exec
 UPDATE bot_sessions
 SET updated_at = now()
@@ -320,31 +358,6 @@ func (q *Queries) UpdateSessionMetadata(ctx context.Context, arg UpdateSessionMe
 		&i.DeletedAt,
 	)
 	return i, err
-}
-
-const softDeleteSubSessions = `-- name: SoftDeleteSubSessions :exec
-UPDATE bot_sessions
-SET deleted_at = now(), updated_at = now()
-WHERE parent_session_id = $1 AND deleted_at IS NULL
-`
-
-func (q *Queries) SoftDeleteSubSessions(ctx context.Context, parentSessionID pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, softDeleteSubSessions, parentSessionID)
-	return err
-}
-
-const clearRouteActiveSessionRef = `-- name: ClearRouteActiveSessionRef :execrows
-UPDATE bot_channel_routes
-SET active_session_id = NULL
-WHERE active_session_id = $1
-`
-
-func (q *Queries) ClearRouteActiveSessionRef(ctx context.Context, sessionID pgtype.UUID) (int64, error) {
-	result, err := q.db.Exec(ctx, clearRouteActiveSessionRef, sessionID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
 }
 
 const updateSessionTitle = `-- name: UpdateSessionTitle :one

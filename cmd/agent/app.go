@@ -88,6 +88,8 @@ import (
 	"github.com/memohai/memoh/internal/storage/providers/localfs"
 	ttspkg "github.com/memohai/memoh/internal/tts"
 	ttsedge "github.com/memohai/memoh/internal/tts/adapter/edge"
+	geminitts "github.com/memohai/memoh/internal/tts/adapter/gemini"
+	groktts "github.com/memohai/memoh/internal/tts/adapter/grok"
 	"github.com/memohai/memoh/internal/version"
 	"github.com/memohai/memoh/internal/workspace"
 )
@@ -517,6 +519,8 @@ func provideWebHandler(channelManager *channel.Manager, channelStore *channel.St
 func provideTtsRegistry(log *slog.Logger) *ttspkg.Registry {
 	reg := ttspkg.NewRegistry()
 	reg.Register(ttsedge.NewEdgeAdapter(log))
+	reg.Register(groktts.NewGrokAdapter(log))
+	reg.Register(geminitts.NewGeminiAdapter(log))
 	return reg
 }
 

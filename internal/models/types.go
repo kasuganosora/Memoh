@@ -24,6 +24,8 @@ const (
 	ClientTypeOpenAICodex        ClientType = "openai-codex"
 	ClientTypeGitHubCopilot      ClientType = "github-copilot"
 	ClientTypeEdgeSpeech         ClientType = "edge-speech"
+	ClientTypeGrokSpeech         ClientType = "grok-speech"
+	ClientTypeGeminiSpeech       ClientType = "gemini-speech"
 )
 
 const (

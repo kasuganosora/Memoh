@@ -1,0 +1,9 @@
+name: Google Gemini (Speech)
+client_type: gemini-speech
+icon: google
+base_url: https://generativelanguage.googleapis.com/v1beta
+
+models:
+  - model_id: gemini-3.1-flash-tts-preview
+    name: Gemini 3.1 Flash TTS
+    type: speech

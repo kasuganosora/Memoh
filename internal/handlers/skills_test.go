@@ -372,7 +372,7 @@ func (e *skillsTestEnv) callJSON(t *testing.T, method, routePath string, body an
 		bodyReader = strings.NewReader(string(data))
 	}
 
-	req := httptest.NewRequest(method, routePath, bodyReader)
+	req := httptest.NewRequestWithContext(context.Background(), method, routePath, bodyReader)
 	if body != nil {
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	}
