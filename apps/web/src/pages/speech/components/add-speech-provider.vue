@@ -64,6 +64,54 @@
               </FormControl>
             </FormItem>
           </FormField>
+
+          <template v-if="needsCredentials">
+            <FormField
+              v-slot="{ componentField }"
+              name="api_key"
+            >
+              <FormItem>
+                <Label
+                  class="mb-2"
+                  for="speech-provider-create-api-key"
+                >
+                  {{ $t('provider.apiKey') }}
+                </Label>
+                <FormControl>
+                  <Input
+                    id="speech-provider-create-api-key"
+                    type="text"
+                    :placeholder="$t('provider.apiKeyPlaceholder')"
+                    v-bind="componentField"
+                    :aria-label="$t('provider.apiKey')"
+                  />
+                </FormControl>
+              </FormItem>
+            </FormField>
+
+            <FormField
+              v-slot="{ componentField }"
+              name="base_url"
+            >
+              <FormItem>
+                <Label
+                  class="mb-2"
+                  for="speech-provider-create-base-url"
+                >
+                  {{ $t('provider.url') }}
+                </Label>
+                <FormControl>
+                  <Input
+                    id="speech-provider-create-base-url"
+                    type="text"
+                    :placeholder="$t('provider.urlPlaceholder')"
+                    v-bind="componentField"
+                    :aria-label="$t('provider.url')"
+                  />
+                </FormControl>
+              </FormItem>
+            </FormField>
+          </template>
         </div>
       </template>
     </FormDialogShell>
@@ -89,7 +137,7 @@ import { Plus } from 'lucide-vue-next'
 import FormDialogShell from '@/components/form-dialog-shell/index.vue'
 import { useDialogMutation } from '@/composables/useDialogMutation'
 import SearchableSelectPopover from '@/components/searchable-select-popover/index.vue'
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 
 const open = defineModel<boolean>('open')
 const { t } = useI18n()
@@ -100,6 +148,10 @@ const SPEECH_CLIENT_TYPES = [
   { value: 'grok-speech', label: 'xAI Grok (Speech)', hint: 'xAI Grok text-to-speech API' },
   { value: 'gemini-speech', label: 'Google Gemini (Speech)', hint: 'Gemini 3.1 Flash TTS' },
 ] as const
+
+const CREDENTIAL_REQUIRED_TYPES = new Set(['grok-speech', 'gemini-speech'])
+
+const needsCredentials = computed(() => CREDENTIAL_REQUIRED_TYPES.has(form.values.provider_type))
 
 const providerTypeOptions = computed(() =>
   SPEECH_CLIENT_TYPES.map((ct) => ({
@@ -113,10 +165,17 @@ const providerTypeOptions = computed(() =>
 const queryCache = useQueryCache()
 const { mutateAsync: createProviderMutation, isLoading } = useMutation({
   mutation: async (data: Record<string, unknown>) => {
+    const config: Record<string, unknown> = {}
+    if (data.base_url && (data.base_url as string).trim() !== '') {
+      config.base_url = (data.base_url as string).trim()
+    }
+    if (typeof data.api_key === 'string' && data.api_key.trim() !== '') {
+      config.api_key = data.api_key.trim()
+    }
     const payload = {
       name: data.name,
       client_type: data.provider_type,
-      config: {},
+      config,
     }
     const { data: result } = await postProviders({ body: payload as ProvidersCreateRequest, throwOnError: true })
     return result
@@ -130,13 +189,38 @@ const { mutateAsync: createProviderMutation, isLoading } = useMutation({
 const providerSchema = toTypedSchema(z.object({
   name: z.string().min(1),
   provider_type: z.string().min(1),
+  api_key: z.string().optional(),
+  base_url: z.string().optional(),
+}).superRefine((value, ctx) => {
+  if (CREDENTIAL_REQUIRED_TYPES.has(value.provider_type) && !value.api_key?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['api_key'],
+      message: 'API key is required',
+    })
+  }
 }))
 
 const form = useForm({
   validationSchema: providerSchema,
   initialValues: {
     provider_type: 'edge-speech',
+    api_key: '',
+    base_url: '',
   },
+})
+
+watch(() => form.values.provider_type, (type) => {
+  if (type === 'grok-speech' && !form.values.base_url) {
+    form.setFieldValue('base_url', 'https://api.x.ai/v1')
+  }
+  if (type === 'gemini-speech' && !form.values.base_url) {
+    form.setFieldValue('base_url', 'https://generativelanguage.googleapis.com/v1beta')
+  }
+  if (type === 'edge-speech') {
+    form.setFieldValue('api_key', '')
+    form.setFieldValue('base_url', '')
+  }
 })
 
 const createProvider = form.handleSubmit(async (value) => {

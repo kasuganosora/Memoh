@@ -42,6 +42,59 @@
     </section>
     <Separator class="mt-4 mb-6" />
 
+    <!-- Provider Config (API Key / Base URL) -->
+    <section
+      v-if="needsCredentials"
+      class="mb-6 space-y-3"
+    >
+      <h3 class="text-xs font-medium">
+        {{ $t('provider.apiKey') }}
+      </h3>
+      <div class="space-y-2">
+        <div class="space-y-1">
+          <Label
+            class="text-xs"
+            for="speech-provider-api-key"
+          >
+            {{ $t('provider.apiKey') }}
+          </Label>
+          <Input
+            id="speech-provider-api-key"
+            v-model="configForm.api_key"
+            type="password"
+            :placeholder="maskedApiKey || $t('provider.apiKeyPlaceholder')"
+            :aria-label="$t('provider.apiKey')"
+          />
+        </div>
+        <div class="space-y-1">
+          <Label
+            class="text-xs"
+            for="speech-provider-base-url"
+          >
+            {{ $t('provider.url') }}
+          </Label>
+          <Input
+            id="speech-provider-base-url"
+            v-model="configForm.base_url"
+            type="text"
+            :placeholder="$t('provider.urlPlaceholder')"
+            :aria-label="$t('provider.url')"
+          />
+        </div>
+        <div class="flex justify-end">
+          <LoadingButton
+            type="button"
+            size="sm"
+            :disabled="!configHasChanges"
+            :loading="configSaving"
+            @click="handleSaveConfig"
+          >
+            {{ $t('provider.saveChanges') }}
+          </LoadingButton>
+        </div>
+      </div>
+    </section>
+
     <!-- Models -->
     <section>
       <div class="flex justify-between items-center mb-4">
@@ -111,21 +164,89 @@ import {
   Separator,
   Switch,
   Button,
+  Input,
+  Label,
 } from '@memohai/ui'
 import ModelConfigEditor from './model-config-editor.vue'
 import ConfirmPopover from '@/components/confirm-popover/index.vue'
+import LoadingButton from '@/components/loading-button/index.vue'
 import { Volume2, ChevronUp, ChevronDown, Trash2 } from 'lucide-vue-next'
-import { computed, inject, ref } from 'vue'
+import { computed, inject, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useQueryCache } from '@pinia/colada'
-import { getSpeechProvidersMeta, getSpeechModels, putProvidersById, postModels, deleteProvidersById, deleteModelsById } from '@memohai/sdk'
+import { getSpeechProvidersMeta, getSpeechModels, getProvidersById, putProvidersById, postModels, deleteProvidersById, deleteModelsById } from '@memohai/sdk'
 import type { TtsSpeechProviderResponse, TtsProviderMetaResponse, TtsModelInfo } from '@memohai/sdk'
+
+const CREDENTIAL_REQUIRED_TYPES = new Set(['grok-speech', 'gemini-speech'])
 
 const { t } = useI18n()
 const curProvider = inject('curTtsProvider', ref<TtsSpeechProviderResponse>())
 const curProviderId = computed(() => curProvider.value?.id)
 const enableLoading = ref(false)
+
+const needsCredentials = computed(() => CREDENTIAL_REQUIRED_TYPES.has(curProvider.value?.client_type ?? ''))
+
+// Provider config state
+const configForm = ref({ api_key: '', base_url: '' })
+const storedBaseUrl = ref('')
+const maskedApiKey = ref('')
+const configSaving = ref(false)
+
+const configHasChanges = computed(() => {
+  const apiKeyChanged = configForm.value.api_key.trim() !== ''
+  const baseUrlChanged = configForm.value.base_url.trim() !== '' && configForm.value.base_url.trim() !== storedBaseUrl.value
+  return apiKeyChanged || baseUrlChanged
+})
+
+async function loadProviderConfig() {
+  if (!curProviderId.value || !needsCredentials.value) return
+  try {
+    const { data } = await getProvidersById({ path: { id: curProviderId.value }, throwOnError: true })
+    const cfg = (data as Record<string, unknown>)?.config as Record<string, unknown> | undefined
+    if (cfg) {
+      maskedApiKey.value = (cfg.api_key as string) || ''
+      storedBaseUrl.value = (cfg.base_url as string) || ''
+      configForm.value.base_url = storedBaseUrl.value
+    }
+  } catch {
+    // ignore
+  }
+}
+
+watch(curProviderId, (id) => {
+  configForm.value = { api_key: '', base_url: '' }
+  maskedApiKey.value = ''
+  storedBaseUrl.value = ''
+  if (id) loadProviderConfig()
+}, { immediate: true })
+
+async function handleSaveConfig() {
+  if (!curProviderId.value) return
+  configSaving.value = true
+  try {
+    const config: Record<string, unknown> = {}
+    if (configForm.value.base_url.trim()) {
+      config.base_url = configForm.value.base_url.trim()
+    }
+    if (configForm.value.api_key.trim()) {
+      config.api_key = configForm.value.api_key.trim()
+    }
+    await putProvidersById({
+      path: { id: curProviderId.value },
+      body: { config },
+      throwOnError: true,
+    })
+    // Reset api_key field after save (it's been sent)
+    configForm.value.api_key = ''
+    await loadProviderConfig()
+    queryCache.invalidateQueries({ key: ['speech-providers'] })
+  } catch {
+    toast.error(t('common.saveFailed'))
+  } finally {
+    configSaving.value = false
+  }
+}
 
 const { data: metaList } = useQuery({
   key: () => ['speech-providers-meta'],
