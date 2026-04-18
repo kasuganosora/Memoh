@@ -1011,6 +1011,42 @@ func (a *Agent) runMidStreamRetry(
 				}) {
 					aborted = true
 				}
+			case *sdk.ReasoningStartPart:
+				if !sendEvent(ctx, ch, StreamEvent{Type: EventReasoningStart}) {
+					aborted = true
+				}
+			case *sdk.ReasoningDeltaPart:
+				if !sendEvent(ctx, ch, StreamEvent{Type: EventReasoningDelta, Delta: rp.Text}) {
+					aborted = true
+				}
+			case *sdk.ReasoningEndPart:
+				if !sendEvent(ctx, ch, StreamEvent{Type: EventReasoningEnd}) {
+					aborted = true
+				}
+			case *sdk.ToolProgressPart:
+				if !sendEvent(ctx, ch, StreamEvent{
+					Type:       EventToolCallProgress,
+					ToolName:   rp.ToolName,
+					ToolCallID: rp.ToolCallID,
+					Progress:   rp.Content,
+				}) {
+					aborted = true
+				}
+			case *sdk.StreamFilePart:
+				mediaType := rp.File.MediaType
+				if mediaType == "" {
+					mediaType = "image/png"
+				}
+				if !sendEvent(ctx, ch, StreamEvent{
+					Type: EventAttachment,
+					Attachments: []FileAttachment{{
+						Type: "image",
+						URL:  fmt.Sprintf("data:%s;base64,%s", mediaType, rp.File.Data),
+						Mime: mediaType,
+					}},
+				}) {
+					aborted = true
+				}
 			case *sdk.ErrorPart:
 				sendEvent(ctx, ch, StreamEvent{Type: EventError, Error: rp.Error.Error()})
 				aborted = true

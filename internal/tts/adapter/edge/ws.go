@@ -376,12 +376,18 @@ func (c *EdgeWsClient) Stream(ctx context.Context, text string, config tts.Audio
 		for {
 			select {
 			case <-ctx.Done():
+				c.mu.Lock()
+				_ = c.resetLocked()
+				c.mu.Unlock()
 				errCh <- ctx.Err()
 				return
 			default:
 			}
 			mt, data, err := conn.ReadMessage()
 			if err != nil {
+				c.mu.Lock()
+				_ = c.resetLocked()
+				c.mu.Unlock()
 				errCh <- fmt.Errorf("edge tts read: %w", err)
 				return
 			}
@@ -396,6 +402,9 @@ func (c *EdgeWsClient) Stream(ctx context.Context, text string, config tts.Audio
 			case websocket.BinaryMessage:
 				audio, err := parseAudioChunk(data)
 				if err != nil {
+					c.mu.Lock()
+					_ = c.resetLocked()
+					c.mu.Unlock()
 					errCh <- err
 					return
 				}
@@ -403,6 +412,9 @@ func (c *EdgeWsClient) Stream(ctx context.Context, text string, config tts.Audio
 					select {
 					case ch <- audio:
 					case <-ctx.Done():
+						c.mu.Lock()
+						_ = c.resetLocked()
+						c.mu.Unlock()
 						errCh <- ctx.Err()
 						return
 					}

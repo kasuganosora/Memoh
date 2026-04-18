@@ -269,9 +269,12 @@ func (a *GeminiAdapter) doGenerateRequest(ctx context.Context, endpoint, apiKey 
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		var errResp geminiAPIError
-		if json.Unmarshal(respBody, &errResp) == nil && errResp.Message != "" {
-			return nil, false, fmt.Errorf("gemini tts: API returned %d: %s", resp.StatusCode, errResp.Message)
+		// Gemini wraps errors in {"error": {...}} envelope.
+		var envelope struct {
+			Error *geminiAPIError `json:"error"`
+		}
+		if json.Unmarshal(respBody, &envelope) == nil && envelope.Error != nil && envelope.Error.Message != "" {
+			return nil, false, fmt.Errorf("gemini tts: API returned %d: %s", resp.StatusCode, envelope.Error.Message)
 		}
 		return nil, false, fmt.Errorf("gemini tts: API returned %d: %s", resp.StatusCode, string(respBody))
 	}

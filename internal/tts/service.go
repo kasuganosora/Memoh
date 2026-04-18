@@ -201,15 +201,27 @@ func (s *Service) StreamToFile(ctx context.Context, modelID string, text string,
 		}
 	}
 
+	var firstChunk []byte
 	for chunk := range dataCh {
 		if _, writeErr := w.Write(chunk); writeErr != nil {
 			return "", fmt.Errorf("write chunk: %w", writeErr)
+		}
+		if len(firstChunk) < 8 {
+			remaining := 8 - len(firstChunk)
+			if len(chunk) > remaining {
+				firstChunk = append(firstChunk, chunk[:remaining]...)
+			} else {
+				firstChunk = append(firstChunk, chunk...)
+			}
 		}
 	}
 	if streamErr, ok := <-errCh; ok && streamErr != nil {
 		return "", fmt.Errorf("stream: %w", streamErr)
 	}
 
+	if detected := detectAudioContentType(firstChunk); detected != "" {
+		return detected, nil
+	}
 	return resolveContentType(audioCfg.Format), nil
 }
 

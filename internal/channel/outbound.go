@@ -623,6 +623,7 @@ func (s *managerOutboundStream) Push(ctx context.Context, event StreamEvent) err
 	}
 
 	if event.Type == StreamEventDelta && event.Delta != "" && event.Phase != StreamPhaseReasoning {
+		event.Delta = FilterReasoningArray(event.Delta)
 		return s.pushDelta(ctx, event)
 	}
 
@@ -775,6 +776,7 @@ func (s *managerOutboundStream) pushFinalWithChunking(ctx context.Context, event
 	}
 	msg := normalizeOutboundMessage(event.Final.Message)
 	text := strings.TrimSpace(msg.PlainText())
+	text = FilterReasoningArray(text)
 	textRunes := runeLen(text)
 	if s.manager.logger != nil {
 		s.manager.logger.Debug("stream final chunking evaluate",
