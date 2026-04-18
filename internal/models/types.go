@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"errors"
 
 	"github.com/google/uuid"
@@ -65,11 +66,30 @@ type ModelConfig struct {
 }
 
 type Model struct {
-	ModelID    string      `json:"model_id"`
-	Name       string      `json:"name"`
-	ProviderID string      `json:"provider_id"`
-	Type       ModelType   `json:"type"`
-	Config     ModelConfig `json:"config"`
+	ModelID    string          `json:"model_id"`
+	Name       string          `json:"name"`
+	ProviderID string          `json:"provider_id"`
+	Type       ModelType       `json:"type"`
+	Config     json.RawMessage `json:"config"`
+}
+
+// ParseConfig unmarshals the raw config into a typed ModelConfig.
+func (m *Model) ParseConfig() ModelConfig {
+	var cfg ModelConfig
+	if len(m.Config) > 0 {
+		_ = json.Unmarshal(m.Config, &cfg)
+	}
+	return cfg
+}
+
+// SetConfig marshals a ModelConfig into the raw config.
+func (m *Model) SetConfig(cfg ModelConfig) error {
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	m.Config = b
+	return nil
 }
 
 func (m *Model) Validate() error {
@@ -85,17 +105,18 @@ func (m *Model) Validate() error {
 	if m.Type != ModelTypeChat && m.Type != ModelTypeEmbedding && m.Type != ModelTypeSpeech {
 		return errors.New("invalid model type")
 	}
+	cfg := m.ParseConfig()
 	if m.Type == ModelTypeEmbedding {
-		if m.Config.Dimensions == nil || *m.Config.Dimensions <= 0 {
+		if cfg.Dimensions == nil || *cfg.Dimensions <= 0 {
 			return errors.New("dimensions must be greater than 0 for embedding models")
 		}
 	}
-	for _, c := range m.Config.Compatibilities {
+	for _, c := range cfg.Compatibilities {
 		if _, ok := validCompatibilities[c]; !ok {
 			return errors.New("invalid compatibility: " + c)
 		}
 	}
-	for _, effort := range m.Config.ReasoningEfforts {
+	for _, effort := range cfg.ReasoningEfforts {
 		if _, ok := validReasoningEfforts[effort]; !ok {
 			return errors.New("invalid reasoning effort: " + effort)
 		}
@@ -105,7 +126,8 @@ func (m *Model) Validate() error {
 
 // HasCompatibility checks whether the model config includes the given capability.
 func (m *Model) HasCompatibility(c string) bool {
-	for _, v := range m.Config.Compatibilities {
+	cfg := m.ParseConfig()
+	for _, v := range cfg.Compatibilities {
 		if v == c {
 			return true
 		}

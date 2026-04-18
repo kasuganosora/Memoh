@@ -1,9 +1,11 @@
 package models_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/memohai/memoh/internal/models"
 )
@@ -33,9 +35,7 @@ func TestModel_Validate(t *testing.T) {
 				Name:       "GPT-4o",
 				ProviderID: "11111111-1111-1111-1111-111111111111",
 				Type:       models.ModelTypeChat,
-				Config: models.ModelConfig{
-					Compatibilities: []string{"vision", "tool-call", "reasoning"},
-				},
+				Config:     marshalConfig(t, models.ModelConfig{Compatibilities: []string{"vision", "tool-call", "reasoning"}}),
 			},
 			wantErr: false,
 		},
@@ -46,7 +46,7 @@ func TestModel_Validate(t *testing.T) {
 				Name:       "Ada Embeddings",
 				ProviderID: "11111111-1111-1111-1111-111111111111",
 				Type:       models.ModelTypeEmbedding,
-				Config:     models.ModelConfig{Dimensions: intPtr(1536)},
+				Config:     marshalConfig(t, models.ModelConfig{Dimensions: intPtr(1536)}),
 			},
 			wantErr: false,
 		},
@@ -99,9 +99,7 @@ func TestModel_Validate(t *testing.T) {
 				ModelID:    "gpt-4",
 				ProviderID: "11111111-1111-1111-1111-111111111111",
 				Type:       models.ModelTypeChat,
-				Config: models.ModelConfig{
-					Compatibilities: []string{"vision", "smell"},
-				},
+				Config:     marshalConfig(t, models.ModelConfig{Compatibilities: []string{"vision", "smell"}}),
 			},
 			wantErr: true,
 		},
@@ -121,14 +119,21 @@ func TestModel_Validate(t *testing.T) {
 
 func TestModel_HasCompatibility(t *testing.T) {
 	m := models.Model{
-		Config: models.ModelConfig{
+		Config: marshalConfig(t, models.ModelConfig{
 			Compatibilities: []string{"vision", "tool-call", "reasoning"},
-		},
+		}),
 	}
 	assert.True(t, m.HasCompatibility("vision"))
 	assert.True(t, m.HasCompatibility("tool-call"))
 	assert.True(t, m.HasCompatibility("reasoning"))
 	assert.False(t, m.HasCompatibility("image-output"))
+}
+
+func marshalConfig(t *testing.T, cfg models.ModelConfig) json.RawMessage {
+	t.Helper()
+	b, err := json.Marshal(cfg)
+	require.NoError(t, err)
+	return b
 }
 
 func TestModelTypes(t *testing.T) {

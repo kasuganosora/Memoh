@@ -301,8 +301,9 @@ func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (r
 	}
 
 	contextTokenBudget := 0
-	if chatModel.Config.ContextWindow != nil && *chatModel.Config.ContextWindow > 0 {
-		contextTokenBudget = *chatModel.Config.ContextWindow
+	chatCfg := chatModel.ParseConfig()
+	if chatCfg.ContextWindow != nil && *chatCfg.ContextWindow > 0 {
+		contextTokenBudget = *chatCfg.ContextWindow
 	}
 
 	var messages []conversation.ModelMessage

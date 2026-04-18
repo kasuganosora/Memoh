@@ -2,7 +2,6 @@ package models
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -48,16 +47,11 @@ func (s *Service) Create(ctx context.Context, req AddRequest) (AddResponse, erro
 		return AddResponse{}, fmt.Errorf("invalid provider ID: %w", err)
 	}
 
-	configJSON, err := json.Marshal(model.Config)
-	if err != nil {
-		return AddResponse{}, fmt.Errorf("marshal config: %w", err)
-	}
-
 	params := sqlc.CreateModelParams{
 		ModelID:    model.ModelID,
 		ProviderID: providerID,
 		Type:       string(model.Type),
-		Config:     configJSON,
+		Config:     model.Config,
 	}
 
 	if model.Name != "" {
@@ -243,17 +237,12 @@ func (s *Service) UpdateByID(ctx context.Context, id string, req UpdateRequest) 
 		return GetResponse{}, fmt.Errorf("invalid provider ID: %w", err)
 	}
 
-	configJSON, err := json.Marshal(model.Config)
-	if err != nil {
-		return GetResponse{}, fmt.Errorf("marshal config: %w", err)
-	}
-
 	params := sqlc.UpdateModelParams{
 		ID:         uuid,
 		ModelID:    model.ModelID,
 		ProviderID: providerID,
 		Type:       string(model.Type),
-		Config:     configJSON,
+		Config:     model.Config,
 	}
 
 	if model.Name != "" {
@@ -291,17 +280,12 @@ func (s *Service) UpdateByModelID(ctx context.Context, modelID string, req Updat
 		return GetResponse{}, fmt.Errorf("invalid provider ID: %w", err)
 	}
 
-	configJSON, err := json.Marshal(model.Config)
-	if err != nil {
-		return GetResponse{}, fmt.Errorf("marshal config: %w", err)
-	}
-
 	params := sqlc.UpdateModelParams{
 		ID:         current.ID,
 		ModelID:    model.ModelID,
 		ProviderID: providerID,
 		Type:       string(model.Type),
-		Config:     configJSON,
+		Config:     model.Config,
 	}
 
 	if model.Name != "" {
@@ -372,7 +356,7 @@ func (s *Service) CountByType(ctx context.Context, modelType ModelType) (int64, 
 	return count, nil
 }
 
-func (s *Service) convertToGetResponse(dbModel sqlc.Model) GetResponse {
+func (*Service) convertToGetResponse(dbModel sqlc.Model) GetResponse {
 	resp := GetResponse{
 		ID:      dbModel.ID.String(),
 		ModelID: dbModel.ModelID,
@@ -391,9 +375,7 @@ func (s *Service) convertToGetResponse(dbModel sqlc.Model) GetResponse {
 	}
 
 	if len(dbModel.Config) > 0 {
-		if err := json.Unmarshal(dbModel.Config, &resp.Config); err != nil {
-			s.logger.Warn("failed to unmarshal model config", slog.String("model_id", dbModel.ModelID), slog.Any("error", err))
-		}
+		resp.Config = dbModel.Config
 	}
 
 	return resp

@@ -208,8 +208,9 @@ func (h *CompactionHandler) buildTriggerConfig(ctx context.Context, botID, sessi
 		Ratio:            100,
 		TotalInputTokens: 1,
 	}
-	if compactModel.Config.ContextWindow != nil && *compactModel.Config.ContextWindow > 0 {
-		cfg.MaxCompactTokens = *compactModel.Config.ContextWindow * 90 / 100
+	modelCfg := compactModel.ParseConfig()
+	if modelCfg.ContextWindow != nil && *modelCfg.ContextWindow > 0 {
+		cfg.MaxCompactTokens = *modelCfg.ContextWindow * 90 / 100
 	}
 	return cfg, nil
 }

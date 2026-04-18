@@ -145,8 +145,9 @@ func (r *Resolver) buildCompactionConfig(ctx context.Context, req conversation.C
 	}
 
 	// Cap compaction input to 90% of the compaction model's context window.
-	if compactModel.Config.ContextWindow != nil && *compactModel.Config.ContextWindow > 0 {
-		cfg.MaxCompactTokens = *compactModel.Config.ContextWindow * 90 / 100
+	compactCfg := compactModel.ParseConfig()
+	if compactCfg.ContextWindow != nil && *compactCfg.ContextWindow > 0 {
+		cfg.MaxCompactTokens = *compactCfg.ContextWindow * 90 / 100
 	}
 	// For sync compaction: keep only the last few messages (~2000 tokens ≈ 3 messages).
 	// The summary provides reference context; if the LLM needs details,

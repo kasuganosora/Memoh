@@ -118,9 +118,9 @@ func TestRouteAndMergeAttachments_ImagePathOnlyFallsBackToFile(t *testing.T) {
 	resolver := &Resolver{logger: slog.Default()}
 	model := models.GetResponse{
 		Model: models.Model{
-			Config: models.ModelConfig{
+			Config: mustMarshalModelConfig(t, models.ModelConfig{
 				Compatibilities: []string{models.CompatVision},
-			},
+			}),
 		},
 	}
 	req := conversation.ChatRequest{
@@ -193,9 +193,9 @@ func TestRouteAndMergeAttachments_DropsUnsupportedInlineWithoutFallbackPath(t *t
 	resolver := &Resolver{logger: slog.Default()}
 	model := models.GetResponse{
 		Model: models.Model{
-			Config: models.ModelConfig{
+			Config: mustMarshalModelConfig(t, models.ModelConfig{
 				Compatibilities: []string{},
-			},
+			}),
 		},
 	}
 	req := conversation.ChatRequest{
@@ -379,4 +379,13 @@ func TestNormalizeImagePartsToDataURL_LeavesStringImageUntouched(t *testing.T) {
 	if string(normalized.Content) != original {
 		t.Fatalf("expected content unchanged, got %s", string(normalized.Content))
 	}
+}
+
+func mustMarshalModelConfig(t *testing.T, cfg models.ModelConfig) json.RawMessage {
+	t.Helper()
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		t.Fatalf("marshal config: %v", err)
+	}
+	return b
 }

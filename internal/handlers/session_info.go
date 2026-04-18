@@ -169,9 +169,10 @@ func (h *SessionInfoHandler) resolveContextWindow(c echo.Context, botID string) 
 	if err != nil {
 		return nil
 	}
-	if m.Config.ContextWindow == nil {
+	cfg := m.ParseConfig()
+	if cfg.ContextWindow == nil {
 		return nil
 	}
-	cw := int64(*m.Config.ContextWindow)
+	cw := int64(*cfg.ContextWindow)
 	return &cw
 }

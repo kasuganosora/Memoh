@@ -111,10 +111,14 @@ func (h *Handler) resolveContextWindow(cc CommandContext) string {
 		return ""
 	}
 	m, err := h.modelsService.GetByID(cc.Ctx, s.ChatModelID)
-	if err != nil || m.Config.ContextWindow == nil {
+	if err != nil {
 		return ""
 	}
-	return formatTokens(int64(*m.Config.ContextWindow))
+	statusCfg := m.ParseConfig()
+	if statusCfg.ContextWindow == nil {
+		return ""
+	}
+	return formatTokens(int64(*statusCfg.ContextWindow))
 }
 
 func parseCommandUUID(id string) (pgtype.UUID, error) {

@@ -87,8 +87,9 @@ func (h *Handler) buildCompactConfig(cc CommandContext, sessionID string) (compa
 		Ratio:            100,
 		TotalInputTokens: 1,
 	}
-	if compactModel.Config.ContextWindow != nil && *compactModel.Config.ContextWindow > 0 {
-		cfg.MaxCompactTokens = *compactModel.Config.ContextWindow * 90 / 100
+	compactCfg := compactModel.ParseConfig()
+	if compactCfg.ContextWindow != nil && *compactCfg.ContextWindow > 0 {
+		cfg.MaxCompactTokens = *compactCfg.ContextWindow * 90 / 100
 	}
 	return cfg, nil
 }

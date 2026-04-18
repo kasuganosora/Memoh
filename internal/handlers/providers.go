@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -14,6 +15,11 @@ import (
 	"github.com/memohai/memoh/internal/oauthctx"
 	"github.com/memohai/memoh/internal/providers"
 )
+
+func mustMarshalConfig(cfg models.ModelConfig) json.RawMessage {
+	b, _ := json.Marshal(cfg)
+	return b
+}
 
 type ProvidersHandler struct {
 	service       *providers.Service
@@ -348,10 +354,10 @@ func (h *ProvidersHandler) ImportModels(c echo.Context) error {
 			Name:       name,
 			ProviderID: id,
 			Type:       modelType,
-			Config: models.ModelConfig{
+			Config: mustMarshalConfig(models.ModelConfig{
 				Compatibilities:  compatibilities,
 				ReasoningEfforts: m.ReasoningEfforts,
-			},
+			}),
 		})
 		if err != nil {
 			if errors.Is(err, models.ErrModelIDAlreadyExists) {
