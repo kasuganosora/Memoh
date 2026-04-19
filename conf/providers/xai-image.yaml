@@ -1,0 +1,11 @@
+name: xAI (Grok Image)
+client_type: openai-images
+icon: xai
+base_url: https://api.x.ai/v1
+
+models:
+  - model_id: grok-imagine-image
+    name: Grok Imagine
+    type: chat
+    config:
+      compatibilities: [image-output, image-api]

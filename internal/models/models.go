@@ -412,7 +412,8 @@ func IsValidClientType(clientType ClientType) bool {
 		ClientTypeGoogleGenerativeAI,
 		ClientTypeOpenAICodex,
 		ClientTypeGitHubCopilot,
-		ClientTypeEdgeSpeech:
+		ClientTypeEdgeSpeech,
+		ClientTypeOpenAIImages:
 		return true
 	default:
 		return false

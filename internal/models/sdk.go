@@ -8,6 +8,7 @@ import (
 	googlegenerative "github.com/memohai/twilight-ai/provider/google/generativeai"
 	openaicodex "github.com/memohai/twilight-ai/provider/openai/codex"
 	openaicompletions "github.com/memohai/twilight-ai/provider/openai/completions"
+	openaiimages "github.com/memohai/twilight-ai/provider/openai/images"
 	openairesponses "github.com/memohai/twilight-ai/provider/openai/responses"
 	sdk "github.com/memohai/twilight-ai/sdk"
 
@@ -184,4 +185,21 @@ func ResolveClientType(model *sdk.Model) string {
 	default:
 		return string(ClientTypeOpenAICompletions)
 	}
+}
+
+// NewSDKImageModel builds a Twilight AI SDK ImageGenerationModel from the
+// resolved model config. It uses the OpenAI-compatible /images/generations endpoint.
+func NewSDKImageModel(cfg SDKModelConfig) *sdk.ImageGenerationModel {
+	if cfg.HTTPClient == nil {
+		cfg.HTTPClient = NewProviderHTTPClient(0)
+	}
+	opts := []openaiimages.Option{
+		openaiimages.WithAPIKey(cfg.APIKey),
+		openaiimages.WithHTTPClient(cfg.HTTPClient),
+	}
+	if cfg.BaseURL != "" {
+		opts = append(opts, openaiimages.WithBaseURL(cfg.BaseURL))
+	}
+	p := openaiimages.New(opts...)
+	return p.GenerationModel(cfg.ModelID)
 }

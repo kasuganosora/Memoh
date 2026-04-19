@@ -27,12 +27,14 @@ const (
 	ClientTypeEdgeSpeech         ClientType = "edge-speech"
 	ClientTypeGrokSpeech         ClientType = "grok-speech"
 	ClientTypeGeminiSpeech       ClientType = "gemini-speech"
+	ClientTypeOpenAIImages       ClientType = "openai-images"
 )
 
 const (
 	CompatVision      = "vision"
 	CompatToolCall    = "tool-call"
 	CompatImageOutput = "image-output"
+	CompatImageApi    = "image-api"
 	CompatReasoning   = "reasoning"
 )
 
@@ -46,7 +48,7 @@ const (
 
 // validCompatibilities enumerates accepted compatibility tokens.
 var validCompatibilities = map[string]struct{}{
-	CompatVision: {}, CompatToolCall: {}, CompatImageOutput: {}, CompatReasoning: {},
+	CompatVision: {}, CompatToolCall: {}, CompatImageOutput: {}, CompatImageApi: {}, CompatReasoning: {},
 }
 
 var validReasoningEfforts = map[string]struct{}{
