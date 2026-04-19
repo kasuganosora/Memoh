@@ -12,6 +12,7 @@ import (
 
 	agentpkg "github.com/memohai/memoh/internal/agent"
 	"github.com/memohai/memoh/internal/channel"
+	"github.com/memohai/memoh/internal/chattiming"
 	"github.com/memohai/memoh/internal/conversation"
 	messagepkg "github.com/memohai/memoh/internal/message"
 	sessionpkg "github.com/memohai/memoh/internal/session"
@@ -51,6 +52,10 @@ type DiscussDriverDeps struct {
 	Resolver       RunConfigResolver
 	Broadcaster    DiscussStreamBroadcaster
 	Logger         *slog.Logger
+
+	// ChatTimingService provides smart timing components. When nil, all timing
+	// features are disabled and behavior is identical to the legacy implementation.
+	ChatTimingService *chattiming.Service
 }
 
 // DiscussSessionConfig holds per-session configuration for discuss mode.
@@ -79,6 +84,11 @@ type discussSession struct {
 	stopCh          chan struct{}
 	cancel          context.CancelFunc
 	lastProcessedMs int64
+
+	// Smart timing state (nil when feature disabled).
+	chatTimingCfg *chattiming.Config
+	debounce      *chattiming.Debouncer
+	interrupt     *chattiming.InterruptController
 }
 
 // NewDiscussDriver creates a new DiscussDriver.
@@ -118,10 +128,28 @@ func (d *DiscussDriver) NotifyRC(_ context.Context, sessionID string, rc Rendere
 			stopCh: make(chan struct{}),
 			cancel: cancel,
 		}
+
+		// Wire smart timing if the service is available.
+		if d.deps.ChatTimingService != nil {
+			// Default config; per-bot config will be loaded when available.
+			cfg := chattiming.DefaultConfig()
+			sess.chatTimingCfg = &cfg
+			sess.debounce = d.deps.ChatTimingService.NewDebouncer(cfg)
+			sess.interrupt = d.deps.ChatTimingService.NewInterruptController(cfg)
+		}
+
 		d.sessions[sessionID] = sess
 		go d.runSession(sessCtx, sess) //nolint:contextcheck // long-lived goroutine; must outlive the inbound HTTP request
 	}
 	d.mu.Unlock()
+
+	// Attempt interrupt if the session is actively generating a response.
+	if ok && sess.interrupt != nil {
+		if sess.interrupt.RequestInterrupt() {
+			d.logger.Info("chat timing: planner interrupt triggered",
+				slog.String("session_id", sessionID))
+		}
+	}
 
 	select {
 	case sess.rcCh <- rc:
@@ -200,11 +228,22 @@ func (d *DiscussDriver) runSession(ctx context.Context, sess *discussSession) {
 			idle.Reset(discussIdleTimeout)
 		}
 
+		// Smart timing: debounce — wait for quiet period before processing.
+		if sess.debounce != nil {
+			sess.debounce.Reset()
+			if err := sess.debounce.Wait(ctx); err != nil {
+				continue
+			}
+		}
+
 	drain:
 		for {
 			select {
 			case rc := <-sess.rcCh:
 				latestRC = rc
+				if sess.debounce != nil {
+					sess.debounce.Reset()
+				}
 			default:
 				break drain
 			}
@@ -223,84 +262,157 @@ func (d *DiscussDriver) runSession(ctx context.Context, sess *discussSession) {
 }
 
 func (d *DiscussDriver) handleReply(ctx context.Context, sess *discussSession, rc RenderedContext, log *slog.Logger) {
+	// Smart timing: talk_value threshold check.
+	if sess.chatTimingCfg != nil {
+		newMsgCount := countNewMessages(rc, sess.lastProcessedMs)
+		threshold := sess.chatTimingCfg.TriggerThreshold()
+		if newMsgCount < threshold {
+			log.Debug("chat timing: talk_value threshold not met",
+				slog.Int("new_messages", newMsgCount),
+				slog.Int("threshold", threshold))
+			return
+		}
+	}
+
 	d.handleReplyWithAgent(ctx, sess, rc, log, d.deps.Agent)
 }
 
 func (d *DiscussDriver) handleReplyWithAgent(ctx context.Context, sess *discussSession, rc RenderedContext, log *slog.Logger, agent discussStreamer) {
 	cfg := sess.config
 
-	trs := d.loadTurnResponses(ctx, cfg.SessionID)
-
-	composed := ComposeContext(rc, trs, "")
-	if composed == nil {
-		return
-	}
-
-	log.Info("triggering discuss LLM call",
-		slog.Int("messages", len(composed.Messages)),
-		slog.Int("estimated_tokens", composed.EstimatedTokens))
-
-	if d.deps.Resolver == nil {
-		log.Error("discuss driver: resolver not configured")
-		return
-	}
-	resolved, err := d.deps.Resolver.ResolveRunConfig(ctx,
-		cfg.BotID, cfg.SessionID, cfg.ChannelIdentityID,
-		cfg.CurrentPlatform, cfg.ReplyTarget, cfg.ConversationType, cfg.SessionToken)
-	if err != nil {
-		log.Error("discuss: resolve run config failed", slog.Any("error", err))
-		return
-	}
-	runConfig := resolved.RunConfig
-
-	runConfig.Messages = contextMessagesToSDK(composed.Messages)
-	runConfig.SessionType = sessionpkg.TypeDiscuss
-	runConfig.Query = ""
-
-	// Inline image attachments from new RC segments so the model receives
-	// them as native vision input (ImagePart) on the first encounter.
-	// Subsequent turns only see the file path in the XML rendering.
-	if runConfig.SupportsImageInput && d.deps.Resolver != nil {
-		imageRefs := extractNewImageRefs(rc, sess.lastProcessedMs)
-		if len(imageRefs) > 0 {
-			imageParts := d.deps.Resolver.InlineImageAttachments(ctx, cfg.BotID, imageRefs)
-			injectImagePartsIntoLastUserMessage(runConfig.Messages, imageParts)
-		}
-	}
-
 	isMentioned := wasRecentlyMentioned(rc, sess.lastProcessedMs)
-	lateBinding := buildLateBindingPrompt(isMentioned)
-	runConfig.Messages = append(runConfig.Messages, sdk.UserMessage(lateBinding))
 
-	eventCh := agent.Stream(ctx, runConfig)
-
-	var finalMessages json.RawMessage
-	for event := range eventCh {
-		d.broadcastDiscussEvent(cfg.BotID, event)
-
-		switch event.Type {
-		case agentpkg.EventError:
-			log.Error("discuss stream error", slog.String("error", event.Error))
-		case agentpkg.EventAgentEnd, agentpkg.EventAgentAbort:
-			finalMessages = event.Messages
-		}
+	// Smart timing: interrupt-retry loop.
+	maxRounds := 1
+	if sess.interrupt != nil {
+		sess.interrupt.ResetRounds()
+		maxRounds = 7 // 1 initial + up to 6 retries
 	}
 
-	now := time.Now()
+	for round := 0; round < maxRounds; round++ {
+		var agentCtx context.Context
 
-	if d.deps.Resolver != nil && len(finalMessages) > 0 {
-		var sdkMsgs []sdk.Message
-		if json.Unmarshal(finalMessages, &sdkMsgs) == nil && len(sdkMsgs) > 0 {
-			if storeErr := d.deps.Resolver.StoreRound(ctx,
-				cfg.BotID, cfg.SessionID, cfg.ChannelIdentityID, cfg.CurrentPlatform,
-				sdkMsgs, resolved.ModelID,
-			); storeErr != nil {
-				log.Error("discuss: store round failed", slog.Any("error", storeErr))
+		if sess.interrupt != nil {
+			var agentCancel context.CancelFunc
+			agentCtx, agentCancel = sess.interrupt.Bind(ctx)
+			defer agentCancel()
+		} else {
+			agentCtx = ctx
+		}
+
+		// Resolve run config fresh each round (context may have changed after interrupt).
+		trs := d.loadTurnResponses(agentCtx, cfg.SessionID)
+		composed := ComposeContext(rc, trs, "")
+		if composed == nil {
+			if sess.interrupt != nil {
+				sess.interrupt.Unbind(true)
+			}
+			return
+		}
+
+		log.Info("triggering discuss LLM call",
+			slog.Int("round", round),
+			slog.Int("messages", len(composed.Messages)),
+			slog.Int("estimated_tokens", composed.EstimatedTokens))
+
+		if d.deps.Resolver == nil {
+			log.Error("discuss driver: resolver not configured")
+			if sess.interrupt != nil {
+				sess.interrupt.Unbind(true)
+			}
+			return
+		}
+		resolved, err := d.deps.Resolver.ResolveRunConfig(agentCtx,
+			cfg.BotID, cfg.SessionID, cfg.ChannelIdentityID,
+			cfg.CurrentPlatform, cfg.ReplyTarget, cfg.ConversationType, cfg.SessionToken)
+		if err != nil {
+			log.Error("discuss: resolve run config failed", slog.Any("error", err))
+			if sess.interrupt != nil {
+				sess.interrupt.Unbind(true)
+			}
+			return
+		}
+		runConfig := resolved.RunConfig
+
+		runConfig.Messages = contextMessagesToSDK(composed.Messages)
+		runConfig.SessionType = sessionpkg.TypeDiscuss
+		runConfig.Query = ""
+
+		if runConfig.SupportsImageInput && d.deps.Resolver != nil {
+			imageRefs := extractNewImageRefs(rc, sess.lastProcessedMs)
+			if len(imageRefs) > 0 {
+				imageParts := d.deps.Resolver.InlineImageAttachments(agentCtx, cfg.BotID, imageRefs)
+				injectImagePartsIntoLastUserMessage(runConfig.Messages, imageParts)
 			}
 		}
-	}
 
-	sess.lastProcessedMs = now.UnixMilli()
+		lateBinding := buildLateBindingPrompt(isMentioned)
+		runConfig.Messages = append(runConfig.Messages, sdk.UserMessage(lateBinding))
+
+		eventCh := agent.Stream(agentCtx, runConfig)
+
+		var finalMessages json.RawMessage
+		for event := range eventCh {
+			d.broadcastDiscussEvent(cfg.BotID, event)
+
+			switch event.Type {
+			case agentpkg.EventError:
+				log.Error("discuss stream error", slog.String("error", event.Error))
+			case agentpkg.EventAgentEnd, agentpkg.EventAgentAbort:
+				finalMessages = event.Messages
+			}
+		}
+
+		// Check if the agent was interrupted (agentCtx cancelled but parent ctx is fine).
+		wasInterrupted := agentCtx.Err() != nil && ctx.Err() == nil
+
+		if sess.interrupt != nil {
+			sess.interrupt.Unbind(!wasInterrupted)
+		}
+
+		if wasInterrupted && sess.interrupt != nil && sess.interrupt.CanRetry() {
+			log.Info("chat timing: agent interrupted, waiting for quiet period before retry")
+
+			// Debounce: wait for message quiet period.
+			if sess.debounce != nil {
+				sess.debounce.Reset()
+				_ = sess.debounce.Wait(ctx)
+			}
+
+			// Drain any new RCs that arrived during the interrupted agent call.
+			drained := true
+			for drained {
+				drained = false
+				select {
+				case newRC := <-sess.rcCh:
+					latestRC := newRC //nolint:ineffassign // future use: merge RC
+					_ = latestRC
+					drained = true
+				default:
+				}
+			}
+
+			continue // Retry with fresh Bind().
+		}
+
+		// Normal completion or non-retriable abort — store results.
+		now := time.Now()
+
+		if d.deps.Resolver != nil && len(finalMessages) > 0 {
+			var sdkMsgs []sdk.Message
+			if json.Unmarshal(finalMessages, &sdkMsgs) == nil && len(sdkMsgs) > 0 {
+				if storeErr := d.deps.Resolver.StoreRound(ctx,
+					cfg.BotID, cfg.SessionID, cfg.ChannelIdentityID, cfg.CurrentPlatform,
+					sdkMsgs, resolved.ModelID,
+				); storeErr != nil {
+					log.Error("discuss: store round failed", slog.Any("error", storeErr))
+				}
+			}
+		}
+
+		sess.lastProcessedMs = now.UnixMilli()
+		return
+	}
 }
 
 // broadcastDiscussEvent forwards an agent stream event to the RouteHub so the
@@ -429,6 +541,18 @@ func wasRecentlyMentioned(rc RenderedContext, afterMs int64) bool {
 		}
 	}
 	return false
+}
+
+// countNewMessages counts external (non-self) message segments in the RC
+// that arrived after the given timestamp.
+func countNewMessages(rc RenderedContext, afterMs int64) int {
+	count := 0
+	for _, seg := range rc {
+		if seg.ReceivedAtMs > afterMs && !seg.IsMyself {
+			count++
+		}
+	}
+	return count
 }
 
 func buildLateBindingPrompt(isMentioned bool) string {
