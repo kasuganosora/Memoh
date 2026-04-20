@@ -42,6 +42,7 @@ import (
 	"github.com/memohai/memoh/internal/channel/identities"
 	"github.com/memohai/memoh/internal/channel/inbound"
 	"github.com/memohai/memoh/internal/channel/route"
+	"github.com/memohai/memoh/internal/chattiming"
 	"github.com/memohai/memoh/internal/command"
 	"github.com/memohai/memoh/internal/compaction"
 	"github.com/memohai/memoh/internal/config"
@@ -187,14 +188,20 @@ func provideEventStore(log *slog.Logger, queries *dbsqlc.Queries) *pipelinepkg.E
 	return pipelinepkg.NewEventStore(log, queries)
 }
 
-func provideDiscussDriver(log *slog.Logger, pipeline *pipelinepkg.Pipeline, eventStore *pipelinepkg.EventStore, agent *agentpkg.Agent, msgService *message.DBService) *pipelinepkg.DiscussDriver {
+func provideDiscussDriver(log *slog.Logger, pipeline *pipelinepkg.Pipeline, eventStore *pipelinepkg.EventStore, agent *agentpkg.Agent, msgService *message.DBService, chatTimingService *chattiming.Service, settingsService *settings.Service) *pipelinepkg.DiscussDriver {
 	return pipelinepkg.NewDiscussDriver(pipelinepkg.DiscussDriverDeps{
-		Pipeline:       pipeline,
-		EventStore:     eventStore,
-		Agent:          agent,
-		MessageService: msgService,
-		Logger:         log,
+		Pipeline:          pipeline,
+		EventStore:        eventStore,
+		Agent:             agent,
+		MessageService:    msgService,
+		Logger:            log,
+		ChatTimingService: chatTimingService,
+		SettingsService:   settingsService,
 	})
+}
+
+func provideChatTimingService(agent *agentpkg.Agent, log *slog.Logger) *chattiming.Service {
+	return chattiming.NewService(agent, log)
 }
 
 func provideRouteService(log *slog.Logger, queries *dbsqlc.Queries, chatService *conversation.Service) *route.DBService {
