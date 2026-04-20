@@ -61,7 +61,7 @@ func NewDebouncer(cfg DebounceConfig) *Debouncer {
 }
 
 // Reset records a new input event, extending the quiet period.
-// The first call also records the start time for MaxWait enforcement.
+// The first call in a cycle records the start time for MaxWait enforcement.
 func (d *Debouncer) Reset() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -113,8 +113,16 @@ func (d *Debouncer) Wait(ctx context.Context) error {
 
 		select {
 		case <-d.done:
+			// Quiet period elapsed — clear started for the next cycle.
+			d.mu.Lock()
+			d.started = time.Time{}
+			d.mu.Unlock()
 			return nil
 		case <-maxWaitTimer.C:
+			// MaxWait reached — clear started for the next cycle.
+			d.mu.Lock()
+			d.started = time.Time{}
+			d.mu.Unlock()
 			return nil
 		case <-ctx.Done():
 			return ctx.Err()

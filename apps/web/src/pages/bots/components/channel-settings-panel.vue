@@ -206,6 +206,63 @@
       </div>
     </div>
 
+    <!-- Tool Access -->
+    <template v-if="isEditMode">
+      <Separator />
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <h4 class="text-xs font-medium">
+            {{ $t('bots.channels.toolAccess') }}
+          </h4>
+          <div class="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              class="h-6 text-xs"
+              @click="form.allowedTools = allToolNames"
+            >
+              {{ $t('bots.channels.selectAllTools') }}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              class="h-6 text-xs"
+              @click="form.allowedTools = []"
+            >
+              {{ $t('bots.channels.clearAllTools') }}
+            </Button>
+          </div>
+        </div>
+        <p class="text-xs text-muted-foreground">
+          {{ $t('bots.channels.toolAccessHint') }}
+        </p>
+        <div
+          v-for="group in toolGroups"
+          :key="group.label"
+          class="space-y-1.5"
+        >
+          <p class="text-xs font-medium text-muted-foreground">
+            {{ group.label }}
+          </p>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1">
+            <label
+              v-for="tool in group.tools"
+              :key="tool"
+              class="flex items-center gap-2 text-xs cursor-pointer"
+            >
+              <input
+                type="checkbox"
+                class="size-3.5 rounded border-border"
+                :checked="form.allowedTools.includes(tool)"
+                @change="toggleTool(tool, ($event.target as HTMLInputElement).checked)"
+              >
+              <span class="font-mono">{{ tool }}</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </template>
+
     <Separator />
 
     <div class="flex justify-end gap-2 ">
@@ -333,12 +390,42 @@ const lastSavedConfigId = ref('')
 const form = reactive<{
   credentials: Record<string, unknown>
   disabled: boolean
+  allowedTools: string[]
 }>({
   credentials: {},
   disabled: false,
+  allowedTools: [],
 })
 
 const visibleSecrets = reactive<Record<string, boolean>>({})
+
+// ---- Tool whitelist ----
+
+const toolGroups = [
+  { label: 'Messaging', tools: ['send', 'react', 'get_contacts', 'speak'] },
+  { label: 'Memory', tools: ['memory_read', 'memory_write'] },
+  { label: 'Web', tools: ['web_search', 'web_fetch'] },
+  { label: 'Schedule', tools: ['schedule_list', 'schedule_create', 'schedule_delete'] },
+  { label: 'Container', tools: ['read', 'write', 'list', 'edit', 'exec', 'bg_status'] },
+  { label: 'Email', tools: ['send_email'] },
+  { label: 'Agent', tools: ['spawn'] },
+  { label: 'History', tools: ['list_sessions', 'search_messages'] },
+  { label: 'Browser', tools: ['browser_action', 'browser_screenshot'] },
+  { label: 'Media', tools: ['generate_image'] },
+  { label: 'Utility', tools: ['prune_text'] },
+]
+
+const allToolNames = toolGroups.flatMap(g => g.tools)
+
+function toggleTool(name: string, checked: boolean | string) {
+  if (checked) {
+    if (!form.allowedTools.includes(name)) {
+      form.allowedTools.push(name)
+    }
+  } else {
+    form.allowedTools = form.allowedTools.filter(t => t !== name)
+  }
+}
 
 // Schema fields sorted: required first. Exclude "status"/"disabled" from credential form.
 const orderedFields = computed(() => {
@@ -392,6 +479,7 @@ function initForm() {
   }
   form.credentials = creds
   form.disabled = props.channelItem.config?.disabled ?? false
+  form.allowedTools = props.channelItem.config?.allowed_tools ?? []
   lastSavedConfigId.value = String(props.channelItem.config?.id || '').trim()
 }
 
@@ -482,6 +570,7 @@ async function saveChannel(disabled: boolean, nextAction: 'save' | 'toggle') {
       platform: platformType.value,
       data: {
         credentials: buildCredentials(),
+        allowed_tools: form.allowedTools.length > 0 ? form.allowedTools : undefined,
         disabled,
       },
     })

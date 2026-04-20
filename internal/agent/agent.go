@@ -682,6 +682,27 @@ func (a *Agent) assembleTools(ctx context.Context, cfg RunConfig, emitter tools.
 			slog.Int("available_tools", len(allTools)),
 		)
 	}
+	// Apply channel-level tool whitelist.
+	if len(cfg.AllowedTools) > 0 {
+		allowed := make(map[string]struct{}, len(cfg.AllowedTools))
+		for _, name := range cfg.AllowedTools {
+			allowed[name] = struct{}{}
+		}
+		filtered := make([]sdk.Tool, 0, len(allTools))
+		for _, t := range allTools {
+			if _, ok := allowed[t.Name]; ok {
+				filtered = append(filtered, t)
+			}
+		}
+		if a.logger != nil {
+			a.logger.Debug("tool whitelist applied",
+				slog.Int("total", len(allTools)),
+				slog.Int("allowed", len(filtered)),
+				slog.String("platform", cfg.Identity.CurrentPlatform),
+			)
+		}
+		return filtered, nil
+	}
 	return allTools, nil
 }
 

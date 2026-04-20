@@ -66,6 +66,7 @@ type gatewayAssetLoader interface {
 
 type botChannelConfigReader interface {
 	ListBotConfigs(ctx context.Context, botID string) ([]channel.ChannelConfig, error)
+	ResolveEffectiveConfig(ctx context.Context, botID string, channelType channel.ChannelType) (channel.ChannelConfig, error)
 }
 
 // Resolver orchestrates chat with the internal agent.
@@ -592,6 +593,13 @@ func (r *Resolver) buildBaseRunConfig(ctx context.Context, p baseRunConfigParams
 		Skills:            agentSkills,
 		LoopDetection:     agentpkg.LoopDetectionConfig{Enabled: loopDetectionEnabled},
 		BackgroundManager: r.bgManager,
+	}
+
+	// Resolve per-channel tool whitelist.
+	if p.CurrentPlatform != "" && r.channelStore != nil {
+		if chCfg, err := r.channelStore.ResolveEffectiveConfig(ctx, p.BotID, channel.ChannelType(p.CurrentPlatform)); err == nil && len(chCfg.AllowedTools) > 0 {
+			cfg.AllowedTools = chCfg.AllowedTools
+		}
 	}
 
 	return cfg, chatModel, provider, nil

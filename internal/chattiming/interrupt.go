@@ -141,6 +141,17 @@ func (ic *InterruptController) ResetRounds() {
 	ic.currentRound = 0
 }
 
+// ConsumeInterrupted atomically reads and clears the interrupt-requested flag.
+// Returns true if RequestInterrupt was called during this Bind() cycle.
+// Call before Unbind() to preserve the signal.
+func (ic *InterruptController) ConsumeInterrupted() bool {
+	ic.mu.Lock()
+	defer ic.mu.Unlock()
+	was := ic.interruptRequested
+	ic.interruptRequested = false
+	return was
+}
+
 // IsActive returns whether an agent stream is currently running.
 func (ic *InterruptController) IsActive() bool {
 	ic.mu.Lock()

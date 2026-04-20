@@ -381,6 +381,7 @@ type ChannelConfig struct {
 	ExternalIdentity string         `json:"external_identity"`
 	SelfIdentity     map[string]any `json:"self_identity"`
 	Routing          map[string]any `json:"routing"`
+	AllowedTools     []string       `json:"allowed_tools" swaggertype:"array,string"`
 	Disabled         bool           `json:"disabled"`
 	VerifiedAt       time.Time      `json:"verified_at"`
 	CreatedAt        time.Time      `json:"created_at"`
@@ -404,6 +405,7 @@ type UpsertConfigRequest struct {
 	ExternalIdentity string         `json:"external_identity,omitempty"`
 	SelfIdentity     map[string]any `json:"self_identity,omitempty"`
 	Routing          map[string]any `json:"routing,omitempty"`
+	AllowedTools     *[]string      `json:"allowed_tools,omitempty" swaggertype:"array,string"`
 	Disabled         *bool          `json:"disabled,omitempty"`
 	VerifiedAt       *time.Time     `json:"verified_at,omitempty"`
 }

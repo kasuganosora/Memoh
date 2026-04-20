@@ -183,6 +183,9 @@ func parseTimingGateResult(text string) TimingGateResult {
 	if strings.Contains(lower, "no_reply") || strings.Contains(lower, "no reply") || strings.Contains(lower, "stay silent") {
 		return TimingGateResult{Decision: TimingNoReply, Reason: text}
 	}
+	if strings.Contains(lower, "continue") || strings.Contains(lower, "respond") || strings.Contains(lower, "reply") {
+		return TimingGateResult{Decision: TimingContinue, Reason: text}
+	}
 	if strings.Contains(lower, "wait") {
 		return TimingGateResult{Decision: TimingWait, WaitSeconds: 5, Reason: text}
 	}

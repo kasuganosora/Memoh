@@ -84,6 +84,12 @@ func (s *Store) UpsertConfig(ctx context.Context, botID string, channelType Chan
 	if req.Disabled != nil {
 		disabled = *req.Disabled
 	}
+	allowedTools := []byte("[]")
+	if req.AllowedTools != nil && len(*req.AllowedTools) > 0 {
+		if at, err := json.Marshal(*req.AllowedTools); err == nil {
+			allowedTools = at
+		}
+	}
 	verifiedAt := pgtype.Timestamptz{Valid: false}
 	if req.VerifiedAt != nil {
 		verifiedAt = pgtype.Timestamptz{Time: req.VerifiedAt.UTC(), Valid: true}
@@ -99,6 +105,7 @@ func (s *Store) UpsertConfig(ctx context.Context, botID string, channelType Chan
 		SelfIdentity: selfPayload,
 		Routing:      routingPayload,
 		Capabilities: []byte("{}"),
+		AllowedTools: allowedTools,
 		Disabled:     disabled,
 		VerifiedAt:   verifiedAt,
 	})
@@ -363,7 +370,7 @@ func (s *Store) ResolveChannelIdentityBinding(ctx context.Context, channelType C
 func normalizeChannelConfigFromRow(row sqlc.BotChannelConfig) (ChannelConfig, error) {
 	return normalizeChannelConfigFields(
 		row.ID, row.BotID, row.ChannelType,
-		row.Credentials, row.ExternalIdentity, row.SelfIdentity, row.Routing,
+		row.Credentials, row.ExternalIdentity, row.SelfIdentity, row.Routing, row.AllowedTools,
 		row.Disabled, row.VerifiedAt, row.CreatedAt, row.UpdatedAt,
 	)
 }
@@ -371,7 +378,7 @@ func normalizeChannelConfigFromRow(row sqlc.BotChannelConfig) (ChannelConfig, er
 func normalizeChannelConfigFromGetRow(row sqlc.BotChannelConfig) (ChannelConfig, error) {
 	return normalizeChannelConfigFields(
 		row.ID, row.BotID, row.ChannelType,
-		row.Credentials, row.ExternalIdentity, row.SelfIdentity, row.Routing,
+		row.Credentials, row.ExternalIdentity, row.SelfIdentity, row.Routing, row.AllowedTools,
 		row.Disabled, row.VerifiedAt, row.CreatedAt, row.UpdatedAt,
 	)
 }
@@ -379,14 +386,14 @@ func normalizeChannelConfigFromGetRow(row sqlc.BotChannelConfig) (ChannelConfig,
 func normalizeChannelConfigFromListRow(row sqlc.BotChannelConfig) (ChannelConfig, error) {
 	return normalizeChannelConfigFields(
 		row.ID, row.BotID, row.ChannelType,
-		row.Credentials, row.ExternalIdentity, row.SelfIdentity, row.Routing,
+		row.Credentials, row.ExternalIdentity, row.SelfIdentity, row.Routing, row.AllowedTools,
 		row.Disabled, row.VerifiedAt, row.CreatedAt, row.UpdatedAt,
 	)
 }
 
 func normalizeChannelConfigFields(
 	id, botID pgtype.UUID, channelType string,
-	credentials []byte, externalIdentity pgtype.Text, selfIdentity, routing []byte,
+	credentials []byte, externalIdentity pgtype.Text, selfIdentity, routing, allowedTools []byte,
 	disabled bool, verifiedAt, createdAt, updatedAt pgtype.Timestamptz,
 ) (ChannelConfig, error) {
 	credentialsMap, err := DecodeConfigMap(credentials)
@@ -400,6 +407,13 @@ func normalizeChannelConfigFields(
 	routingMap, err := DecodeConfigMap(routing)
 	if err != nil {
 		return ChannelConfig{}, err
+	}
+	var allowedToolsList []string
+	if len(allowedTools) > 0 {
+		_ = json.Unmarshal(allowedTools, &allowedToolsList)
+	}
+	if allowedToolsList == nil {
+		allowedToolsList = []string{}
 	}
 	verifiedAtTime := time.Time{}
 	if verifiedAt.Valid {
@@ -417,6 +431,7 @@ func normalizeChannelConfigFields(
 		ExternalIdentity: externalIdentityStr,
 		SelfIdentity:     selfIdentityMap,
 		Routing:          routingMap,
+		AllowedTools:     allowedToolsList,
 		Disabled:         disabled,
 		VerifiedAt:       verifiedAtTime,
 		CreatedAt:        db.TimeFromPg(createdAt),

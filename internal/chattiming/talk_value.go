@@ -83,7 +83,11 @@ func (r *TalkValueTimeRule) matches(t time.Time) bool {
 	}
 
 	// Handle overnight ranges (e.g., 22:00–06:00 means 22:00–24:00 OR 00:00–06:00).
-	if r.StartHour >= r.EndHour {
+	// StartHour == EndHour means an empty window — never matches.
+	if r.StartHour == r.EndHour {
+		return false
+	}
+	if r.StartHour > r.EndHour {
 		// Overnight: matches if hour >= start OR hour < end.
 		return h >= r.StartHour || h < r.EndHour
 	}

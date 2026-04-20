@@ -131,3 +131,19 @@ func TestTalkValue_TimeRuleWithDays(t *testing.T) {
 		t.Fatalf("Saturday 12pm: expected 0.5, got %f", v)
 	}
 }
+
+func TestTalkValue_TimeRuleEmptyWindow(t *testing.T) {
+	// StartHour == EndHour should never match (empty window).
+	cfg := TalkValueConfig{
+		Value:     0.5,
+		TimeRules: []TalkValueTimeRule{{StartHour: 14, EndHour: 14, Value: 0.1}},
+	}
+
+	for hour := 0; hour < 24; hour++ {
+		tm := time.Date(2026, 4, 20, hour, 0, 0, 0, time.UTC)
+		v := cfg.EffectiveValue(tm)
+		if v != 0.5 {
+			t.Fatalf("hour %d: expected base 0.5 for empty window, got %f", hour, v)
+		}
+	}
+}

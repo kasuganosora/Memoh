@@ -171,3 +171,33 @@ func TestDebouncer_ConcurrentReset(t *testing.T) {
 		t.Fatalf("expected 1000 resets, got %d", resets.Load())
 	}
 }
+
+func TestDebouncer_MultipleCycles(t *testing.T) {
+	// Verify the debouncer works correctly across multiple Reset/Wait cycles.
+	// The started field must be cleared after Wait returns so the next cycle
+	// gets a fresh MaxWait budget.
+	d := NewDebouncer(DebounceConfig{
+		QuietPeriod: 50 * time.Millisecond,
+		MaxWait:     200 * time.Millisecond,
+	})
+	defer d.Stop()
+
+	// Cycle 1.
+	d.Reset()
+	if err := d.Wait(context.Background()); err != nil {
+		t.Fatalf("cycle 1: unexpected error: %v", err)
+	}
+
+	// Cycle 2: should also get a full quiet period, not bypass it.
+	d.Reset()
+	start := time.Now()
+	if err := d.Wait(context.Background()); err != nil {
+		t.Fatalf("cycle 2: unexpected error: %v", err)
+	}
+	elapsed := time.Since(start)
+
+	// Should have waited at least ~50ms (quiet period), not returned immediately.
+	if elapsed < 40*time.Millisecond {
+		t.Fatalf("cycle 2 bypassed quiet period: %v", elapsed)
+	}
+}

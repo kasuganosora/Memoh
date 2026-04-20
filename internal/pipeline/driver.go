@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
@@ -56,6 +57,14 @@ type DiscussDriverDeps struct {
 	// ChatTimingService provides smart timing components. When nil, all timing
 	// features are disabled and behavior is identical to the legacy implementation.
 	ChatTimingService *chattiming.Service
+
+	// SettingsService loads per-bot settings including chat_timing config.
+	SettingsService settingsLoader
+}
+
+// settingsLoader is a minimal interface for loading bot settings.
+type settingsLoader interface {
+	GetBotChatTiming(ctx context.Context, botID string) (json.RawMessage, error)
 }
 
 // DiscussSessionConfig holds per-session configuration for discuss mode.
@@ -86,9 +95,13 @@ type discussSession struct {
 	lastProcessedMs int64
 
 	// Smart timing state (nil when feature disabled).
-	chatTimingCfg *chattiming.Config
-	debounce      *chattiming.Debouncer
-	interrupt     *chattiming.InterruptController
+	chatTimingCfg    *chattiming.Config
+	debounce         *chattiming.Debouncer
+	interrupt        *chattiming.InterruptController
+	timingGate       *chattiming.TimingGate
+	idleCompensate   *chattiming.IdleCompensator
+	cachedProbeModel *agentpkg.RunConfig // cached model config for timing gate probe
+	msgIntervals     []time.Duration     // recent message inter-arrival times for idle compensation
 }
 
 // NewDiscussDriver creates a new DiscussDriver.
@@ -117,7 +130,7 @@ func (d *DiscussDriver) SetBroadcaster(b DiscussStreamBroadcaster) {
 
 // NotifyRC pushes a new RenderedContext to the discuss session.
 // If the session goroutine is not running, it starts one.
-func (d *DiscussDriver) NotifyRC(_ context.Context, sessionID string, rc RenderedContext, config DiscussSessionConfig) {
+func (d *DiscussDriver) NotifyRC(ctx context.Context, sessionID string, rc RenderedContext, config DiscussSessionConfig) {
 	d.mu.Lock()
 	sess, ok := d.sessions[sessionID]
 	if !ok {
@@ -131,11 +144,20 @@ func (d *DiscussDriver) NotifyRC(_ context.Context, sessionID string, rc Rendere
 
 		// Wire smart timing if the service is available.
 		if d.deps.ChatTimingService != nil {
-			// Default config; per-bot config will be loaded when available.
 			cfg := chattiming.DefaultConfig()
+			// Load per-bot config from DB if settings service is available.
+			if d.deps.SettingsService != nil {
+				if raw, err := d.deps.SettingsService.GetBotChatTiming(ctx, config.BotID); err == nil && len(raw) > 0 {
+					_ = json.Unmarshal(raw, &cfg)
+				}
+			}
 			sess.chatTimingCfg = &cfg
-			sess.debounce = d.deps.ChatTimingService.NewDebouncer(cfg)
-			sess.interrupt = d.deps.ChatTimingService.NewInterruptController(cfg)
+			if cfg.Enabled {
+				sess.debounce = d.deps.ChatTimingService.NewDebouncer(cfg)
+				sess.interrupt = d.deps.ChatTimingService.NewInterruptController(cfg)
+				sess.timingGate = d.deps.ChatTimingService.NewTimingGate()
+				sess.idleCompensate = d.deps.ChatTimingService.NewIdleCompensator(cfg)
+			}
 		}
 
 		d.sessions[sessionID] = sess
@@ -143,8 +165,8 @@ func (d *DiscussDriver) NotifyRC(_ context.Context, sessionID string, rc Rendere
 	}
 	d.mu.Unlock()
 
-	// Attempt interrupt if the session is actively generating a response.
-	if ok && sess.interrupt != nil {
+	// Attempt interrupt if the session is actively generating a response and timing is enabled.
+	if ok && sess.interrupt != nil && sess.chatTimingCfg != nil && sess.chatTimingCfg.Enabled {
 		if sess.interrupt.RequestInterrupt() {
 			d.logger.Info("chat timing: planner interrupt triggered",
 				slog.String("session_id", sessionID))
@@ -172,6 +194,9 @@ func (d *DiscussDriver) StopSession(sessionID string) {
 	if ok {
 		sess.cancel()
 		close(sess.stopCh)
+		if sess.debounce != nil {
+			sess.debounce.Stop()
+		}
 		delete(d.sessions, sessionID)
 	}
 	d.mu.Unlock()
@@ -183,6 +208,9 @@ func (d *DiscussDriver) StopAll() {
 	for id, sess := range d.sessions {
 		sess.cancel()
 		close(sess.stopCh)
+		if sess.debounce != nil {
+			sess.debounce.Stop()
+		}
 		delete(d.sessions, id)
 	}
 	d.mu.Unlock()
@@ -257,20 +285,94 @@ func (d *DiscussDriver) runSession(ctx context.Context, sess *discussSession) {
 			continue
 		}
 
+		// Compute message inter-arrival intervals from the latest RC for idle compensation.
+		if sess.idleCompensate != nil {
+			sess.msgIntervals = computeMsgIntervals(latestRC, sess.lastProcessedMs)
+		}
+
 		d.handleReply(ctx, sess, latestRC, log)
 	}
 }
 
 func (d *DiscussDriver) handleReply(ctx context.Context, sess *discussSession, rc RenderedContext, log *slog.Logger) {
+	isMentioned := wasRecentlyMentioned(rc, sess.lastProcessedMs)
+	newMsgCount := countNewMessages(rc, sess.lastProcessedMs)
+
 	// Smart timing: talk_value threshold check.
-	if sess.chatTimingCfg != nil {
-		newMsgCount := countNewMessages(rc, sess.lastProcessedMs)
+	if sess.chatTimingCfg != nil && sess.chatTimingCfg.Enabled && !isMentioned {
 		threshold := sess.chatTimingCfg.TriggerThreshold()
+
+		// Idle compensation: supplement message count with idle time credit.
+		if newMsgCount < threshold && sess.idleCompensate != nil {
+			lastMsgMs := LatestExternalEventMs(rc, 0)
+			if lastMsgMs > 0 {
+				idleDuration := time.Since(time.UnixMilli(lastMsgMs))
+				credit := sess.idleCompensate.ComputeCredit(idleDuration, chattiming.ComputeCreditRateFromIntervals(sess.msgIntervals))
+				if credit > 0 {
+					log.Debug("chat timing: idle compensation applied",
+						slog.Int("credit", credit),
+						slog.Duration("idle", idleDuration))
+					newMsgCount += credit
+				}
+			}
+		}
+
 		if newMsgCount < threshold {
 			log.Debug("chat timing: talk_value threshold not met",
 				slog.Int("new_messages", newMsgCount),
 				slog.Int("threshold", threshold))
 			return
+		}
+	}
+
+	// Smart timing: timing gate — lightweight LLM check before full agent call.
+	if sess.timingGate != nil && sess.chatTimingCfg.TimingGate && !isMentioned {
+		lastMsgMs := LatestExternalEventMs(rc, 0)
+		var timeSinceLast float64
+		if lastMsgMs > 0 {
+			timeSinceLast = time.Since(time.UnixMilli(lastMsgMs)).Seconds()
+		}
+		params := chattiming.TimingGateParams{
+			RenderedContextXML:      renderContextXML(rc, sess.lastProcessedMs),
+			IsMentioned:             isMentioned,
+			NewMessageCount:         newMsgCount,
+			TimeSinceLastMessageSec: timeSinceLast,
+			TalkValue:               sess.chatTimingCfg.EffectiveTalkValue(),
+			BotName:                 sess.config.ConversationName,
+		}
+		// Use cached probe model if available, otherwise resolve fresh (first call only).
+		probeCfg := agentpkg.RunConfig{SupportsToolCall: false}
+		if sess.cachedProbeModel != nil {
+			probeCfg = *sess.cachedProbeModel
+		} else if d.deps.Resolver != nil {
+			resolved, err := d.deps.Resolver.ResolveRunConfig(ctx,
+				sess.config.BotID, sess.config.SessionID, sess.config.ChannelIdentityID,
+				sess.config.CurrentPlatform, sess.config.ReplyTarget,
+				sess.config.ConversationType, sess.config.SessionToken)
+			if err == nil {
+				probeCfg = resolved.RunConfig
+				// Cache for future timing gate calls — only the model/provider is needed.
+				sess.cachedProbeModel = &agentpkg.RunConfig{Model: resolved.RunConfig.Model}
+			}
+		}
+		result := sess.timingGate.Evaluate(ctx, params, probeCfg)
+		switch result.Decision {
+		case chattiming.TimingNoReply:
+			log.Info("chat timing: gate decided no_reply",
+				slog.String("reason", result.Reason))
+			// Mark as processed so we don't re-evaluate these messages.
+			sess.lastProcessedMs = time.Now().UnixMilli()
+			return
+		case chattiming.TimingWait:
+			log.Info("chat timing: gate decided wait",
+				slog.Int("wait_seconds", result.WaitSeconds),
+				slog.String("reason", result.Reason))
+			// Wait the suggested duration, then fall through to the agent call.
+			select {
+			case <-time.After(time.Duration(result.WaitSeconds) * time.Second):
+			case <-ctx.Done():
+				return
+			}
 		}
 	}
 
@@ -286,18 +388,18 @@ func (d *DiscussDriver) handleReplyWithAgent(ctx context.Context, sess *discussS
 	maxRounds := 1
 	if sess.interrupt != nil {
 		sess.interrupt.ResetRounds()
-		maxRounds = 7 // 1 initial + up to 6 retries
+		maxRounds = 7 // loop bound; CanRetry() caps at 1 initial + 5 retries
 	}
 
 	for round := 0; round < maxRounds; round++ {
 		var agentCtx context.Context
+		var agentCancel context.CancelFunc
 
 		if sess.interrupt != nil {
-			var agentCancel context.CancelFunc
 			agentCtx, agentCancel = sess.interrupt.Bind(ctx)
-			defer agentCancel()
 		} else {
 			agentCtx = ctx
+			agentCancel = func() {} // no-op for non-interrupt path
 		}
 
 		// Resolve run config fresh each round (context may have changed after interrupt).
@@ -334,6 +436,10 @@ func (d *DiscussDriver) handleReplyWithAgent(ctx context.Context, sess *discussS
 		}
 		runConfig := resolved.RunConfig
 
+		// Cache the resolved model for timing gate probe reuse.
+		if sess.cachedProbeModel == nil || sess.cachedProbeModel.Model != runConfig.Model {
+			sess.cachedProbeModel = &agentpkg.RunConfig{Model: runConfig.Model}
+		}
 		runConfig.Messages = contextMessagesToSDK(composed.Messages)
 		runConfig.SessionType = sessionpkg.TypeDiscuss
 		runConfig.Query = ""
@@ -363,10 +469,15 @@ func (d *DiscussDriver) handleReplyWithAgent(ctx context.Context, sess *discussS
 			}
 		}
 
-		// Check if the agent was interrupted (agentCtx cancelled but parent ctx is fine).
-		wasInterrupted := agentCtx.Err() != nil && ctx.Err() == nil
+		// Cancel the agent context now (not deferred) to release resources
+		// immediately rather than accumulating across loop iterations.
+		agentCancel()
 
+		// Check if the agent was interrupted via the controller's state.
+		// Must capture before Unbind() resets the flag.
+		wasInterrupted := false
 		if sess.interrupt != nil {
+			wasInterrupted = sess.interrupt.ConsumeInterrupted()
 			sess.interrupt.Unbind(!wasInterrupted)
 		}
 
@@ -385,8 +496,7 @@ func (d *DiscussDriver) handleReplyWithAgent(ctx context.Context, sess *discussS
 				drained = false
 				select {
 				case newRC := <-sess.rcCh:
-					latestRC := newRC //nolint:ineffassign // future use: merge RC
-					_ = latestRC
+					rc = newRC // Use updated context for retry.
 					drained = true
 				default:
 				}
@@ -543,6 +653,27 @@ func wasRecentlyMentioned(rc RenderedContext, afterMs int64) bool {
 	return false
 }
 
+// renderContextXML formats recent context segments as XML for the timing gate prompt.
+// Only includes segments after afterMs from external (non-self) senders.
+func renderContextXML(rc RenderedContext, afterMs int64) string {
+	var sb strings.Builder
+	for _, seg := range rc {
+		if seg.ReceivedAtMs <= afterMs {
+			continue
+		}
+		if seg.IsMyself {
+			continue
+		}
+		ts := time.UnixMilli(seg.ReceivedAtMs).Format(time.RFC3339)
+		for _, piece := range seg.Content {
+			if piece.Type == "text" && piece.Text != "" {
+				fmt.Fprintf(&sb, "<msg time=\"%s\">%s</msg>\n", ts, piece.Text)
+			}
+		}
+	}
+	return sb.String()
+}
+
 // countNewMessages counts external (non-self) message segments in the RC
 // that arrived after the given timestamp.
 func countNewMessages(rc RenderedContext, afterMs int64) int {
@@ -553,6 +684,33 @@ func countNewMessages(rc RenderedContext, afterMs int64) int {
 		}
 	}
 	return count
+}
+
+// computeMsgIntervals extracts inter-arrival durations between external
+// message segments in the RC. Returns at most 20 intervals (most recent).
+func computeMsgIntervals(rc RenderedContext, afterMs int64) []time.Duration {
+	var timestamps []int64
+	for _, seg := range rc {
+		if seg.ReceivedAtMs > afterMs && !seg.IsMyself {
+			timestamps = append(timestamps, seg.ReceivedAtMs)
+		}
+	}
+	if len(timestamps) < 2 {
+		return nil
+	}
+	// Compute intervals between consecutive timestamps.
+	intervals := make([]time.Duration, 0, len(timestamps)-1)
+	for i := 1; i < len(timestamps); i++ {
+		d := time.Duration(timestamps[i]-timestamps[i-1]) * time.Millisecond
+		if d > 0 {
+			intervals = append(intervals, d)
+		}
+	}
+	// Keep at most 20 most recent intervals.
+	if len(intervals) > 20 {
+		intervals = intervals[len(intervals)-20:]
+	}
+	return intervals
 }
 
 func buildLateBindingPrompt(isMentioned bool) string {

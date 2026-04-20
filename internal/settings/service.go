@@ -2,6 +2,7 @@ package settings
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -34,6 +35,15 @@ func NewService(log *slog.Logger, queries *sqlc.Queries, aclService *acl.Service
 		acl:     aclService,
 		logger:  log.With(slog.String("service", "settings")),
 	}
+}
+
+// GetBotChatTiming returns the chat_timing JSONB for a bot.
+func (s *Service) GetBotChatTiming(ctx context.Context, botID string) (json.RawMessage, error) {
+	settings, err := s.GetBot(ctx, botID)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(settings.ChatTiming)
 }
 
 func (s *Service) GetBot(ctx context.Context, botID string) (Settings, error) {
@@ -184,6 +194,12 @@ func (s *Service) UpsertBot(ctx context.Context, botID string, req UpsertRequest
 		browserContextUUID = ctxID
 	}
 
+	// Chat timing: serialize request value.
+	var chatTimingBytes []byte
+	if req.ChatTiming != nil {
+		chatTimingBytes, _ = json.Marshal(req.ChatTiming)
+	}
+
 	updated, err := s.queries.UpsertBotSettings(ctx, sqlc.UpsertBotSettingsParams{
 		ID:                     pgID,
 		Timezone:               timezoneValue,
@@ -206,6 +222,7 @@ func (s *Service) UpsertBot(ctx context.Context, botID string, req UpsertRequest
 		TtsModelID:             ttsModelUUID,
 		BrowserContextID:       browserContextUUID,
 		PersistFullToolResults: current.PersistFullToolResults,
+		ChatTiming:             chatTimingBytes,
 	})
 	if err != nil {
 		return Settings{}, err
@@ -295,6 +312,7 @@ func normalizeBotSettingsReadRow(row sqlc.GetSettingsByBotIDRow) Settings {
 		row.TtsModelID,
 		row.BrowserContextID,
 		row.PersistFullToolResults,
+		row.ChatTiming,
 	)
 }
 
@@ -319,6 +337,7 @@ func normalizeBotSettingsWriteRow(row sqlc.UpsertBotSettingsRow) Settings {
 		row.TtsModelID,
 		row.BrowserContextID,
 		row.PersistFullToolResults,
+		row.ChatTiming,
 	)
 }
 
@@ -342,6 +361,7 @@ func normalizeBotSettingsFields(
 	ttsModelID pgtype.UUID,
 	browserContextID pgtype.UUID,
 	persistFullToolResults bool,
+	chatTiming []byte,
 ) Settings {
 	settings := normalizeBotSetting(language, "", reasoningEnabled, reasoningEffort, heartbeatEnabled, heartbeatInterval, compactionEnabled, compactionThreshold, compactionRatio)
 	if timezone.Valid {
@@ -375,6 +395,9 @@ func normalizeBotSettingsFields(
 		settings.BrowserContextID = uuid.UUID(browserContextID.Bytes).String()
 	}
 	settings.PersistFullToolResults = persistFullToolResults
+	if len(chatTiming) > 0 {
+		_ = json.Unmarshal(chatTiming, &settings.ChatTiming)
+	}
 	return settings
 }
 
