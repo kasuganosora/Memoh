@@ -108,8 +108,12 @@ func (*containerServer) ReadFile(_ context.Context, req *pb.ReadFileRequest) (*p
 		totalLines++
 	}
 
+	content := out.String()
+	if !utf8.ValidString(content) {
+		content = strings.ToValidUTF8(content, "�")
+	}
 	return &pb.ReadFileResponse{
-		Content:    out.String(),
+		Content:    content,
 		TotalLines: totalLines,
 	}, nil
 }

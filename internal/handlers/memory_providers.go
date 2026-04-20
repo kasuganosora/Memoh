@@ -37,7 +37,7 @@ func (h *MemoryProvidersHandler) Register(e *echo.Echo) {
 // @Summary List memory provider metadata
 // @Description List available memory provider types and config schemas
 // @Tags memory-providers
-// @Success 200 {array} adapters.ProviderMeta
+// @Success 200 {array} memprovider.ProviderMeta
 // @Router /memory-providers/meta [get].
 func (h *MemoryProvidersHandler) ListMeta(c echo.Context) error {
 	return c.JSON(http.StatusOK, h.service.ListMeta(c.Request().Context()))
@@ -49,8 +49,8 @@ func (h *MemoryProvidersHandler) ListMeta(c echo.Context) error {
 // @Tags memory-providers
 // @Accept json
 // @Produce json
-// @Param request body adapters.ProviderCreateRequest true "Memory provider configuration"
-// @Success 201 {object} adapters.ProviderGetResponse
+// @Param request body memprovider.ProviderCreateRequest true "Memory provider configuration"
+// @Success 201 {object} memprovider.ProviderGetResponse
 // @Failure 400 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /memory-providers [post].
@@ -77,7 +77,7 @@ func (h *MemoryProvidersHandler) Create(c echo.Context) error {
 // @Description List configured memory providers
 // @Tags memory-providers
 // @Produce json
-// @Success 200 {array} adapters.ProviderGetResponse
+// @Success 200 {array} memprovider.ProviderGetResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /memory-providers [get].
 func (h *MemoryProvidersHandler) List(c echo.Context) error {
@@ -94,7 +94,7 @@ func (h *MemoryProvidersHandler) List(c echo.Context) error {
 // @Tags memory-providers
 // @Produce json
 // @Param id path string true "Provider ID"
-// @Success 200 {object} adapters.ProviderGetResponse
+// @Success 200 {object} memprovider.ProviderGetResponse
 // @Failure 400 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse
 // @Router /memory-providers/{id} [get].
@@ -116,7 +116,7 @@ func (h *MemoryProvidersHandler) Get(c echo.Context) error {
 // @Tags memory-providers
 // @Produce json
 // @Param id path string true "Provider ID"
-// @Success 200 {object} adapters.ProviderStatusResponse
+// @Success 200 {object} memprovider.ProviderStatusResponse
 // @Failure 400 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
@@ -140,8 +140,8 @@ func (h *MemoryProvidersHandler) Status(c echo.Context) error {
 // @Accept json
 // @Produce json
 // @Param id path string true "Provider ID"
-// @Param request body adapters.ProviderUpdateRequest true "Updated configuration"
-// @Success 200 {object} adapters.ProviderGetResponse
+// @Param request body memprovider.ProviderUpdateRequest true "Updated configuration"
+// @Success 200 {object} memprovider.ProviderGetResponse
 // @Failure 400 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /memory-providers/{id} [put].

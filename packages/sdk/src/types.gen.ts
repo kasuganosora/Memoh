@@ -4,7 +4,7 @@ export type ClientOptions = {
     baseUrl: string;
 };
 
-export type AccountsAccount = {
+export type GithubComMemohaiMemohInternalAccountsAccount = {
     avatar_url?: string;
     created_at?: string;
     display_name?: string;
@@ -18,7 +18,7 @@ export type AccountsAccount = {
     username?: string;
 };
 
-export type AccountsCreateAccountRequest = {
+export type GithubComMemohaiMemohInternalAccountsCreateAccountRequest = {
     avatar_url?: string;
     display_name?: string;
     email?: string;
@@ -28,33 +28,33 @@ export type AccountsCreateAccountRequest = {
     username?: string;
 };
 
-export type AccountsListAccountsResponse = {
-    items?: Array<AccountsAccount>;
+export type GithubComMemohaiMemohInternalAccountsListAccountsResponse = {
+    items?: Array<GithubComMemohaiMemohInternalAccountsAccount>;
 };
 
-export type AccountsResetPasswordRequest = {
+export type GithubComMemohaiMemohInternalAccountsResetPasswordRequest = {
     new_password?: string;
 };
 
-export type AccountsUpdateAccountRequest = {
+export type GithubComMemohaiMemohInternalAccountsUpdateAccountRequest = {
     avatar_url?: string;
     display_name?: string;
     is_active?: boolean;
     role?: string;
 };
 
-export type AccountsUpdatePasswordRequest = {
+export type GithubComMemohaiMemohInternalAccountsUpdatePasswordRequest = {
     current_password?: string;
     new_password?: string;
 };
 
-export type AccountsUpdateProfileRequest = {
+export type GithubComMemohaiMemohInternalAccountsUpdateProfileRequest = {
     avatar_url?: string;
     display_name?: string;
     timezone?: string;
 };
 
-export type AclChannelIdentityCandidate = {
+export type GithubComMemohaiMemohInternalAclChannelIdentityCandidate = {
     avatar_url?: string;
     channel?: string;
     channel_subject_id?: string;
@@ -66,30 +66,30 @@ export type AclChannelIdentityCandidate = {
     linked_username?: string;
 };
 
-export type AclChannelIdentityCandidateListResponse = {
-    items?: Array<AclChannelIdentityCandidate>;
+export type GithubComMemohaiMemohInternalAclChannelIdentityCandidateListResponse = {
+    items?: Array<GithubComMemohaiMemohInternalAclChannelIdentityCandidate>;
 };
 
-export type AclCreateRuleRequest = {
+export type GithubComMemohaiMemohInternalAclCreateRuleRequest = {
     channel_identity_id?: string;
     description?: string;
     effect?: string;
     enabled?: boolean;
     priority?: number;
-    source_scope?: AclSourceScope;
+    source_scope?: GithubComMemohaiMemohInternalAclSourceScope;
     subject_channel_type?: string;
     subject_kind?: string;
 };
 
-export type AclDefaultEffectResponse = {
+export type GithubComMemohaiMemohInternalAclDefaultEffectResponse = {
     default_effect?: string;
 };
 
-export type AclListRulesResponse = {
-    items?: Array<AclRule>;
+export type GithubComMemohaiMemohInternalAclListRulesResponse = {
+    items?: Array<GithubComMemohaiMemohInternalAclRule>;
 };
 
-export type AclObservedConversationCandidate = {
+export type GithubComMemohaiMemohInternalAclObservedConversationCandidate = {
     channel?: string;
     conversation_id?: string;
     conversation_name?: string;
@@ -99,20 +99,20 @@ export type AclObservedConversationCandidate = {
     thread_id?: string;
 };
 
-export type AclObservedConversationCandidateListResponse = {
-    items?: Array<AclObservedConversationCandidate>;
+export type GithubComMemohaiMemohInternalAclObservedConversationCandidateListResponse = {
+    items?: Array<GithubComMemohaiMemohInternalAclObservedConversationCandidate>;
 };
 
-export type AclReorderItem = {
+export type GithubComMemohaiMemohInternalAclReorderItem = {
     id?: string;
     priority?: number;
 };
 
-export type AclReorderRequest = {
-    items?: Array<AclReorderItem>;
+export type GithubComMemohaiMemohInternalAclReorderRequest = {
+    items?: Array<GithubComMemohaiMemohInternalAclReorderItem>;
 };
 
-export type AclRule = {
+export type GithubComMemohaiMemohInternalAclRule = {
     action?: string;
     bot_id?: string;
     channel_identity_avatar_url?: string;
@@ -130,187 +130,30 @@ export type AclRule = {
     linked_user_id?: string;
     linked_user_username?: string;
     priority?: number;
-    source_scope?: AclSourceScope;
+    source_scope?: GithubComMemohaiMemohInternalAclSourceScope;
     subject_channel_type?: string;
     subject_kind?: string;
     updated_at?: string;
 };
 
-export type AclSourceScope = {
+export type GithubComMemohaiMemohInternalAclSourceScope = {
     conversation_id?: string;
     conversation_type?: string;
     thread_id?: string;
 };
 
-export type AclUpdateRuleRequest = {
+export type GithubComMemohaiMemohInternalAclUpdateRuleRequest = {
     channel_identity_id?: string;
     description?: string;
     effect?: string;
     enabled?: boolean;
     priority?: number;
-    source_scope?: AclSourceScope;
+    source_scope?: GithubComMemohaiMemohInternalAclSourceScope;
     subject_channel_type?: string;
     subject_kind?: string;
 };
 
-export type AdaptersCdfPoint = {
-    /**
-     * cumulative weight fraction [0.0, 1.0]
-     */
-    cumulative?: number;
-    /**
-     * rank position (1-based, sorted by value desc)
-     */
-    k?: number;
-};
-
-export type AdaptersCompactResult = {
-    after_count?: number;
-    before_count?: number;
-    ratio?: number;
-    results?: Array<AdaptersMemoryItem>;
-};
-
-export type AdaptersDeleteResponse = {
-    message?: string;
-};
-
-export type AdaptersHealthStatus = {
-    error?: string;
-    ok?: boolean;
-};
-
-export type AdaptersMemoryItem = {
-    agent_id?: string;
-    bot_id?: string;
-    cdf_curve?: Array<AdaptersCdfPoint>;
-    created_at?: string;
-    hash?: string;
-    id?: string;
-    memory?: string;
-    metadata?: {
-        [key: string]: unknown;
-    };
-    run_id?: string;
-    score?: number;
-    top_k_buckets?: Array<AdaptersTopKBucket>;
-    updated_at?: string;
-};
-
-export type AdaptersMemoryStatusResponse = {
-    can_manual_sync?: boolean;
-    encoder?: AdaptersHealthStatus;
-    indexed_count?: number;
-    markdown_file_count?: number;
-    memory_mode?: string;
-    overview_path?: string;
-    provider_type?: string;
-    qdrant?: AdaptersHealthStatus;
-    qdrant_collection?: string;
-    source_count?: number;
-    source_dir?: string;
-};
-
-export type AdaptersMessage = {
-    content?: string;
-    role?: string;
-};
-
-export type AdaptersProviderCollectionStatus = {
-    exists?: boolean;
-    name?: string;
-    points?: number;
-    qdrant?: AdaptersHealthStatus;
-};
-
-export type AdaptersProviderConfigSchema = {
-    fields?: {
-        [key: string]: AdaptersProviderFieldSchema;
-    };
-};
-
-export type AdaptersProviderCreateRequest = {
-    config?: {
-        [key: string]: unknown;
-    };
-    name?: string;
-    provider?: AdaptersProviderType;
-};
-
-export type AdaptersProviderFieldSchema = {
-    description?: string;
-    example?: unknown;
-    required?: boolean;
-    secret?: boolean;
-    title?: string;
-    type?: string;
-};
-
-export type AdaptersProviderGetResponse = {
-    config?: {
-        [key: string]: unknown;
-    };
-    created_at?: string;
-    id?: string;
-    is_default?: boolean;
-    name?: string;
-    provider?: string;
-    updated_at?: string;
-};
-
-export type AdaptersProviderMeta = {
-    config_schema?: AdaptersProviderConfigSchema;
-    display_name?: string;
-    provider?: string;
-};
-
-export type AdaptersProviderStatusResponse = {
-    collections?: Array<AdaptersProviderCollectionStatus>;
-    embedding_model_id?: string;
-    memory_mode?: string;
-    provider_type?: string;
-};
-
-export type AdaptersProviderType = 'builtin' | 'mem0' | 'openviking';
-
-export type AdaptersProviderUpdateRequest = {
-    config?: {
-        [key: string]: unknown;
-    };
-    name?: string;
-};
-
-export type AdaptersRebuildResult = {
-    fs_count?: number;
-    missing_count?: number;
-    restored_count?: number;
-    storage_count?: number;
-};
-
-export type AdaptersSearchResponse = {
-    relations?: Array<unknown>;
-    results?: Array<AdaptersMemoryItem>;
-};
-
-export type AdaptersTopKBucket = {
-    /**
-     * sparse dimension index (term hash)
-     */
-    index?: number;
-    /**
-     * weight (term frequency)
-     */
-    value?: number;
-};
-
-export type AdaptersUsageResponse = {
-    avg_text_bytes?: number;
-    count?: number;
-    estimated_storage_bytes?: number;
-    total_text_bytes?: number;
-};
-
-export type BotsBot = {
+export type GithubComMemohaiMemohInternalBotsBot = {
     avatar_url?: string;
     check_issue_count?: number;
     check_state?: string;
@@ -327,7 +170,7 @@ export type BotsBot = {
     updated_at?: string;
 };
 
-export type BotsBotCheck = {
+export type GithubComMemohaiMemohInternalBotsBotCheck = {
     detail?: string;
     id?: string;
     metadata?: {
@@ -340,7 +183,7 @@ export type BotsBotCheck = {
     type?: string;
 };
 
-export type BotsCreateBotRequest = {
+export type GithubComMemohaiMemohInternalBotsCreateBotRequest = {
     acl_preset?: string;
     avatar_url?: string;
     display_name?: string;
@@ -351,19 +194,19 @@ export type BotsCreateBotRequest = {
     timezone?: string;
 };
 
-export type BotsListBotsResponse = {
-    items?: Array<BotsBot>;
+export type GithubComMemohaiMemohInternalBotsListBotsResponse = {
+    items?: Array<GithubComMemohaiMemohInternalBotsBot>;
 };
 
-export type BotsListChecksResponse = {
-    items?: Array<BotsBotCheck>;
+export type GithubComMemohaiMemohInternalBotsListChecksResponse = {
+    items?: Array<GithubComMemohaiMemohInternalBotsBotCheck>;
 };
 
-export type BotsTransferBotRequest = {
+export type GithubComMemohaiMemohInternalBotsTransferBotRequest = {
     owner_user_id?: string;
 };
 
-export type BotsUpdateBotRequest = {
+export type GithubComMemohaiMemohInternalBotsUpdateBotRequest = {
     avatar_url?: string;
     display_name?: string;
     is_active?: boolean;
@@ -373,7 +216,7 @@ export type BotsUpdateBotRequest = {
     timezone?: string;
 };
 
-export type BrowsercontextsBrowserContext = {
+export type GithubComMemohaiMemohInternalBrowsercontextsBrowserContext = {
     config?: Array<number>;
     created_at?: string;
     id?: string;
@@ -381,24 +224,24 @@ export type BrowsercontextsBrowserContext = {
     updated_at?: string;
 };
 
-export type BrowsercontextsCreateRequest = {
+export type GithubComMemohaiMemohInternalBrowsercontextsCreateRequest = {
     config?: Array<number>;
     name?: string;
 };
 
-export type BrowsercontextsUpdateRequest = {
+export type GithubComMemohaiMemohInternalBrowsercontextsUpdateRequest = {
     config?: Array<number>;
     name?: string;
 };
 
-export type ChannelAction = {
+export type GithubComMemohaiMemohInternalChannelAction = {
     label?: string;
     type?: string;
     url?: string;
     value?: string;
 };
 
-export type ChannelAttachment = {
+export type GithubComMemohaiMemohInternalChannelAttachment = {
     /**
      * data URL for agent delivery
      */
@@ -416,14 +259,14 @@ export type ChannelAttachment = {
     size?: number;
     source_platform?: string;
     thumbnail_url?: string;
-    type?: ChannelAttachmentType;
+    type?: GithubComMemohaiMemohInternalChannelAttachmentType;
     url?: string;
     width?: number;
 };
 
-export type ChannelAttachmentType = 'image' | 'audio' | 'video' | 'voice' | 'file' | 'gif';
+export type GithubComMemohaiMemohInternalChannelAttachmentType = 'image' | 'audio' | 'video' | 'voice' | 'file' | 'gif';
 
-export type ChannelChannelCapabilities = {
+export type GithubComMemohaiMemohInternalChannelChannelCapabilities = {
     attachments?: boolean;
     block_streaming?: boolean;
     buttons?: boolean;
@@ -442,9 +285,10 @@ export type ChannelChannelCapabilities = {
     unsend?: boolean;
 };
 
-export type ChannelChannelConfig = {
+export type GithubComMemohaiMemohInternalChannelChannelConfig = {
+    allowed_tools?: Array<string>;
     bot_id?: string;
-    channel_type?: ChannelChannelType;
+    channel_type?: GithubComMemohaiMemohInternalChannelChannelType;
     created_at?: string;
     credentials?: {
         [key: string]: unknown;
@@ -462,9 +306,9 @@ export type ChannelChannelConfig = {
     verified_at?: string;
 };
 
-export type ChannelChannelIdentityBinding = {
+export type GithubComMemohaiMemohInternalChannelChannelIdentityBinding = {
     channel_identity_id?: string;
-    channel_type?: ChannelChannelType;
+    channel_type?: GithubComMemohaiMemohInternalChannelChannelType;
     config?: {
         [key: string]: unknown;
     };
@@ -473,98 +317,99 @@ export type ChannelChannelIdentityBinding = {
     updated_at?: string;
 };
 
-export type ChannelChannelType = 'telegram' | 'feishu' | 'dingtalk' | 'matrix' | 'discord' | 'qq' | 'wecom' | 'weixin' | 'wechatoa' | 'local';
+export type GithubComMemohaiMemohInternalChannelChannelType = 'telegram' | 'feishu' | 'dingtalk' | 'matrix' | 'discord' | 'qq' | 'wecom' | 'weixin' | 'wechatoa' | 'local';
 
-export type ChannelConfigSchema = {
+export type GithubComMemohaiMemohInternalChannelConfigSchema = {
     fields?: {
-        [key: string]: ChannelFieldSchema;
+        [key: string]: GithubComMemohaiMemohInternalChannelFieldSchema;
     };
     version?: number;
 };
 
-export type ChannelFieldSchema = {
+export type GithubComMemohaiMemohInternalChannelFieldSchema = {
     description?: string;
     enum?: Array<string>;
     example?: unknown;
     order?: number;
     required?: boolean;
     title?: string;
-    type?: ChannelFieldType;
+    type?: GithubComMemohaiMemohInternalChannelFieldType;
 };
 
-export type ChannelFieldType = 'string' | 'secret' | 'bool' | 'number' | 'enum';
+export type GithubComMemohaiMemohInternalChannelFieldType = 'string' | 'secret' | 'bool' | 'number' | 'enum';
 
-export type ChannelMessage = {
-    actions?: Array<ChannelAction>;
-    attachments?: Array<ChannelAttachment>;
-    format?: ChannelMessageFormat;
+export type GithubComMemohaiMemohInternalChannelMessage = {
+    actions?: Array<GithubComMemohaiMemohInternalChannelAction>;
+    attachments?: Array<GithubComMemohaiMemohInternalChannelAttachment>;
+    format?: GithubComMemohaiMemohInternalChannelMessageFormat;
     id?: string;
     metadata?: {
         [key: string]: unknown;
     };
-    parts?: Array<ChannelMessagePart>;
-    reply?: ChannelReplyRef;
+    parts?: Array<GithubComMemohaiMemohInternalChannelMessagePart>;
+    reply?: GithubComMemohaiMemohInternalChannelReplyRef;
     text?: string;
-    thread?: ChannelThreadRef;
+    thread?: GithubComMemohaiMemohInternalChannelThreadRef;
 };
 
-export type ChannelMessageFormat = 'plain' | 'markdown' | 'rich';
+export type GithubComMemohaiMemohInternalChannelMessageFormat = 'plain' | 'markdown' | 'rich';
 
-export type ChannelMessagePart = {
+export type GithubComMemohaiMemohInternalChannelMessagePart = {
     channel_identity_id?: string;
     emoji?: string;
     language?: string;
     metadata?: {
         [key: string]: unknown;
     };
-    styles?: Array<ChannelMessageTextStyle>;
+    styles?: Array<GithubComMemohaiMemohInternalChannelMessageTextStyle>;
     text?: string;
-    type?: ChannelMessagePartType;
+    type?: GithubComMemohaiMemohInternalChannelMessagePartType;
     url?: string;
 };
 
-export type ChannelMessagePartType = 'text' | 'link' | 'code_block' | 'mention' | 'emoji';
+export type GithubComMemohaiMemohInternalChannelMessagePartType = 'text' | 'link' | 'code_block' | 'mention' | 'emoji';
 
-export type ChannelMessageTextStyle = 'bold' | 'italic' | 'strikethrough' | 'code';
+export type GithubComMemohaiMemohInternalChannelMessageTextStyle = 'bold' | 'italic' | 'strikethrough' | 'code';
 
-export type ChannelReplyRef = {
+export type GithubComMemohaiMemohInternalChannelReplyRef = {
     message_id?: string;
     preview?: string;
     sender?: string;
     target?: string;
 };
 
-export type ChannelSendRequest = {
+export type GithubComMemohaiMemohInternalChannelSendRequest = {
     channel_identity_id?: string;
-    message?: ChannelMessage;
+    message?: GithubComMemohaiMemohInternalChannelMessage;
     target?: string;
 };
 
-export type ChannelTargetHint = {
+export type GithubComMemohaiMemohInternalChannelTargetHint = {
     example?: string;
     label?: string;
 };
 
-export type ChannelTargetSpec = {
+export type GithubComMemohaiMemohInternalChannelTargetSpec = {
     format?: string;
-    hints?: Array<ChannelTargetHint>;
+    hints?: Array<GithubComMemohaiMemohInternalChannelTargetHint>;
 };
 
-export type ChannelThreadRef = {
+export type GithubComMemohaiMemohInternalChannelThreadRef = {
     id?: string;
 };
 
-export type ChannelUpdateChannelStatusRequest = {
+export type GithubComMemohaiMemohInternalChannelUpdateChannelStatusRequest = {
     disabled?: boolean;
 };
 
-export type ChannelUpsertChannelIdentityConfigRequest = {
+export type GithubComMemohaiMemohInternalChannelUpsertChannelIdentityConfigRequest = {
     config?: {
         [key: string]: unknown;
     };
 };
 
-export type ChannelUpsertConfigRequest = {
+export type GithubComMemohaiMemohInternalChannelUpsertConfigRequest = {
+    allowed_tools?: Array<string>;
     credentials?: {
         [key: string]: unknown;
     };
@@ -579,12 +424,26 @@ export type ChannelUpsertConfigRequest = {
     verified_at?: string;
 };
 
-export type CompactionListLogsResponse = {
-    items?: Array<CompactionLog>;
+export type GithubComMemohaiMemohInternalChannelIdentitiesChannelIdentity = {
+    avatar_url?: string;
+    channel?: string;
+    channel_subject_id?: string;
+    created_at?: string;
+    display_name?: string;
+    id?: string;
+    metadata?: {
+        [key: string]: unknown;
+    };
+    updated_at?: string;
+    user_id?: string;
+};
+
+export type GithubComMemohaiMemohInternalCompactionListLogsResponse = {
+    items?: Array<GithubComMemohaiMemohInternalCompactionLog>;
     total_count?: number;
 };
 
-export type CompactionLog = {
+export type GithubComMemohaiMemohInternalCompactionLog = {
     bot_id?: string;
     completed_at?: string;
     error_message?: string;
@@ -598,7 +457,7 @@ export type CompactionLog = {
     usage?: unknown;
 };
 
-export type EmailBindingResponse = {
+export type GithubComMemohaiMemohInternalEmailBindingResponse = {
     bot_id?: string;
     can_delete?: boolean;
     can_read?: boolean;
@@ -613,11 +472,11 @@ export type EmailBindingResponse = {
     updated_at?: string;
 };
 
-export type EmailConfigSchema = {
-    fields?: Array<EmailFieldSchema>;
+export type GithubComMemohaiMemohInternalEmailConfigSchema = {
+    fields?: Array<GithubComMemohaiMemohInternalEmailFieldSchema>;
 };
 
-export type EmailCreateBindingRequest = {
+export type GithubComMemohaiMemohInternalEmailCreateBindingRequest = {
     can_delete?: boolean;
     can_read?: boolean;
     can_write?: boolean;
@@ -628,7 +487,7 @@ export type EmailCreateBindingRequest = {
     email_provider_id?: string;
 };
 
-export type EmailCreateProviderRequest = {
+export type GithubComMemohaiMemohInternalEmailCreateProviderRequest = {
     config?: {
         [key: string]: unknown;
     };
@@ -636,7 +495,7 @@ export type EmailCreateProviderRequest = {
     provider?: string;
 };
 
-export type EmailFieldSchema = {
+export type GithubComMemohaiMemohInternalEmailFieldSchema = {
     description?: string;
     enum?: Array<string>;
     example?: unknown;
@@ -647,7 +506,7 @@ export type EmailFieldSchema = {
     type?: string;
 };
 
-export type EmailOutboxItemResponse = {
+export type GithubComMemohaiMemohInternalEmailOutboxItemResponse = {
     attachments?: Array<unknown>;
     body_html?: string;
     body_text?: string;
@@ -664,13 +523,13 @@ export type EmailOutboxItemResponse = {
     to?: Array<string>;
 };
 
-export type EmailProviderMeta = {
-    config_schema?: EmailConfigSchema;
+export type GithubComMemohaiMemohInternalEmailProviderMeta = {
+    config_schema?: GithubComMemohaiMemohInternalEmailConfigSchema;
     display_name?: string;
     provider?: string;
 };
 
-export type EmailProviderResponse = {
+export type GithubComMemohaiMemohInternalEmailProviderResponse = {
     config?: {
         [key: string]: unknown;
     };
@@ -681,7 +540,7 @@ export type EmailProviderResponse = {
     updated_at?: string;
 };
 
-export type EmailUpdateBindingRequest = {
+export type GithubComMemohaiMemohInternalEmailUpdateBindingRequest = {
     can_delete?: boolean;
     can_read?: boolean;
     can_write?: boolean;
@@ -691,12 +550,33 @@ export type EmailUpdateBindingRequest = {
     email_address?: string;
 };
 
-export type EmailUpdateProviderRequest = {
+export type GithubComMemohaiMemohInternalEmailUpdateProviderRequest = {
     config?: {
         [key: string]: unknown;
     };
     name?: string;
     provider?: string;
+};
+
+export type GithubComMemohaiMemohInternalHeartbeatListLogsResponse = {
+    items?: Array<GithubComMemohaiMemohInternalHeartbeatLog>;
+    total_count?: number;
+};
+
+export type GithubComMemohaiMemohInternalHeartbeatLog = {
+    bot_id?: string;
+    completed_at?: string;
+    error_message?: string;
+    id?: string;
+    result_text?: string;
+    session_id?: string;
+    started_at?: string;
+    status?: string;
+    usage?: unknown;
+};
+
+export type GithubComMemohaiMemohInternalMcpAuthorizeResult = {
+    authorization_url?: string;
 };
 
 export type GithubComMemohaiMemohInternalMcpConnection = {
@@ -712,504 +592,12 @@ export type GithubComMemohaiMemohInternalMcpConnection = {
     name?: string;
     status?: string;
     status_message?: string;
-    tools_cache?: Array<McpToolDescriptor>;
+    tools_cache?: Array<GithubComMemohaiMemohInternalMcpToolDescriptor>;
     type?: string;
     updated_at?: string;
 };
 
-export type HandlersBatchDeleteRequest = {
-    ids?: Array<string>;
-};
-
-export type HandlersBrowserCoresResponse = {
-    cores?: Array<string>;
-};
-
-export type HandlersCacheStats = {
-    cache_hit_rate?: number;
-    cache_read_tokens?: number;
-    cache_write_tokens?: number;
-    total_input_tokens?: number;
-};
-
-export type HandlersChannelMeta = {
-    capabilities?: ChannelChannelCapabilities;
-    config_schema?: ChannelConfigSchema;
-    configless?: boolean;
-    display_name?: string;
-    target_spec?: ChannelTargetSpec;
-    type?: string;
-    user_config_schema?: ChannelConfigSchema;
-};
-
-export type HandlersContainerGpuRequest = {
-    devices?: Array<string>;
-};
-
-export type HandlersContextUsage = {
-    context_window?: number;
-    used_tokens?: number;
-};
-
-export type HandlersCreateContainerRequest = {
-    gpu?: HandlersContainerGpuRequest;
-    image?: string;
-    restore_data?: boolean;
-    snapshotter?: string;
-};
-
-export type HandlersCreateContainerResponse = {
-    cdi_devices?: Array<string>;
-    container_id?: string;
-    data_restored?: boolean;
-    has_preserved_data?: boolean;
-    image?: string;
-    snapshotter?: string;
-    started?: boolean;
-};
-
-export type HandlersCreateSnapshotRequest = {
-    snapshot_name?: string;
-};
-
-export type HandlersCreateSnapshotResponse = {
-    container_id?: string;
-    display_name?: string;
-    runtime_snapshot_name?: string;
-    snapshot_name?: string;
-    snapshotter?: string;
-    source?: string;
-    version?: number;
-};
-
-export type HandlersDailyTokenUsage = {
-    cache_read_tokens?: number;
-    cache_write_tokens?: number;
-    day?: string;
-    input_tokens?: number;
-    output_tokens?: number;
-    reasoning_tokens?: number;
-};
-
-export type HandlersErrorResponse = {
-    message?: string;
-};
-
-export type HandlersFsDeleteRequest = {
-    path?: string;
-    recursive?: boolean;
-};
-
-export type HandlersFsFileInfo = {
-    isDir?: boolean;
-    modTime?: string;
-    mode?: string;
-    name?: string;
-    path?: string;
-    size?: number;
-};
-
-export type HandlersFsListResponse = {
-    entries?: Array<HandlersFsFileInfo>;
-    path?: string;
-};
-
-export type HandlersFsMkdirRequest = {
-    path?: string;
-};
-
-export type HandlersFsReadResponse = {
-    content?: string;
-    path?: string;
-    size?: number;
-};
-
-export type HandlersFsRenameRequest = {
-    newPath?: string;
-    oldPath?: string;
-};
-
-export type HandlersFsUploadResponse = {
-    path?: string;
-    size?: number;
-};
-
-export type HandlersFsWriteRequest = {
-    content?: string;
-    path?: string;
-};
-
-export type HandlersGetContainerResponse = {
-    cdi_devices?: Array<string>;
-    container_id?: string;
-    container_path?: string;
-    created_at?: string;
-    has_preserved_data?: boolean;
-    image?: string;
-    legacy?: boolean;
-    namespace?: string;
-    status?: string;
-    task_running?: boolean;
-    updated_at?: string;
-};
-
-export type HandlersInstallMcpRequest = {
-    env?: {
-        [key: string]: string;
-    };
-    mcp_id?: string;
-};
-
-export type HandlersInstallSkillRequest = {
-    skill_id?: string;
-};
-
-export type HandlersListSnapshotsResponse = {
-    snapshots?: Array<HandlersSnapshotInfo>;
-    snapshotter?: string;
-};
-
-export type HandlersLocalChannelMessageRequest = {
-    message?: ChannelMessage;
-    model_id?: string;
-    reasoning_effort?: string;
-};
-
-export type HandlersLoginRequest = {
-    password?: string;
-    username?: string;
-};
-
-export type HandlersLoginResponse = {
-    access_token?: string;
-    display_name?: string;
-    expires_at?: string;
-    role?: string;
-    timezone?: string;
-    token_type?: string;
-    user_id?: string;
-    username?: string;
-};
-
-export type HandlersMcpStdioRequest = {
-    args?: Array<string>;
-    command?: string;
-    cwd?: string;
-    env?: {
-        [key: string]: string;
-    };
-    name?: string;
-};
-
-export type HandlersMcpStdioResponse = {
-    connection_id?: string;
-    tools?: Array<string>;
-    url?: string;
-};
-
-export type HandlersModelTokenUsage = {
-    input_tokens?: number;
-    model_id?: string;
-    model_name?: string;
-    model_slug?: string;
-    output_tokens?: number;
-    provider_name?: string;
-};
-
-export type HandlersPingResponse = {
-    commit_hash?: string;
-    container_backend?: string;
-    snapshot_supported?: boolean;
-    status?: string;
-    version?: string;
-};
-
-export type HandlersProbeResponse = {
-    auth_required?: boolean;
-    error?: string;
-    status?: string;
-    tools?: Array<McpToolDescriptor>;
-};
-
-export type HandlersRefreshResponse = {
-    access_token?: string;
-    expires_at?: string;
-    token_type?: string;
-};
-
-export type HandlersRollbackRequest = {
-    version?: number;
-};
-
-export type HandlersSessionInfoResponse = {
-    cache_stats?: HandlersCacheStats;
-    context_usage?: HandlersContextUsage;
-    message_count?: number;
-    skills?: Array<string>;
-};
-
-export type HandlersSkillItem = {
-    content?: string;
-    description?: string;
-    managed?: boolean;
-    metadata?: {
-        [key: string]: unknown;
-    };
-    name?: string;
-    raw?: string;
-    shadowed_by?: string;
-    source_kind?: string;
-    source_path?: string;
-    source_root?: string;
-    state?: string;
-};
-
-export type HandlersSkillsActionRequest = {
-    action?: string;
-    target_path?: string;
-};
-
-export type HandlersSkillsDeleteRequest = {
-    names?: Array<string>;
-};
-
-export type HandlersSkillsResponse = {
-    skills?: Array<HandlersSkillItem>;
-};
-
-export type HandlersSkillsUpsertRequest = {
-    skills?: Array<string>;
-};
-
-export type HandlersSnapshotInfo = {
-    created_at?: string;
-    display_name?: string;
-    kind?: string;
-    labels?: {
-        [key: string]: string;
-    };
-    managed?: boolean;
-    name?: string;
-    parent?: string;
-    runtime_snapshot_name?: string;
-    snapshotter?: string;
-    source?: string;
-    updated_at?: string;
-    version?: number;
-};
-
-export type HandlersSupermarketAuthor = {
-    email?: string;
-    name?: string;
-};
-
-export type HandlersSupermarketConfigVar = {
-    defaultValue?: string;
-    description?: string;
-    key?: string;
-};
-
-export type HandlersSupermarketMcpEntry = {
-    args?: Array<string>;
-    author?: HandlersSupermarketAuthor;
-    command?: string;
-    description?: string;
-    env?: Array<HandlersSupermarketConfigVar>;
-    headers?: Array<HandlersSupermarketConfigVar>;
-    homepage?: string;
-    icon?: string;
-    id?: string;
-    name?: string;
-    tags?: Array<string>;
-    transport?: string;
-    url?: string;
-};
-
-export type HandlersSupermarketMcpListResponse = {
-    data?: Array<HandlersSupermarketMcpEntry>;
-    limit?: number;
-    page?: number;
-    total?: number;
-};
-
-export type HandlersSupermarketSkillEntry = {
-    content?: string;
-    description?: string;
-    files?: Array<string>;
-    id?: string;
-    metadata?: HandlersSupermarketSkillMetadata;
-    name?: string;
-};
-
-export type HandlersSupermarketSkillListResponse = {
-    data?: Array<HandlersSupermarketSkillEntry>;
-    limit?: number;
-    page?: number;
-    total?: number;
-};
-
-export type HandlersSupermarketSkillMetadata = {
-    author?: HandlersSupermarketAuthor;
-    homepage?: string;
-    tags?: Array<string>;
-};
-
-export type HandlersSupermarketTagsResponse = {
-    tags?: Array<string>;
-};
-
-export type HandlersTokenUsageResponse = {
-    by_model?: Array<HandlersModelTokenUsage>;
-    chat?: Array<HandlersDailyTokenUsage>;
-    heartbeat?: Array<HandlersDailyTokenUsage>;
-    schedule?: Array<HandlersDailyTokenUsage>;
-};
-
-export type HandlersTriggerCompactResponse = {
-    message_count?: number;
-    status?: string;
-    summary?: string;
-};
-
-export type HandlersCreateSessionRequest = {
-    channel_type?: string;
-    metadata?: {
-        [key: string]: unknown;
-    };
-    title?: string;
-};
-
-export type HandlersEmailOAuthStatusResponse = {
-    configured?: boolean;
-    email_address?: string;
-    expired?: boolean;
-    expires_at?: string;
-    has_token?: boolean;
-    provider?: string;
-};
-
-export type HandlersFsOpResponse = {
-    ok?: boolean;
-};
-
-export type HandlersListMyIdentitiesResponse = {
-    items?: Array<IdentitiesChannelIdentity>;
-    user_id?: string;
-};
-
-export type HandlersMemoryAddPayload = {
-    embedding_enabled?: boolean;
-    filters?: {
-        [key: string]: unknown;
-    };
-    infer?: boolean;
-    message?: string;
-    messages?: Array<AdaptersMessage>;
-    metadata?: {
-        [key: string]: unknown;
-    };
-    namespace?: string;
-    run_id?: string;
-};
-
-export type HandlersMemoryCompactPayload = {
-    decay_days?: number;
-    ratio?: number;
-};
-
-export type HandlersMemoryDeletePayload = {
-    memory_ids?: Array<string>;
-};
-
-export type HandlersMemorySearchPayload = {
-    embedding_enabled?: boolean;
-    filters?: {
-        [key: string]: unknown;
-    };
-    limit?: number;
-    no_stats?: boolean;
-    query?: string;
-    run_id?: string;
-    sources?: Array<string>;
-};
-
-export type HandlersOauthAuthorizeRequest = {
-    callback_url?: string;
-    client_id?: string;
-    client_secret?: string;
-};
-
-export type HandlersOauthDiscoverRequest = {
-    url?: string;
-};
-
-export type HandlersOauthExchangeRequest = {
-    code?: string;
-    state?: string;
-};
-
-export type HandlersSkillsOpResponse = {
-    ok?: boolean;
-};
-
-export type HandlersSynthesizeRequest = {
-    text?: string;
-};
-
-export type HandlersSynthesizeResponse = {
-    content_type?: string;
-    size?: number;
-    temp_id?: string;
-};
-
-export type HandlersTerminalInfoResponse = {
-    available?: boolean;
-    shell?: string;
-};
-
-export type HandlersUpdateSessionRequest = {
-    metadata?: {
-        [key: string]: unknown;
-    };
-    title?: string;
-};
-
-export type HeartbeatListLogsResponse = {
-    items?: Array<HeartbeatLog>;
-    total_count?: number;
-};
-
-export type HeartbeatLog = {
-    bot_id?: string;
-    completed_at?: string;
-    error_message?: string;
-    id?: string;
-    result_text?: string;
-    session_id?: string;
-    started_at?: string;
-    status?: string;
-    usage?: unknown;
-};
-
-export type IdentitiesChannelIdentity = {
-    avatar_url?: string;
-    channel?: string;
-    channel_subject_id?: string;
-    created_at?: string;
-    display_name?: string;
-    id?: string;
-    metadata?: {
-        [key: string]: unknown;
-    };
-    updated_at?: string;
-    user_id?: string;
-};
-
-export type McpAuthorizeResult = {
-    authorization_url?: string;
-};
-
-export type McpDiscoveryResult = {
+export type GithubComMemohaiMemohInternalMcpDiscoveryResult = {
     authorization_endpoint?: string;
     authorization_server_url?: string;
     registration_endpoint?: string;
@@ -1219,23 +607,23 @@ export type McpDiscoveryResult = {
     token_endpoint?: string;
 };
 
-export type McpExportResponse = {
+export type GithubComMemohaiMemohInternalMcpExportResponse = {
     mcpServers?: {
-        [key: string]: McpMcpServerEntry;
+        [key: string]: GithubComMemohaiMemohInternalMcpMcpServerEntry;
     };
 };
 
-export type McpImportRequest = {
+export type GithubComMemohaiMemohInternalMcpImportRequest = {
     mcpServers?: {
-        [key: string]: McpMcpServerEntry;
+        [key: string]: GithubComMemohaiMemohInternalMcpMcpServerEntry;
     };
 };
 
-export type McpListResponse = {
+export type GithubComMemohaiMemohInternalMcpListResponse = {
     items?: Array<GithubComMemohaiMemohInternalMcpConnection>;
 };
 
-export type McpMcpServerEntry = {
+export type GithubComMemohaiMemohInternalMcpMcpServerEntry = {
     args?: Array<string>;
     command?: string;
     cwd?: string;
@@ -1249,7 +637,7 @@ export type McpMcpServerEntry = {
     url?: string;
 };
 
-export type McpOAuthStatus = {
+export type GithubComMemohaiMemohInternalMcpOAuthStatus = {
     auth_server?: string;
     callback_url?: string;
     configured?: boolean;
@@ -1259,7 +647,7 @@ export type McpOAuthStatus = {
     scopes?: string;
 };
 
-export type McpToolDescriptor = {
+export type GithubComMemohaiMemohInternalMcpToolDescriptor = {
     description?: string;
     inputSchema?: {
         [key: string]: unknown;
@@ -1267,7 +655,7 @@ export type McpToolDescriptor = {
     name?: string;
 };
 
-export type McpUpsertRequest = {
+export type GithubComMemohaiMemohInternalMcpUpsertRequest = {
     args?: Array<string>;
     auth_type?: string;
     command?: string;
@@ -1284,8 +672,165 @@ export type McpUpsertRequest = {
     url?: string;
 };
 
-export type MessageMessage = {
-    assets?: Array<MessageMessageAsset>;
+export type GithubComMemohaiMemohInternalMemoryAdaptersCdfPoint = {
+    /**
+     * cumulative weight fraction [0.0, 1.0]
+     */
+    cumulative?: number;
+    /**
+     * rank position (1-based, sorted by value desc)
+     */
+    k?: number;
+};
+
+export type GithubComMemohaiMemohInternalMemoryAdaptersCompactResult = {
+    after_count?: number;
+    before_count?: number;
+    ratio?: number;
+    results?: Array<GithubComMemohaiMemohInternalMemoryAdaptersMemoryItem>;
+};
+
+export type GithubComMemohaiMemohInternalMemoryAdaptersDeleteResponse = {
+    message?: string;
+};
+
+export type GithubComMemohaiMemohInternalMemoryAdaptersHealthStatus = {
+    error?: string;
+    ok?: boolean;
+};
+
+export type GithubComMemohaiMemohInternalMemoryAdaptersMemoryItem = {
+    agent_id?: string;
+    bot_id?: string;
+    cdf_curve?: Array<GithubComMemohaiMemohInternalMemoryAdaptersCdfPoint>;
+    created_at?: string;
+    hash?: string;
+    id?: string;
+    memory?: string;
+    metadata?: {
+        [key: string]: unknown;
+    };
+    run_id?: string;
+    score?: number;
+    top_k_buckets?: Array<GithubComMemohaiMemohInternalMemoryAdaptersTopKBucket>;
+    updated_at?: string;
+};
+
+export type GithubComMemohaiMemohInternalMemoryAdaptersMemoryStatusResponse = {
+    can_manual_sync?: boolean;
+    encoder?: GithubComMemohaiMemohInternalMemoryAdaptersHealthStatus;
+    indexed_count?: number;
+    markdown_file_count?: number;
+    memory_mode?: string;
+    overview_path?: string;
+    provider_type?: string;
+    qdrant?: GithubComMemohaiMemohInternalMemoryAdaptersHealthStatus;
+    qdrant_collection?: string;
+    source_count?: number;
+    source_dir?: string;
+};
+
+export type GithubComMemohaiMemohInternalMemoryAdaptersMessage = {
+    content?: string;
+    role?: string;
+};
+
+export type GithubComMemohaiMemohInternalMemoryAdaptersProviderCollectionStatus = {
+    exists?: boolean;
+    name?: string;
+    points?: number;
+    qdrant?: GithubComMemohaiMemohInternalMemoryAdaptersHealthStatus;
+};
+
+export type GithubComMemohaiMemohInternalMemoryAdaptersProviderConfigSchema = {
+    fields?: {
+        [key: string]: GithubComMemohaiMemohInternalMemoryAdaptersProviderFieldSchema;
+    };
+};
+
+export type GithubComMemohaiMemohInternalMemoryAdaptersProviderCreateRequest = {
+    config?: {
+        [key: string]: unknown;
+    };
+    name?: string;
+    provider?: GithubComMemohaiMemohInternalMemoryAdaptersProviderType;
+};
+
+export type GithubComMemohaiMemohInternalMemoryAdaptersProviderFieldSchema = {
+    description?: string;
+    example?: unknown;
+    required?: boolean;
+    secret?: boolean;
+    title?: string;
+    type?: string;
+};
+
+export type GithubComMemohaiMemohInternalMemoryAdaptersProviderGetResponse = {
+    config?: {
+        [key: string]: unknown;
+    };
+    created_at?: string;
+    id?: string;
+    is_default?: boolean;
+    name?: string;
+    provider?: string;
+    updated_at?: string;
+};
+
+export type GithubComMemohaiMemohInternalMemoryAdaptersProviderMeta = {
+    config_schema?: GithubComMemohaiMemohInternalMemoryAdaptersProviderConfigSchema;
+    display_name?: string;
+    provider?: string;
+};
+
+export type GithubComMemohaiMemohInternalMemoryAdaptersProviderStatusResponse = {
+    collections?: Array<GithubComMemohaiMemohInternalMemoryAdaptersProviderCollectionStatus>;
+    embedding_model_id?: string;
+    memory_mode?: string;
+    provider_type?: string;
+};
+
+export type GithubComMemohaiMemohInternalMemoryAdaptersProviderType = 'builtin' | 'mem0' | 'openviking';
+
+export type GithubComMemohaiMemohInternalMemoryAdaptersProviderUpdateRequest = {
+    config?: {
+        [key: string]: unknown;
+    };
+    name?: string;
+};
+
+export type GithubComMemohaiMemohInternalMemoryAdaptersRebuildResult = {
+    fs_count?: number;
+    missing_count?: number;
+    restored_count?: number;
+    storage_count?: number;
+};
+
+export type GithubComMemohaiMemohInternalMemoryAdaptersSearchResponse = {
+    relations?: Array<unknown>;
+    results?: Array<GithubComMemohaiMemohInternalMemoryAdaptersMemoryItem>;
+};
+
+export type GithubComMemohaiMemohInternalMemoryAdaptersTopKBucket = {
+    /**
+     * sparse dimension index (term hash)
+     */
+    index?: number;
+    /**
+     * weight (term frequency)
+     */
+    value?: number;
+};
+
+export type GithubComMemohaiMemohInternalMemoryAdaptersUsageResponse = {
+    avg_text_bytes?: number;
+    count?: number;
+    estimated_storage_bytes?: number;
+    total_text_bytes?: number;
+};
+
+export type GithubComMemohaiMemohInternalMessageMessage = {
+    assets?: Array<GithubComMemohaiMemohInternalMessageMessageAsset>;
     bot_id?: string;
     compact_id?: string;
     content?: Array<number>;
@@ -1308,7 +853,7 @@ export type MessageMessage = {
     usage?: Array<number>;
 };
 
-export type MessageMessageAsset = {
+export type GithubComMemohaiMemohInternalMessageMessageAsset = {
     content_hash?: string;
     metadata?: {
         [key: string]: unknown;
@@ -1321,63 +866,56 @@ export type MessageMessageAsset = {
     storage_key?: string;
 };
 
-export type ModelsAddRequest = {
-    config?: ModelsModelConfig;
+export type GithubComMemohaiMemohInternalModelsAddRequest = {
+    config?: Array<number>;
     model_id?: string;
     name?: string;
     provider_id?: string;
-    type?: ModelsModelType;
+    type?: GithubComMemohaiMemohInternalModelsModelType;
 };
 
-export type ModelsAddResponse = {
+export type GithubComMemohaiMemohInternalModelsAddResponse = {
     id?: string;
     model_id?: string;
 };
 
-export type ModelsCountResponse = {
+export type GithubComMemohaiMemohInternalModelsCountResponse = {
     count?: number;
 };
 
-export type ModelsGetResponse = {
-    config?: ModelsModelConfig;
+export type GithubComMemohaiMemohInternalModelsGetResponse = {
+    config?: Array<number>;
     id?: string;
     model_id?: string;
     name?: string;
     provider_id?: string;
-    type?: ModelsModelType;
+    type?: GithubComMemohaiMemohInternalModelsModelType;
 };
 
-export type ModelsModelConfig = {
-    compatibilities?: Array<string>;
-    context_window?: number;
-    dimensions?: number;
-    reasoning_efforts?: Array<string>;
-};
+export type GithubComMemohaiMemohInternalModelsModelType = 'chat' | 'embedding' | 'speech';
 
-export type ModelsModelType = 'chat' | 'embedding' | 'speech';
-
-export type ModelsTestResponse = {
+export type GithubComMemohaiMemohInternalModelsTestResponse = {
     latency_ms?: number;
     message?: string;
     reachable?: boolean;
-    status?: ModelsTestStatus;
+    status?: GithubComMemohaiMemohInternalModelsTestStatus;
 };
 
-export type ModelsTestStatus = 'ok' | 'auth_error' | 'model_not_supported' | 'error';
+export type GithubComMemohaiMemohInternalModelsTestStatus = 'ok' | 'auth_error' | 'model_not_supported' | 'error';
 
-export type ModelsUpdateRequest = {
-    config?: ModelsModelConfig;
+export type GithubComMemohaiMemohInternalModelsUpdateRequest = {
+    config?: Array<number>;
     model_id?: string;
     name?: string;
     provider_id?: string;
-    type?: ModelsModelType;
+    type?: GithubComMemohaiMemohInternalModelsModelType;
 };
 
-export type ProvidersCountResponse = {
+export type GithubComMemohaiMemohInternalProvidersCountResponse = {
     count?: number;
 };
 
-export type ProvidersCreateRequest = {
+export type GithubComMemohaiMemohInternalProvidersCreateRequest = {
     client_type: string;
     config?: {
         [key: string]: unknown;
@@ -1389,7 +927,7 @@ export type ProvidersCreateRequest = {
     name: string;
 };
 
-export type ProvidersGetResponse = {
+export type GithubComMemohaiMemohInternalProvidersGetResponse = {
     client_type?: string;
     config?: {
         [key: string]: unknown;
@@ -1405,13 +943,13 @@ export type ProvidersGetResponse = {
     updated_at?: string;
 };
 
-export type ProvidersImportModelsResponse = {
+export type GithubComMemohaiMemohInternalProvidersImportModelsResponse = {
     created?: number;
     models?: Array<string>;
     skipped?: number;
 };
 
-export type ProvidersOAuthAccount = {
+export type GithubComMemohaiMemohInternalProvidersOAuthAccount = {
     avatar_url?: string;
     email?: string;
     label?: string;
@@ -1420,13 +958,13 @@ export type ProvidersOAuthAccount = {
     profile_url?: string;
 };
 
-export type ProvidersOAuthAuthorizeResponse = {
+export type GithubComMemohaiMemohInternalProvidersOAuthAuthorizeResponse = {
     auth_url?: string;
-    device?: ProvidersOAuthDeviceStatus;
+    device?: GithubComMemohaiMemohInternalProvidersOAuthDeviceStatus;
     mode?: string;
 };
 
-export type ProvidersOAuthDeviceStatus = {
+export type GithubComMemohaiMemohInternalProvidersOAuthDeviceStatus = {
     expires_at?: string;
     interval_seconds?: number;
     pending?: boolean;
@@ -1434,24 +972,24 @@ export type ProvidersOAuthDeviceStatus = {
     verification_uri?: string;
 };
 
-export type ProvidersOAuthStatus = {
-    account?: ProvidersOAuthAccount;
+export type GithubComMemohaiMemohInternalProvidersOAuthStatus = {
+    account?: GithubComMemohaiMemohInternalProvidersOAuthAccount;
     callback_url?: string;
     configured?: boolean;
-    device?: ProvidersOAuthDeviceStatus;
+    device?: GithubComMemohaiMemohInternalProvidersOAuthDeviceStatus;
     expired?: boolean;
     expires_at?: string;
     has_token?: boolean;
     mode?: string;
 };
 
-export type ProvidersTestResponse = {
+export type GithubComMemohaiMemohInternalProvidersTestResponse = {
     latency_ms?: number;
     message?: string;
     reachable?: boolean;
 };
 
-export type ProvidersUpdateRequest = {
+export type GithubComMemohaiMemohInternalProvidersUpdateRequest = {
     client_type?: string;
     config?: {
         [key: string]: unknown;
@@ -1464,25 +1002,25 @@ export type ProvidersUpdateRequest = {
     name?: string;
 };
 
-export type ScheduleCreateRequest = {
+export type GithubComMemohaiMemohInternalScheduleCreateRequest = {
     command?: string;
     description?: string;
     enabled?: boolean;
-    max_calls?: ScheduleNullableInt;
+    max_calls?: GithubComMemohaiMemohInternalScheduleNullableInt;
     name?: string;
     pattern?: string;
 };
 
-export type ScheduleListLogsResponse = {
-    items?: Array<ScheduleLog>;
+export type GithubComMemohaiMemohInternalScheduleListLogsResponse = {
+    items?: Array<GithubComMemohaiMemohInternalScheduleLog>;
     total_count?: number;
 };
 
-export type ScheduleListResponse = {
-    items?: Array<ScheduleSchedule>;
+export type GithubComMemohaiMemohInternalScheduleListResponse = {
+    items?: Array<GithubComMemohaiMemohInternalScheduleSchedule>;
 };
 
-export type ScheduleLog = {
+export type GithubComMemohaiMemohInternalScheduleLog = {
     bot_id?: string;
     completed_at?: string;
     error_message?: string;
@@ -1495,12 +1033,12 @@ export type ScheduleLog = {
     usage?: unknown;
 };
 
-export type ScheduleNullableInt = {
+export type GithubComMemohaiMemohInternalScheduleNullableInt = {
     set?: boolean;
     value?: number;
 };
 
-export type ScheduleSchedule = {
+export type GithubComMemohaiMemohInternalScheduleSchedule = {
     bot_id?: string;
     command?: string;
     created_at?: string;
@@ -1514,24 +1052,24 @@ export type ScheduleSchedule = {
     updated_at?: string;
 };
 
-export type ScheduleUpdateRequest = {
+export type GithubComMemohaiMemohInternalScheduleUpdateRequest = {
     command?: string;
     description?: string;
     enabled?: boolean;
-    max_calls?: ScheduleNullableInt;
+    max_calls?: GithubComMemohaiMemohInternalScheduleNullableInt;
     name?: string;
     pattern?: string;
 };
 
-export type SearchprovidersCreateRequest = {
+export type GithubComMemohaiMemohInternalSearchprovidersCreateRequest = {
     config?: {
         [key: string]: unknown;
     };
     name?: string;
-    provider?: SearchprovidersProviderName;
+    provider?: GithubComMemohaiMemohInternalSearchprovidersProviderName;
 };
 
-export type SearchprovidersGetResponse = {
+export type GithubComMemohaiMemohInternalSearchprovidersGetResponse = {
     config?: {
         [key: string]: unknown;
     };
@@ -1543,13 +1081,13 @@ export type SearchprovidersGetResponse = {
     updated_at?: string;
 };
 
-export type SearchprovidersProviderConfigSchema = {
+export type GithubComMemohaiMemohInternalSearchprovidersProviderConfigSchema = {
     fields?: {
-        [key: string]: SearchprovidersProviderFieldSchema;
+        [key: string]: GithubComMemohaiMemohInternalSearchprovidersProviderFieldSchema;
     };
 };
 
-export type SearchprovidersProviderFieldSchema = {
+export type GithubComMemohaiMemohInternalSearchprovidersProviderFieldSchema = {
     description?: string;
     enum?: Array<string>;
     example?: unknown;
@@ -1558,24 +1096,24 @@ export type SearchprovidersProviderFieldSchema = {
     type?: string;
 };
 
-export type SearchprovidersProviderMeta = {
-    config_schema?: SearchprovidersProviderConfigSchema;
+export type GithubComMemohaiMemohInternalSearchprovidersProviderMeta = {
+    config_schema?: GithubComMemohaiMemohInternalSearchprovidersProviderConfigSchema;
     display_name?: string;
     provider?: string;
 };
 
-export type SearchprovidersProviderName = 'brave' | 'bing' | 'google' | 'tavily' | 'sogou' | 'serper' | 'searxng' | 'jina' | 'exa' | 'bocha' | 'duckduckgo' | 'yandex';
+export type GithubComMemohaiMemohInternalSearchprovidersProviderName = 'brave' | 'bing' | 'google' | 'tavily' | 'sogou' | 'serper' | 'searxng' | 'jina' | 'exa' | 'bocha' | 'duckduckgo' | 'yandex';
 
-export type SearchprovidersUpdateRequest = {
+export type GithubComMemohaiMemohInternalSearchprovidersUpdateRequest = {
     config?: {
         [key: string]: unknown;
     };
     enable?: boolean;
     name?: string;
-    provider?: SearchprovidersProviderName;
+    provider?: GithubComMemohaiMemohInternalSearchprovidersProviderName;
 };
 
-export type SessionSession = {
+export type GithubComMemohaiMemohInternalSessionSession = {
     bot_id?: string;
     channel_type?: string;
     created_at?: string;
@@ -1594,10 +1132,25 @@ export type SessionSession = {
     updated_at?: string;
 };
 
-export type SettingsSettings = {
+export type GithubComMemohaiMemohInternalSettingsChatTimingConfig = {
+    debounce_max_wait?: number;
+    debounce_quiet_period?: number;
+    enabled?: boolean;
+    idle_comp_enabled?: boolean;
+    idle_comp_min_idle_before_credit?: number;
+    idle_comp_window_size?: number;
+    interrupt_enabled?: boolean;
+    interrupt_max_consecutive?: number;
+    interrupt_max_rounds?: number;
+    talk_value?: number;
+    timing_gate?: boolean;
+};
+
+export type GithubComMemohaiMemohInternalSettingsSettings = {
     acl_default_effect?: string;
     browser_context_id?: string;
     chat_model_id?: string;
+    chat_timing?: GithubComMemohaiMemohInternalSettingsChatTimingConfig;
     compaction_enabled?: boolean;
     compaction_model_id?: string;
     compaction_ratio?: number;
@@ -1618,10 +1171,11 @@ export type SettingsSettings = {
     tts_model_id?: string;
 };
 
-export type SettingsUpsertRequest = {
+export type GithubComMemohaiMemohInternalSettingsUpsertRequest = {
     acl_default_effect?: string;
     browser_context_id?: string;
     chat_model_id?: string;
+    chat_timing?: GithubComMemohaiMemohInternalSettingsChatTimingConfig;
     compaction_enabled?: boolean;
     compaction_model_id?: string;
     compaction_ratio?: number;
@@ -1642,36 +1196,37 @@ export type SettingsUpsertRequest = {
     tts_model_id?: string;
 };
 
-export type TtsModelCapabilities = {
+export type GithubComMemohaiMemohInternalTtsModelCapabilities = {
     formats?: Array<string>;
-    pitch?: TtsParamConstraint;
-    speed?: TtsParamConstraint;
-    voices?: Array<TtsVoiceInfo>;
+    languages?: Array<string>;
+    pitch?: GithubComMemohaiMemohInternalTtsParamConstraint;
+    speed?: GithubComMemohaiMemohInternalTtsParamConstraint;
+    voices?: Array<GithubComMemohaiMemohInternalTtsVoiceInfo>;
 };
 
-export type TtsModelInfo = {
-    capabilities?: TtsModelCapabilities;
+export type GithubComMemohaiMemohInternalTtsModelInfo = {
+    capabilities?: GithubComMemohaiMemohInternalTtsModelCapabilities;
     description?: string;
     id?: string;
     name?: string;
 };
 
-export type TtsParamConstraint = {
+export type GithubComMemohaiMemohInternalTtsParamConstraint = {
     default?: number;
     max?: number;
     min?: number;
     options?: Array<number>;
 };
 
-export type TtsProviderMetaResponse = {
+export type GithubComMemohaiMemohInternalTtsProviderMetaResponse = {
     default_model?: string;
     description?: string;
     display_name?: string;
-    models?: Array<TtsModelInfo>;
+    models?: Array<GithubComMemohaiMemohInternalTtsModelInfo>;
     provider?: string;
 };
 
-export type TtsSpeechModelResponse = {
+export type GithubComMemohaiMemohInternalTtsSpeechModelResponse = {
     config?: {
         [key: string]: unknown;
     };
@@ -1684,7 +1239,7 @@ export type TtsSpeechModelResponse = {
     updated_at?: string;
 };
 
-export type TtsSpeechProviderResponse = {
+export type GithubComMemohaiMemohInternalTtsSpeechProviderResponse = {
     client_type?: string;
     created_at?: string;
     enable?: boolean;
@@ -1693,24 +1248,499 @@ export type TtsSpeechProviderResponse = {
     updated_at?: string;
 };
 
-export type TtsTestSynthesizeRequest = {
+export type GithubComMemohaiMemohInternalTtsTestSynthesizeRequest = {
     config?: {
         [key: string]: unknown;
     };
     text?: string;
 };
 
-export type TtsVoiceInfo = {
+export type GithubComMemohaiMemohInternalTtsVoiceInfo = {
     id?: string;
     lang?: string;
     name?: string;
+};
+
+export type InternalChannelAdaptersWeixinQrPollRequest = {
+    qr_code?: string;
+};
+
+export type InternalChannelAdaptersWeixinQrPollResponse = {
+    message?: string;
+    /**
+     * wait, scaned, confirmed, expired
+     */
+    status?: string;
+};
+
+export type InternalChannelAdaptersWeixinQrStartResponse = {
+    message?: string;
+    qr_code?: string;
+    qr_code_url?: string;
+};
+
+export type InternalHandlersBatchDeleteRequest = {
+    ids?: Array<string>;
+};
+
+export type InternalHandlersBrowserCoresResponse = {
+    cores?: Array<string>;
+};
+
+export type InternalHandlersCacheStats = {
+    cache_hit_rate?: number;
+    cache_read_tokens?: number;
+    cache_write_tokens?: number;
+    total_input_tokens?: number;
+};
+
+export type InternalHandlersChannelMeta = {
+    capabilities?: GithubComMemohaiMemohInternalChannelChannelCapabilities;
+    config_schema?: GithubComMemohaiMemohInternalChannelConfigSchema;
+    configless?: boolean;
+    display_name?: string;
+    target_spec?: GithubComMemohaiMemohInternalChannelTargetSpec;
+    type?: string;
+    user_config_schema?: GithubComMemohaiMemohInternalChannelConfigSchema;
+};
+
+export type InternalHandlersContainerGpuRequest = {
+    devices?: Array<string>;
+};
+
+export type InternalHandlersContextUsage = {
+    context_window?: number;
+    used_tokens?: number;
+};
+
+export type InternalHandlersCreateContainerRequest = {
+    gpu?: InternalHandlersContainerGpuRequest;
+    image?: string;
+    restore_data?: boolean;
+    snapshotter?: string;
+};
+
+export type InternalHandlersCreateContainerResponse = {
+    cdi_devices?: Array<string>;
+    container_id?: string;
+    data_restored?: boolean;
+    has_preserved_data?: boolean;
+    image?: string;
+    snapshotter?: string;
+    started?: boolean;
+};
+
+export type InternalHandlersCreateSnapshotRequest = {
+    snapshot_name?: string;
+};
+
+export type InternalHandlersCreateSnapshotResponse = {
+    container_id?: string;
+    display_name?: string;
+    runtime_snapshot_name?: string;
+    snapshot_name?: string;
+    snapshotter?: string;
+    source?: string;
+    version?: number;
+};
+
+export type InternalHandlersDailyTokenUsage = {
+    cache_read_tokens?: number;
+    cache_write_tokens?: number;
+    day?: string;
+    input_tokens?: number;
+    output_tokens?: number;
+    reasoning_tokens?: number;
+};
+
+export type InternalHandlersErrorResponse = {
+    message?: string;
+};
+
+export type InternalHandlersFsDeleteRequest = {
+    path?: string;
+    recursive?: boolean;
+};
+
+export type InternalHandlersFsFileInfo = {
+    isDir?: boolean;
+    modTime?: string;
+    mode?: string;
+    name?: string;
+    path?: string;
+    size?: number;
+};
+
+export type InternalHandlersFsListResponse = {
+    entries?: Array<InternalHandlersFsFileInfo>;
+    path?: string;
+};
+
+export type InternalHandlersFsMkdirRequest = {
+    path?: string;
+};
+
+export type InternalHandlersFsReadResponse = {
+    content?: string;
+    path?: string;
+    size?: number;
+};
+
+export type InternalHandlersFsRenameRequest = {
+    newPath?: string;
+    oldPath?: string;
+};
+
+export type InternalHandlersFsUploadResponse = {
+    path?: string;
+    size?: number;
+};
+
+export type InternalHandlersFsWriteRequest = {
+    content?: string;
+    path?: string;
+};
+
+export type InternalHandlersGetContainerResponse = {
+    cdi_devices?: Array<string>;
+    container_id?: string;
+    container_path?: string;
+    created_at?: string;
+    has_preserved_data?: boolean;
+    image?: string;
+    legacy?: boolean;
+    namespace?: string;
+    status?: string;
+    task_running?: boolean;
+    updated_at?: string;
+};
+
+export type InternalHandlersInstallMcpRequest = {
+    env?: {
+        [key: string]: string;
+    };
+    mcp_id?: string;
+};
+
+export type InternalHandlersInstallSkillRequest = {
+    skill_id?: string;
+};
+
+export type InternalHandlersListSnapshotsResponse = {
+    snapshots?: Array<InternalHandlersSnapshotInfo>;
+    snapshotter?: string;
+};
+
+export type InternalHandlersLocalChannelMessageRequest = {
+    message?: GithubComMemohaiMemohInternalChannelMessage;
+    model_id?: string;
+    reasoning_effort?: string;
+};
+
+export type InternalHandlersLoginRequest = {
+    password?: string;
+    username?: string;
+};
+
+export type InternalHandlersLoginResponse = {
+    access_token?: string;
+    display_name?: string;
+    expires_at?: string;
+    role?: string;
+    timezone?: string;
+    token_type?: string;
+    user_id?: string;
+    username?: string;
+};
+
+export type InternalHandlersMcpStdioRequest = {
+    args?: Array<string>;
+    command?: string;
+    cwd?: string;
+    env?: {
+        [key: string]: string;
+    };
+    name?: string;
+};
+
+export type InternalHandlersMcpStdioResponse = {
+    connection_id?: string;
+    tools?: Array<string>;
+    url?: string;
+};
+
+export type InternalHandlersModelTokenUsage = {
+    input_tokens?: number;
+    model_id?: string;
+    model_name?: string;
+    model_slug?: string;
+    output_tokens?: number;
+    provider_name?: string;
+};
+
+export type InternalHandlersPingResponse = {
+    commit_hash?: string;
+    container_backend?: string;
+    snapshot_supported?: boolean;
+    status?: string;
+    version?: string;
+};
+
+export type InternalHandlersProbeResponse = {
+    auth_required?: boolean;
+    error?: string;
+    status?: string;
+    tools?: Array<GithubComMemohaiMemohInternalMcpToolDescriptor>;
+};
+
+export type InternalHandlersRefreshResponse = {
+    access_token?: string;
+    expires_at?: string;
+    token_type?: string;
+};
+
+export type InternalHandlersRollbackRequest = {
+    version?: number;
+};
+
+export type InternalHandlersSessionInfoResponse = {
+    cache_stats?: InternalHandlersCacheStats;
+    context_usage?: InternalHandlersContextUsage;
+    message_count?: number;
+    skills?: Array<string>;
+};
+
+export type InternalHandlersSkillItem = {
+    content?: string;
+    description?: string;
+    managed?: boolean;
+    metadata?: {
+        [key: string]: unknown;
+    };
+    name?: string;
+    raw?: string;
+    shadowed_by?: string;
+    source_kind?: string;
+    source_path?: string;
+    source_root?: string;
+    state?: string;
+};
+
+export type InternalHandlersSkillsActionRequest = {
+    action?: string;
+    target_path?: string;
+};
+
+export type InternalHandlersSkillsDeleteRequest = {
+    names?: Array<string>;
+};
+
+export type InternalHandlersSkillsResponse = {
+    skills?: Array<InternalHandlersSkillItem>;
+};
+
+export type InternalHandlersSkillsUpsertRequest = {
+    skills?: Array<string>;
+};
+
+export type InternalHandlersSnapshotInfo = {
+    created_at?: string;
+    display_name?: string;
+    kind?: string;
+    labels?: {
+        [key: string]: string;
+    };
+    managed?: boolean;
+    name?: string;
+    parent?: string;
+    runtime_snapshot_name?: string;
+    snapshotter?: string;
+    source?: string;
+    updated_at?: string;
+    version?: number;
+};
+
+export type InternalHandlersSupermarketAuthor = {
+    email?: string;
+    name?: string;
+};
+
+export type InternalHandlersSupermarketConfigVar = {
+    defaultValue?: string;
+    description?: string;
+    key?: string;
+};
+
+export type InternalHandlersSupermarketMcpEntry = {
+    args?: Array<string>;
+    author?: InternalHandlersSupermarketAuthor;
+    command?: string;
+    description?: string;
+    env?: Array<InternalHandlersSupermarketConfigVar>;
+    headers?: Array<InternalHandlersSupermarketConfigVar>;
+    homepage?: string;
+    icon?: string;
+    id?: string;
+    name?: string;
+    tags?: Array<string>;
+    transport?: string;
+    url?: string;
+};
+
+export type InternalHandlersSupermarketMcpListResponse = {
+    data?: Array<InternalHandlersSupermarketMcpEntry>;
+    limit?: number;
+    page?: number;
+    total?: number;
+};
+
+export type InternalHandlersSupermarketSkillEntry = {
+    content?: string;
+    description?: string;
+    files?: Array<string>;
+    id?: string;
+    metadata?: InternalHandlersSupermarketSkillMetadata;
+    name?: string;
+};
+
+export type InternalHandlersSupermarketSkillListResponse = {
+    data?: Array<InternalHandlersSupermarketSkillEntry>;
+    limit?: number;
+    page?: number;
+    total?: number;
+};
+
+export type InternalHandlersSupermarketSkillMetadata = {
+    author?: InternalHandlersSupermarketAuthor;
+    homepage?: string;
+    tags?: Array<string>;
+};
+
+export type InternalHandlersSupermarketTagsResponse = {
+    tags?: Array<string>;
+};
+
+export type InternalHandlersTokenUsageResponse = {
+    by_model?: Array<InternalHandlersModelTokenUsage>;
+    chat?: Array<InternalHandlersDailyTokenUsage>;
+    heartbeat?: Array<InternalHandlersDailyTokenUsage>;
+    schedule?: Array<InternalHandlersDailyTokenUsage>;
+};
+
+export type InternalHandlersTriggerCompactResponse = {
+    message_count?: number;
+    status?: string;
+    summary?: string;
+};
+
+export type InternalHandlersCreateSessionRequest = {
+    channel_type?: string;
+    metadata?: {
+        [key: string]: unknown;
+    };
+    title?: string;
+};
+
+export type InternalHandlersEmailOAuthStatusResponse = {
+    configured?: boolean;
+    email_address?: string;
+    expired?: boolean;
+    expires_at?: string;
+    has_token?: boolean;
+    provider?: string;
+};
+
+export type InternalHandlersFsOpResponse = {
+    ok?: boolean;
+};
+
+export type InternalHandlersListMyIdentitiesResponse = {
+    items?: Array<GithubComMemohaiMemohInternalChannelIdentitiesChannelIdentity>;
+    user_id?: string;
+};
+
+export type InternalHandlersMemoryAddPayload = {
+    embedding_enabled?: boolean;
+    filters?: {
+        [key: string]: unknown;
+    };
+    infer?: boolean;
+    message?: string;
+    messages?: Array<GithubComMemohaiMemohInternalMemoryAdaptersMessage>;
+    metadata?: {
+        [key: string]: unknown;
+    };
+    namespace?: string;
+    run_id?: string;
+};
+
+export type InternalHandlersMemoryCompactPayload = {
+    decay_days?: number;
+    ratio?: number;
+};
+
+export type InternalHandlersMemoryDeletePayload = {
+    memory_ids?: Array<string>;
+};
+
+export type InternalHandlersMemorySearchPayload = {
+    embedding_enabled?: boolean;
+    filters?: {
+        [key: string]: unknown;
+    };
+    limit?: number;
+    no_stats?: boolean;
+    query?: string;
+    run_id?: string;
+    sources?: Array<string>;
+};
+
+export type InternalHandlersOauthAuthorizeRequest = {
+    callback_url?: string;
+    client_id?: string;
+    client_secret?: string;
+};
+
+export type InternalHandlersOauthDiscoverRequest = {
+    url?: string;
+};
+
+export type InternalHandlersOauthExchangeRequest = {
+    code?: string;
+    state?: string;
+};
+
+export type InternalHandlersSkillsOpResponse = {
+    ok?: boolean;
+};
+
+export type InternalHandlersSynthesizeRequest = {
+    text?: string;
+};
+
+export type InternalHandlersSynthesizeResponse = {
+    content_type?: string;
+    size?: number;
+    temp_id?: string;
+};
+
+export type InternalHandlersTerminalInfoResponse = {
+    available?: boolean;
+    shell?: string;
+};
+
+export type InternalHandlersUpdateSessionRequest = {
+    metadata?: {
+        [key: string]: unknown;
+    };
+    title?: string;
 };
 
 export type PostAuthLoginData = {
     /**
      * Login request
      */
-    body: HandlersLoginRequest;
+    body: InternalHandlersLoginRequest;
     path?: never;
     query?: never;
     url: '/auth/login';
@@ -1720,15 +1750,15 @@ export type PostAuthLoginErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Unauthorized
      */
-    401: HandlersErrorResponse;
+    401: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostAuthLoginError = PostAuthLoginErrors[keyof PostAuthLoginErrors];
@@ -1737,7 +1767,7 @@ export type PostAuthLoginResponses = {
     /**
      * OK
      */
-    200: HandlersLoginResponse;
+    200: InternalHandlersLoginResponse;
 };
 
 export type PostAuthLoginResponse = PostAuthLoginResponses[keyof PostAuthLoginResponses];
@@ -1753,11 +1783,11 @@ export type PostAuthRefreshErrors = {
     /**
      * Unauthorized
      */
-    401: HandlersErrorResponse;
+    401: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostAuthRefreshError = PostAuthRefreshErrors[keyof PostAuthRefreshErrors];
@@ -1766,7 +1796,7 @@ export type PostAuthRefreshResponses = {
     /**
      * OK
      */
-    200: HandlersRefreshResponse;
+    200: InternalHandlersRefreshResponse;
 };
 
 export type PostAuthRefreshResponse = PostAuthRefreshResponses[keyof PostAuthRefreshResponses];
@@ -1787,15 +1817,15 @@ export type GetBotsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsError = GetBotsErrors[keyof GetBotsErrors];
@@ -1804,7 +1834,7 @@ export type GetBotsResponses = {
     /**
      * OK
      */
-    200: BotsListBotsResponse;
+    200: GithubComMemohaiMemohInternalBotsListBotsResponse;
 };
 
 export type GetBotsResponse = GetBotsResponses[keyof GetBotsResponses];
@@ -1813,7 +1843,7 @@ export type PostBotsData = {
     /**
      * Bot payload
      */
-    body: BotsCreateBotRequest;
+    body: GithubComMemohaiMemohInternalBotsCreateBotRequest;
     path?: never;
     query?: never;
     url: '/bots';
@@ -1823,15 +1853,15 @@ export type PostBotsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsError = PostBotsErrors[keyof PostBotsErrors];
@@ -1840,7 +1870,7 @@ export type PostBotsResponses = {
     /**
      * Created
      */
-    201: BotsBot;
+    201: GithubComMemohaiMemohInternalBotsBot;
 };
 
 export type PostBotsResponse = PostBotsResponses[keyof PostBotsResponses];
@@ -1870,15 +1900,15 @@ export type GetBotsByBotIdAclChannelIdentitiesErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdAclChannelIdentitiesError = GetBotsByBotIdAclChannelIdentitiesErrors[keyof GetBotsByBotIdAclChannelIdentitiesErrors];
@@ -1887,7 +1917,7 @@ export type GetBotsByBotIdAclChannelIdentitiesResponses = {
     /**
      * OK
      */
-    200: AclChannelIdentityCandidateListResponse;
+    200: GithubComMemohaiMemohInternalAclChannelIdentityCandidateListResponse;
 };
 
 export type GetBotsByBotIdAclChannelIdentitiesResponse = GetBotsByBotIdAclChannelIdentitiesResponses[keyof GetBotsByBotIdAclChannelIdentitiesResponses];
@@ -1912,15 +1942,15 @@ export type GetBotsByBotIdAclChannelIdentitiesByChannelIdentityIdConversationsEr
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdAclChannelIdentitiesByChannelIdentityIdConversationsError = GetBotsByBotIdAclChannelIdentitiesByChannelIdentityIdConversationsErrors[keyof GetBotsByBotIdAclChannelIdentitiesByChannelIdentityIdConversationsErrors];
@@ -1929,7 +1959,7 @@ export type GetBotsByBotIdAclChannelIdentitiesByChannelIdentityIdConversationsRe
     /**
      * OK
      */
-    200: AclObservedConversationCandidateListResponse;
+    200: GithubComMemohaiMemohInternalAclObservedConversationCandidateListResponse;
 };
 
 export type GetBotsByBotIdAclChannelIdentitiesByChannelIdentityIdConversationsResponse = GetBotsByBotIdAclChannelIdentitiesByChannelIdentityIdConversationsResponses[keyof GetBotsByBotIdAclChannelIdentitiesByChannelIdentityIdConversationsResponses];
@@ -1954,15 +1984,15 @@ export type GetBotsByBotIdAclChannelTypesByChannelTypeConversationsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdAclChannelTypesByChannelTypeConversationsError = GetBotsByBotIdAclChannelTypesByChannelTypeConversationsErrors[keyof GetBotsByBotIdAclChannelTypesByChannelTypeConversationsErrors];
@@ -1971,7 +2001,7 @@ export type GetBotsByBotIdAclChannelTypesByChannelTypeConversationsResponses = {
     /**
      * OK
      */
-    200: AclObservedConversationCandidateListResponse;
+    200: GithubComMemohaiMemohInternalAclObservedConversationCandidateListResponse;
 };
 
 export type GetBotsByBotIdAclChannelTypesByChannelTypeConversationsResponse = GetBotsByBotIdAclChannelTypesByChannelTypeConversationsResponses[keyof GetBotsByBotIdAclChannelTypesByChannelTypeConversationsResponses];
@@ -1992,15 +2022,15 @@ export type GetBotsByBotIdAclDefaultEffectErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdAclDefaultEffectError = GetBotsByBotIdAclDefaultEffectErrors[keyof GetBotsByBotIdAclDefaultEffectErrors];
@@ -2009,7 +2039,7 @@ export type GetBotsByBotIdAclDefaultEffectResponses = {
     /**
      * OK
      */
-    200: AclDefaultEffectResponse;
+    200: GithubComMemohaiMemohInternalAclDefaultEffectResponse;
 };
 
 export type GetBotsByBotIdAclDefaultEffectResponse = GetBotsByBotIdAclDefaultEffectResponses[keyof GetBotsByBotIdAclDefaultEffectResponses];
@@ -2018,7 +2048,7 @@ export type PutBotsByBotIdAclDefaultEffectData = {
     /**
      * Default effect payload
      */
-    body: AclDefaultEffectResponse;
+    body: GithubComMemohaiMemohInternalAclDefaultEffectResponse;
     path: {
         /**
          * Bot ID
@@ -2033,15 +2063,15 @@ export type PutBotsByBotIdAclDefaultEffectErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutBotsByBotIdAclDefaultEffectError = PutBotsByBotIdAclDefaultEffectErrors[keyof PutBotsByBotIdAclDefaultEffectErrors];
@@ -2069,15 +2099,15 @@ export type GetBotsByBotIdAclRulesErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdAclRulesError = GetBotsByBotIdAclRulesErrors[keyof GetBotsByBotIdAclRulesErrors];
@@ -2086,7 +2116,7 @@ export type GetBotsByBotIdAclRulesResponses = {
     /**
      * OK
      */
-    200: AclListRulesResponse;
+    200: GithubComMemohaiMemohInternalAclListRulesResponse;
 };
 
 export type GetBotsByBotIdAclRulesResponse = GetBotsByBotIdAclRulesResponses[keyof GetBotsByBotIdAclRulesResponses];
@@ -2095,7 +2125,7 @@ export type PostBotsByBotIdAclRulesData = {
     /**
      * Rule payload
      */
-    body: AclCreateRuleRequest;
+    body: GithubComMemohaiMemohInternalAclCreateRuleRequest;
     path: {
         /**
          * Bot ID
@@ -2110,15 +2140,15 @@ export type PostBotsByBotIdAclRulesErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdAclRulesError = PostBotsByBotIdAclRulesErrors[keyof PostBotsByBotIdAclRulesErrors];
@@ -2127,7 +2157,7 @@ export type PostBotsByBotIdAclRulesResponses = {
     /**
      * Created
      */
-    201: AclRule;
+    201: GithubComMemohaiMemohInternalAclRule;
 };
 
 export type PostBotsByBotIdAclRulesResponse = PostBotsByBotIdAclRulesResponses[keyof PostBotsByBotIdAclRulesResponses];
@@ -2136,7 +2166,7 @@ export type PutBotsByBotIdAclRulesReorderData = {
     /**
      * Reorder payload
      */
-    body: AclReorderRequest;
+    body: GithubComMemohaiMemohInternalAclReorderRequest;
     path: {
         /**
          * Bot ID
@@ -2151,15 +2181,15 @@ export type PutBotsByBotIdAclRulesReorderErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutBotsByBotIdAclRulesReorderError = PutBotsByBotIdAclRulesReorderErrors[keyof PutBotsByBotIdAclRulesReorderErrors];
@@ -2191,15 +2221,15 @@ export type DeleteBotsByBotIdAclRulesByRuleIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type DeleteBotsByBotIdAclRulesByRuleIdError = DeleteBotsByBotIdAclRulesByRuleIdErrors[keyof DeleteBotsByBotIdAclRulesByRuleIdErrors];
@@ -2215,7 +2245,7 @@ export type PutBotsByBotIdAclRulesByRuleIdData = {
     /**
      * Rule payload
      */
-    body: AclUpdateRuleRequest;
+    body: GithubComMemohaiMemohInternalAclUpdateRuleRequest;
     path: {
         /**
          * Bot ID
@@ -2234,15 +2264,15 @@ export type PutBotsByBotIdAclRulesByRuleIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutBotsByBotIdAclRulesByRuleIdError = PutBotsByBotIdAclRulesByRuleIdErrors[keyof PutBotsByBotIdAclRulesByRuleIdErrors];
@@ -2251,7 +2281,7 @@ export type PutBotsByBotIdAclRulesByRuleIdResponses = {
     /**
      * OK
      */
-    200: AclRule;
+    200: GithubComMemohaiMemohInternalAclRule;
 };
 
 export type PutBotsByBotIdAclRulesByRuleIdResponse = PutBotsByBotIdAclRulesByRuleIdResponses[keyof PutBotsByBotIdAclRulesByRuleIdResponses];
@@ -2272,11 +2302,11 @@ export type DeleteBotsByBotIdCompactionLogsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type DeleteBotsByBotIdCompactionLogsError = DeleteBotsByBotIdCompactionLogsErrors[keyof DeleteBotsByBotIdCompactionLogsErrors];
@@ -2313,11 +2343,11 @@ export type GetBotsByBotIdCompactionLogsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdCompactionLogsError = GetBotsByBotIdCompactionLogsErrors[keyof GetBotsByBotIdCompactionLogsErrors];
@@ -2326,7 +2356,7 @@ export type GetBotsByBotIdCompactionLogsResponses = {
     /**
      * OK
      */
-    200: CompactionListLogsResponse;
+    200: GithubComMemohaiMemohInternalCompactionListLogsResponse;
 };
 
 export type GetBotsByBotIdCompactionLogsResponse = GetBotsByBotIdCompactionLogsResponses[keyof GetBotsByBotIdCompactionLogsResponses];
@@ -2352,11 +2382,11 @@ export type DeleteBotsByBotIdContainerErrors = {
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type DeleteBotsByBotIdContainerError = DeleteBotsByBotIdContainerErrors[keyof DeleteBotsByBotIdContainerErrors];
@@ -2384,11 +2414,11 @@ export type GetBotsByBotIdContainerErrors = {
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdContainerError = GetBotsByBotIdContainerErrors[keyof GetBotsByBotIdContainerErrors];
@@ -2397,7 +2427,7 @@ export type GetBotsByBotIdContainerResponses = {
     /**
      * OK
      */
-    200: HandlersGetContainerResponse;
+    200: InternalHandlersGetContainerResponse;
 };
 
 export type GetBotsByBotIdContainerResponse = GetBotsByBotIdContainerResponses[keyof GetBotsByBotIdContainerResponses];
@@ -2406,7 +2436,7 @@ export type PostBotsByBotIdContainerData = {
     /**
      * Create container payload
      */
-    body: HandlersCreateContainerRequest;
+    body: InternalHandlersCreateContainerRequest;
     path: {
         /**
          * Bot ID
@@ -2421,11 +2451,11 @@ export type PostBotsByBotIdContainerErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdContainerError = PostBotsByBotIdContainerErrors[keyof PostBotsByBotIdContainerErrors];
@@ -2434,7 +2464,7 @@ export type PostBotsByBotIdContainerResponses = {
     /**
      * SSE stream of container creation events
      */
-    200: HandlersCreateContainerResponse;
+    200: InternalHandlersCreateContainerResponse;
 };
 
 export type PostBotsByBotIdContainerResponse = PostBotsByBotIdContainerResponses[keyof PostBotsByBotIdContainerResponses];
@@ -2455,7 +2485,7 @@ export type PostBotsByBotIdContainerDataExportErrors = {
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdContainerDataExportError = PostBotsByBotIdContainerDataExportErrors[keyof PostBotsByBotIdContainerDataExportErrors];
@@ -2488,11 +2518,11 @@ export type PostBotsByBotIdContainerDataImportErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdContainerDataImportError = PostBotsByBotIdContainerDataImportErrors[keyof PostBotsByBotIdContainerDataImportErrors];
@@ -2524,11 +2554,11 @@ export type PostBotsByBotIdContainerDataRestoreErrors = {
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdContainerDataRestoreError = PostBotsByBotIdContainerDataRestoreErrors[keyof PostBotsByBotIdContainerDataRestoreErrors];
@@ -2565,19 +2595,19 @@ export type GetBotsByBotIdContainerFsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdContainerFsError = GetBotsByBotIdContainerFsErrors[keyof GetBotsByBotIdContainerFsErrors];
@@ -2586,7 +2616,7 @@ export type GetBotsByBotIdContainerFsResponses = {
     /**
      * OK
      */
-    200: HandlersFsFileInfo;
+    200: InternalHandlersFsFileInfo;
 };
 
 export type GetBotsByBotIdContainerFsResponse = GetBotsByBotIdContainerFsResponses[keyof GetBotsByBotIdContainerFsResponses];
@@ -2595,7 +2625,7 @@ export type PostBotsByBotIdContainerFsDeleteData = {
     /**
      * Delete request
      */
-    body: HandlersFsDeleteRequest;
+    body: InternalHandlersFsDeleteRequest;
     path: {
         /**
          * Bot ID
@@ -2610,19 +2640,19 @@ export type PostBotsByBotIdContainerFsDeleteErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdContainerFsDeleteError = PostBotsByBotIdContainerFsDeleteErrors[keyof PostBotsByBotIdContainerFsDeleteErrors];
@@ -2631,7 +2661,7 @@ export type PostBotsByBotIdContainerFsDeleteResponses = {
     /**
      * OK
      */
-    200: HandlersFsOpResponse;
+    200: InternalHandlersFsOpResponse;
 };
 
 export type PostBotsByBotIdContainerFsDeleteResponse = PostBotsByBotIdContainerFsDeleteResponses[keyof PostBotsByBotIdContainerFsDeleteResponses];
@@ -2657,15 +2687,15 @@ export type GetBotsByBotIdContainerFsDownloadErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdContainerFsDownloadError = GetBotsByBotIdContainerFsDownloadErrors[keyof GetBotsByBotIdContainerFsDownloadErrors];
@@ -2698,15 +2728,15 @@ export type GetBotsByBotIdContainerFsListErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdContainerFsListError = GetBotsByBotIdContainerFsListErrors[keyof GetBotsByBotIdContainerFsListErrors];
@@ -2715,7 +2745,7 @@ export type GetBotsByBotIdContainerFsListResponses = {
     /**
      * OK
      */
-    200: HandlersFsListResponse;
+    200: InternalHandlersFsListResponse;
 };
 
 export type GetBotsByBotIdContainerFsListResponse = GetBotsByBotIdContainerFsListResponses[keyof GetBotsByBotIdContainerFsListResponses];
@@ -2724,7 +2754,7 @@ export type PostBotsByBotIdContainerFsMkdirData = {
     /**
      * Mkdir request
      */
-    body: HandlersFsMkdirRequest;
+    body: InternalHandlersFsMkdirRequest;
     path: {
         /**
          * Bot ID
@@ -2739,15 +2769,15 @@ export type PostBotsByBotIdContainerFsMkdirErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdContainerFsMkdirError = PostBotsByBotIdContainerFsMkdirErrors[keyof PostBotsByBotIdContainerFsMkdirErrors];
@@ -2756,7 +2786,7 @@ export type PostBotsByBotIdContainerFsMkdirResponses = {
     /**
      * OK
      */
-    200: HandlersFsOpResponse;
+    200: InternalHandlersFsOpResponse;
 };
 
 export type PostBotsByBotIdContainerFsMkdirResponse = PostBotsByBotIdContainerFsMkdirResponses[keyof PostBotsByBotIdContainerFsMkdirResponses];
@@ -2782,15 +2812,15 @@ export type GetBotsByBotIdContainerFsReadErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdContainerFsReadError = GetBotsByBotIdContainerFsReadErrors[keyof GetBotsByBotIdContainerFsReadErrors];
@@ -2799,7 +2829,7 @@ export type GetBotsByBotIdContainerFsReadResponses = {
     /**
      * OK
      */
-    200: HandlersFsReadResponse;
+    200: InternalHandlersFsReadResponse;
 };
 
 export type GetBotsByBotIdContainerFsReadResponse = GetBotsByBotIdContainerFsReadResponses[keyof GetBotsByBotIdContainerFsReadResponses];
@@ -2808,7 +2838,7 @@ export type PostBotsByBotIdContainerFsRenameData = {
     /**
      * Rename request
      */
-    body: HandlersFsRenameRequest;
+    body: InternalHandlersFsRenameRequest;
     path: {
         /**
          * Bot ID
@@ -2823,19 +2853,19 @@ export type PostBotsByBotIdContainerFsRenameErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdContainerFsRenameError = PostBotsByBotIdContainerFsRenameErrors[keyof PostBotsByBotIdContainerFsRenameErrors];
@@ -2844,7 +2874,7 @@ export type PostBotsByBotIdContainerFsRenameResponses = {
     /**
      * OK
      */
-    200: HandlersFsOpResponse;
+    200: InternalHandlersFsOpResponse;
 };
 
 export type PostBotsByBotIdContainerFsRenameResponse = PostBotsByBotIdContainerFsRenameResponses[keyof PostBotsByBotIdContainerFsRenameResponses];
@@ -2874,15 +2904,15 @@ export type PostBotsByBotIdContainerFsUploadErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdContainerFsUploadError = PostBotsByBotIdContainerFsUploadErrors[keyof PostBotsByBotIdContainerFsUploadErrors];
@@ -2891,7 +2921,7 @@ export type PostBotsByBotIdContainerFsUploadResponses = {
     /**
      * OK
      */
-    200: HandlersFsUploadResponse;
+    200: InternalHandlersFsUploadResponse;
 };
 
 export type PostBotsByBotIdContainerFsUploadResponse = PostBotsByBotIdContainerFsUploadResponses[keyof PostBotsByBotIdContainerFsUploadResponses];
@@ -2900,7 +2930,7 @@ export type PostBotsByBotIdContainerFsWriteData = {
     /**
      * Write request
      */
-    body: HandlersFsWriteRequest;
+    body: InternalHandlersFsWriteRequest;
     path: {
         /**
          * Bot ID
@@ -2915,15 +2945,15 @@ export type PostBotsByBotIdContainerFsWriteErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdContainerFsWriteError = PostBotsByBotIdContainerFsWriteErrors[keyof PostBotsByBotIdContainerFsWriteErrors];
@@ -2932,7 +2962,7 @@ export type PostBotsByBotIdContainerFsWriteResponses = {
     /**
      * OK
      */
-    200: HandlersFsOpResponse;
+    200: InternalHandlersFsOpResponse;
 };
 
 export type PostBotsByBotIdContainerFsWriteResponse = PostBotsByBotIdContainerFsWriteResponses[keyof PostBotsByBotIdContainerFsWriteResponses];
@@ -2941,7 +2971,7 @@ export type DeleteBotsByBotIdContainerSkillsData = {
     /**
      * Delete skills payload
      */
-    body: HandlersSkillsDeleteRequest;
+    body: InternalHandlersSkillsDeleteRequest;
     path: {
         /**
          * Bot ID
@@ -2956,15 +2986,15 @@ export type DeleteBotsByBotIdContainerSkillsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type DeleteBotsByBotIdContainerSkillsError = DeleteBotsByBotIdContainerSkillsErrors[keyof DeleteBotsByBotIdContainerSkillsErrors];
@@ -2973,7 +3003,7 @@ export type DeleteBotsByBotIdContainerSkillsResponses = {
     /**
      * OK
      */
-    200: HandlersSkillsOpResponse;
+    200: InternalHandlersSkillsOpResponse;
 };
 
 export type DeleteBotsByBotIdContainerSkillsResponse = DeleteBotsByBotIdContainerSkillsResponses[keyof DeleteBotsByBotIdContainerSkillsResponses];
@@ -2994,15 +3024,15 @@ export type GetBotsByBotIdContainerSkillsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdContainerSkillsError = GetBotsByBotIdContainerSkillsErrors[keyof GetBotsByBotIdContainerSkillsErrors];
@@ -3011,7 +3041,7 @@ export type GetBotsByBotIdContainerSkillsResponses = {
     /**
      * OK
      */
-    200: HandlersSkillsResponse;
+    200: InternalHandlersSkillsResponse;
 };
 
 export type GetBotsByBotIdContainerSkillsResponse = GetBotsByBotIdContainerSkillsResponses[keyof GetBotsByBotIdContainerSkillsResponses];
@@ -3020,7 +3050,7 @@ export type PostBotsByBotIdContainerSkillsData = {
     /**
      * Skills payload
      */
-    body: HandlersSkillsUpsertRequest;
+    body: InternalHandlersSkillsUpsertRequest;
     path: {
         /**
          * Bot ID
@@ -3035,15 +3065,15 @@ export type PostBotsByBotIdContainerSkillsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdContainerSkillsError = PostBotsByBotIdContainerSkillsErrors[keyof PostBotsByBotIdContainerSkillsErrors];
@@ -3052,7 +3082,7 @@ export type PostBotsByBotIdContainerSkillsResponses = {
     /**
      * OK
      */
-    200: HandlersSkillsOpResponse;
+    200: InternalHandlersSkillsOpResponse;
 };
 
 export type PostBotsByBotIdContainerSkillsResponse = PostBotsByBotIdContainerSkillsResponses[keyof PostBotsByBotIdContainerSkillsResponses];
@@ -3061,7 +3091,7 @@ export type PostBotsByBotIdContainerSkillsActionsData = {
     /**
      * Skill action payload
      */
-    body: HandlersSkillsActionRequest;
+    body: InternalHandlersSkillsActionRequest;
     path: {
         /**
          * Bot ID
@@ -3076,15 +3106,15 @@ export type PostBotsByBotIdContainerSkillsActionsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdContainerSkillsActionsError = PostBotsByBotIdContainerSkillsActionsErrors[keyof PostBotsByBotIdContainerSkillsActionsErrors];
@@ -3093,7 +3123,7 @@ export type PostBotsByBotIdContainerSkillsActionsResponses = {
     /**
      * OK
      */
-    200: HandlersSkillsOpResponse;
+    200: InternalHandlersSkillsOpResponse;
 };
 
 export type PostBotsByBotIdContainerSkillsActionsResponse = PostBotsByBotIdContainerSkillsActionsResponses[keyof PostBotsByBotIdContainerSkillsActionsResponses];
@@ -3119,7 +3149,7 @@ export type GetBotsByBotIdContainerSnapshotsErrors = {
     /**
      * Snapshots currently not supported on this backend
      */
-    501: HandlersErrorResponse;
+    501: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdContainerSnapshotsError = GetBotsByBotIdContainerSnapshotsErrors[keyof GetBotsByBotIdContainerSnapshotsErrors];
@@ -3128,7 +3158,7 @@ export type GetBotsByBotIdContainerSnapshotsResponses = {
     /**
      * OK
      */
-    200: HandlersListSnapshotsResponse;
+    200: InternalHandlersListSnapshotsResponse;
 };
 
 export type GetBotsByBotIdContainerSnapshotsResponse = GetBotsByBotIdContainerSnapshotsResponses[keyof GetBotsByBotIdContainerSnapshotsResponses];
@@ -3137,7 +3167,7 @@ export type PostBotsByBotIdContainerSnapshotsData = {
     /**
      * Create snapshot payload
      */
-    body: HandlersCreateSnapshotRequest;
+    body: InternalHandlersCreateSnapshotRequest;
     path: {
         /**
          * Bot ID
@@ -3152,15 +3182,15 @@ export type PostBotsByBotIdContainerSnapshotsErrors = {
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
     /**
      * Snapshots currently not supported on this backend
      */
-    501: HandlersErrorResponse;
+    501: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdContainerSnapshotsError = PostBotsByBotIdContainerSnapshotsErrors[keyof PostBotsByBotIdContainerSnapshotsErrors];
@@ -3169,7 +3199,7 @@ export type PostBotsByBotIdContainerSnapshotsResponses = {
     /**
      * OK
      */
-    200: HandlersCreateSnapshotResponse;
+    200: InternalHandlersCreateSnapshotResponse;
 };
 
 export type PostBotsByBotIdContainerSnapshotsResponse = PostBotsByBotIdContainerSnapshotsResponses[keyof PostBotsByBotIdContainerSnapshotsResponses];
@@ -3178,7 +3208,7 @@ export type PostBotsByBotIdContainerSnapshotsRollbackData = {
     /**
      * Rollback payload
      */
-    body: HandlersRollbackRequest;
+    body: InternalHandlersRollbackRequest;
     path: {
         /**
          * Bot ID
@@ -3193,11 +3223,11 @@ export type PostBotsByBotIdContainerSnapshotsRollbackErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdContainerSnapshotsRollbackError = PostBotsByBotIdContainerSnapshotsRollbackErrors[keyof PostBotsByBotIdContainerSnapshotsRollbackErrors];
@@ -3229,11 +3259,11 @@ export type PostBotsByBotIdContainerStartErrors = {
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdContainerStartError = PostBotsByBotIdContainerStartErrors[keyof PostBotsByBotIdContainerStartErrors];
@@ -3265,11 +3295,11 @@ export type PostBotsByBotIdContainerStopErrors = {
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdContainerStopError = PostBotsByBotIdContainerStopErrors[keyof PostBotsByBotIdContainerStopErrors];
@@ -3301,7 +3331,7 @@ export type GetBotsByBotIdContainerTerminalErrors = {
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdContainerTerminalError = GetBotsByBotIdContainerTerminalErrors[keyof GetBotsByBotIdContainerTerminalErrors];
@@ -3310,7 +3340,7 @@ export type GetBotsByBotIdContainerTerminalResponses = {
     /**
      * OK
      */
-    200: HandlersTerminalInfoResponse;
+    200: InternalHandlersTerminalInfoResponse;
 };
 
 export type GetBotsByBotIdContainerTerminalResponse = GetBotsByBotIdContainerTerminalResponses[keyof GetBotsByBotIdContainerTerminalResponses];
@@ -3344,11 +3374,11 @@ export type GetBotsByBotIdContainerTerminalWsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdContainerTerminalWsError = GetBotsByBotIdContainerTerminalWsErrors[keyof GetBotsByBotIdContainerTerminalWsErrors];
@@ -3369,7 +3399,7 @@ export type GetBotsByBotIdEmailBindingsErrors = {
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdEmailBindingsError = GetBotsByBotIdEmailBindingsErrors[keyof GetBotsByBotIdEmailBindingsErrors];
@@ -3378,7 +3408,7 @@ export type GetBotsByBotIdEmailBindingsResponses = {
     /**
      * OK
      */
-    200: Array<EmailBindingResponse>;
+    200: Array<GithubComMemohaiMemohInternalEmailBindingResponse>;
 };
 
 export type GetBotsByBotIdEmailBindingsResponse = GetBotsByBotIdEmailBindingsResponses[keyof GetBotsByBotIdEmailBindingsResponses];
@@ -3387,7 +3417,7 @@ export type PostBotsByBotIdEmailBindingsData = {
     /**
      * Binding configuration
      */
-    body: EmailCreateBindingRequest;
+    body: GithubComMemohaiMemohInternalEmailCreateBindingRequest;
     path: {
         /**
          * Bot ID
@@ -3402,11 +3432,11 @@ export type PostBotsByBotIdEmailBindingsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdEmailBindingsError = PostBotsByBotIdEmailBindingsErrors[keyof PostBotsByBotIdEmailBindingsErrors];
@@ -3415,7 +3445,7 @@ export type PostBotsByBotIdEmailBindingsResponses = {
     /**
      * Created
      */
-    201: EmailBindingResponse;
+    201: GithubComMemohaiMemohInternalEmailBindingResponse;
 };
 
 export type PostBotsByBotIdEmailBindingsResponse = PostBotsByBotIdEmailBindingsResponses[keyof PostBotsByBotIdEmailBindingsResponses];
@@ -3440,7 +3470,7 @@ export type DeleteBotsByBotIdEmailBindingsByIdErrors = {
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type DeleteBotsByBotIdEmailBindingsByIdError = DeleteBotsByBotIdEmailBindingsByIdErrors[keyof DeleteBotsByBotIdEmailBindingsByIdErrors];
@@ -3456,7 +3486,7 @@ export type PutBotsByBotIdEmailBindingsByIdData = {
     /**
      * Updated binding
      */
-    body: EmailUpdateBindingRequest;
+    body: GithubComMemohaiMemohInternalEmailUpdateBindingRequest;
     path: {
         /**
          * Bot ID
@@ -3475,11 +3505,11 @@ export type PutBotsByBotIdEmailBindingsByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutBotsByBotIdEmailBindingsByIdError = PutBotsByBotIdEmailBindingsByIdErrors[keyof PutBotsByBotIdEmailBindingsByIdErrors];
@@ -3488,7 +3518,7 @@ export type PutBotsByBotIdEmailBindingsByIdResponses = {
     /**
      * OK
      */
-    200: EmailBindingResponse;
+    200: GithubComMemohaiMemohInternalEmailBindingResponse;
 };
 
 export type PutBotsByBotIdEmailBindingsByIdResponse = PutBotsByBotIdEmailBindingsByIdResponses[keyof PutBotsByBotIdEmailBindingsByIdResponses];
@@ -3518,7 +3548,7 @@ export type GetBotsByBotIdEmailOutboxErrors = {
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdEmailOutboxError = GetBotsByBotIdEmailOutboxErrors[keyof GetBotsByBotIdEmailOutboxErrors];
@@ -3554,7 +3584,7 @@ export type GetBotsByBotIdEmailOutboxByIdErrors = {
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdEmailOutboxByIdError = GetBotsByBotIdEmailOutboxByIdErrors[keyof GetBotsByBotIdEmailOutboxByIdErrors];
@@ -3563,7 +3593,7 @@ export type GetBotsByBotIdEmailOutboxByIdResponses = {
     /**
      * OK
      */
-    200: EmailOutboxItemResponse;
+    200: GithubComMemohaiMemohInternalEmailOutboxItemResponse;
 };
 
 export type GetBotsByBotIdEmailOutboxByIdResponse = GetBotsByBotIdEmailOutboxByIdResponses[keyof GetBotsByBotIdEmailOutboxByIdResponses];
@@ -3584,11 +3614,11 @@ export type DeleteBotsByBotIdHeartbeatLogsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type DeleteBotsByBotIdHeartbeatLogsError = DeleteBotsByBotIdHeartbeatLogsErrors[keyof DeleteBotsByBotIdHeartbeatLogsErrors];
@@ -3625,11 +3655,11 @@ export type GetBotsByBotIdHeartbeatLogsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdHeartbeatLogsError = GetBotsByBotIdHeartbeatLogsErrors[keyof GetBotsByBotIdHeartbeatLogsErrors];
@@ -3638,7 +3668,7 @@ export type GetBotsByBotIdHeartbeatLogsResponses = {
     /**
      * OK
      */
-    200: HeartbeatListLogsResponse;
+    200: GithubComMemohaiMemohInternalHeartbeatListLogsResponse;
 };
 
 export type GetBotsByBotIdHeartbeatLogsResponse = GetBotsByBotIdHeartbeatLogsResponses[keyof GetBotsByBotIdHeartbeatLogsResponses];
@@ -3647,7 +3677,7 @@ export type PostBotsByBotIdLocalMessagesData = {
     /**
      * Message payload
      */
-    body: HandlersLocalChannelMessageRequest;
+    body: InternalHandlersLocalChannelMessageRequest;
     path: {
         /**
          * Bot ID
@@ -3662,15 +3692,15 @@ export type PostBotsByBotIdLocalMessagesErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdLocalMessagesError = PostBotsByBotIdLocalMessagesErrors[keyof PostBotsByBotIdLocalMessagesErrors];
@@ -3702,15 +3732,15 @@ export type GetBotsByBotIdLocalStreamErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdLocalStreamError = GetBotsByBotIdLocalStreamErrors[keyof GetBotsByBotIdLocalStreamErrors];
@@ -3740,15 +3770,15 @@ export type GetBotsByBotIdLocalWsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdLocalWsError = GetBotsByBotIdLocalWsErrors[keyof GetBotsByBotIdLocalWsErrors];
@@ -3764,19 +3794,19 @@ export type GetBotsByBotIdMcpErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdMcpError = GetBotsByBotIdMcpErrors[keyof GetBotsByBotIdMcpErrors];
@@ -3785,7 +3815,7 @@ export type GetBotsByBotIdMcpResponses = {
     /**
      * OK
      */
-    200: McpListResponse;
+    200: GithubComMemohaiMemohInternalMcpListResponse;
 };
 
 export type GetBotsByBotIdMcpResponse = GetBotsByBotIdMcpResponses[keyof GetBotsByBotIdMcpResponses];
@@ -3794,7 +3824,7 @@ export type PostBotsByBotIdMcpData = {
     /**
      * MCP payload
      */
-    body: McpUpsertRequest;
+    body: GithubComMemohaiMemohInternalMcpUpsertRequest;
     path?: never;
     query?: never;
     url: '/bots/{bot_id}/mcp';
@@ -3804,19 +3834,19 @@ export type PostBotsByBotIdMcpErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdMcpError = PostBotsByBotIdMcpErrors[keyof PostBotsByBotIdMcpErrors];
@@ -3834,7 +3864,7 @@ export type PostBotsByBotIdMcpOpsBatchDeleteData = {
     /**
      * IDs to delete
      */
-    body: HandlersBatchDeleteRequest;
+    body: InternalHandlersBatchDeleteRequest;
     path?: never;
     query?: never;
     url: '/bots/{bot_id}/mcp-ops/batch-delete';
@@ -3844,15 +3874,15 @@ export type PostBotsByBotIdMcpOpsBatchDeleteErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdMcpOpsBatchDeleteError = PostBotsByBotIdMcpOpsBatchDeleteErrors[keyof PostBotsByBotIdMcpOpsBatchDeleteErrors];
@@ -3868,7 +3898,7 @@ export type PostBotsByBotIdMcpStdioData = {
     /**
      * Stdio MCP payload
      */
-    body: HandlersMcpStdioRequest;
+    body: InternalHandlersMcpStdioRequest;
     path: {
         /**
          * Bot ID
@@ -3883,15 +3913,15 @@ export type PostBotsByBotIdMcpStdioErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdMcpStdioError = PostBotsByBotIdMcpStdioErrors[keyof PostBotsByBotIdMcpStdioErrors];
@@ -3900,7 +3930,7 @@ export type PostBotsByBotIdMcpStdioResponses = {
     /**
      * OK
      */
-    200: HandlersMcpStdioResponse;
+    200: InternalHandlersMcpStdioResponse;
 };
 
 export type PostBotsByBotIdMcpStdioResponse = PostBotsByBotIdMcpStdioResponses[keyof PostBotsByBotIdMcpStdioResponses];
@@ -3930,15 +3960,15 @@ export type PostBotsByBotIdMcpStdioByConnectionIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdMcpStdioByConnectionIdError = PostBotsByBotIdMcpStdioByConnectionIdErrors[keyof PostBotsByBotIdMcpStdioByConnectionIdErrors];
@@ -3965,15 +3995,15 @@ export type GetBotsByBotIdMcpExportErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdMcpExportError = GetBotsByBotIdMcpExportErrors[keyof GetBotsByBotIdMcpExportErrors];
@@ -3982,7 +4012,7 @@ export type GetBotsByBotIdMcpExportResponses = {
     /**
      * OK
      */
-    200: McpExportResponse;
+    200: GithubComMemohaiMemohInternalMcpExportResponse;
 };
 
 export type GetBotsByBotIdMcpExportResponse = GetBotsByBotIdMcpExportResponses[keyof GetBotsByBotIdMcpExportResponses];
@@ -3991,7 +4021,7 @@ export type PutBotsByBotIdMcpImportData = {
     /**
      * mcpServers dict
      */
-    body: McpImportRequest;
+    body: GithubComMemohaiMemohInternalMcpImportRequest;
     path?: never;
     query?: never;
     url: '/bots/{bot_id}/mcp/import';
@@ -4001,15 +4031,15 @@ export type PutBotsByBotIdMcpImportErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutBotsByBotIdMcpImportError = PutBotsByBotIdMcpImportErrors[keyof PutBotsByBotIdMcpImportErrors];
@@ -4018,7 +4048,7 @@ export type PutBotsByBotIdMcpImportResponses = {
     /**
      * OK
      */
-    200: McpListResponse;
+    200: GithubComMemohaiMemohInternalMcpListResponse;
 };
 
 export type PutBotsByBotIdMcpImportResponse = PutBotsByBotIdMcpImportResponses[keyof PutBotsByBotIdMcpImportResponses];
@@ -4039,19 +4069,19 @@ export type DeleteBotsByBotIdMcpByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type DeleteBotsByBotIdMcpByIdError = DeleteBotsByBotIdMcpByIdErrors[keyof DeleteBotsByBotIdMcpByIdErrors];
@@ -4079,19 +4109,19 @@ export type GetBotsByBotIdMcpByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdMcpByIdError = GetBotsByBotIdMcpByIdErrors[keyof GetBotsByBotIdMcpByIdErrors];
@@ -4109,7 +4139,7 @@ export type PutBotsByBotIdMcpByIdData = {
     /**
      * MCP payload
      */
-    body: McpUpsertRequest;
+    body: GithubComMemohaiMemohInternalMcpUpsertRequest;
     path: {
         /**
          * MCP ID
@@ -4124,19 +4154,19 @@ export type PutBotsByBotIdMcpByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutBotsByBotIdMcpByIdError = PutBotsByBotIdMcpByIdErrors[keyof PutBotsByBotIdMcpByIdErrors];
@@ -4154,7 +4184,7 @@ export type PostBotsByBotIdMcpByIdOauthAuthorizeData = {
     /**
      * Optional client_id
      */
-    body?: HandlersOauthAuthorizeRequest;
+    body?: InternalHandlersOauthAuthorizeRequest;
     path: {
         /**
          * MCP connection ID
@@ -4169,11 +4199,11 @@ export type PostBotsByBotIdMcpByIdOauthAuthorizeErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdMcpByIdOauthAuthorizeError = PostBotsByBotIdMcpByIdOauthAuthorizeErrors[keyof PostBotsByBotIdMcpByIdOauthAuthorizeErrors];
@@ -4182,7 +4212,7 @@ export type PostBotsByBotIdMcpByIdOauthAuthorizeResponses = {
     /**
      * OK
      */
-    200: McpAuthorizeResult;
+    200: GithubComMemohaiMemohInternalMcpAuthorizeResult;
 };
 
 export type PostBotsByBotIdMcpByIdOauthAuthorizeResponse = PostBotsByBotIdMcpByIdOauthAuthorizeResponses[keyof PostBotsByBotIdMcpByIdOauthAuthorizeResponses];
@@ -4191,7 +4221,7 @@ export type PostBotsByBotIdMcpByIdOauthDiscoverData = {
     /**
      * Optional URL override
      */
-    body?: HandlersOauthDiscoverRequest;
+    body?: InternalHandlersOauthDiscoverRequest;
     path: {
         /**
          * MCP connection ID
@@ -4206,11 +4236,11 @@ export type PostBotsByBotIdMcpByIdOauthDiscoverErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdMcpByIdOauthDiscoverError = PostBotsByBotIdMcpByIdOauthDiscoverErrors[keyof PostBotsByBotIdMcpByIdOauthDiscoverErrors];
@@ -4219,7 +4249,7 @@ export type PostBotsByBotIdMcpByIdOauthDiscoverResponses = {
     /**
      * OK
      */
-    200: McpDiscoveryResult;
+    200: GithubComMemohaiMemohInternalMcpDiscoveryResult;
 };
 
 export type PostBotsByBotIdMcpByIdOauthDiscoverResponse = PostBotsByBotIdMcpByIdOauthDiscoverResponses[keyof PostBotsByBotIdMcpByIdOauthDiscoverResponses];
@@ -4228,7 +4258,7 @@ export type PostBotsByBotIdMcpByIdOauthExchangeData = {
     /**
      * Authorization code and state
      */
-    body: HandlersOauthExchangeRequest;
+    body: InternalHandlersOauthExchangeRequest;
     path?: never;
     query?: never;
     url: '/bots/{bot_id}/mcp/{id}/oauth/exchange';
@@ -4238,7 +4268,7 @@ export type PostBotsByBotIdMcpByIdOauthExchangeErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdMcpByIdOauthExchangeError = PostBotsByBotIdMcpByIdOauthExchangeErrors[keyof PostBotsByBotIdMcpByIdOauthExchangeErrors];
@@ -4270,11 +4300,11 @@ export type GetBotsByBotIdMcpByIdOauthStatusErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdMcpByIdOauthStatusError = GetBotsByBotIdMcpByIdOauthStatusErrors[keyof GetBotsByBotIdMcpByIdOauthStatusErrors];
@@ -4283,7 +4313,7 @@ export type GetBotsByBotIdMcpByIdOauthStatusResponses = {
     /**
      * OK
      */
-    200: McpOAuthStatus;
+    200: GithubComMemohaiMemohInternalMcpOAuthStatus;
 };
 
 export type GetBotsByBotIdMcpByIdOauthStatusResponse = GetBotsByBotIdMcpByIdOauthStatusResponses[keyof GetBotsByBotIdMcpByIdOauthStatusResponses];
@@ -4304,7 +4334,7 @@ export type DeleteBotsByBotIdMcpByIdOauthTokenErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
 };
 
 export type DeleteBotsByBotIdMcpByIdOauthTokenError = DeleteBotsByBotIdMcpByIdOauthTokenErrors[keyof DeleteBotsByBotIdMcpByIdOauthTokenErrors];
@@ -4332,19 +4362,19 @@ export type PostBotsByBotIdMcpByIdProbeErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdMcpByIdProbeError = PostBotsByBotIdMcpByIdProbeErrors[keyof PostBotsByBotIdMcpByIdProbeErrors];
@@ -4353,7 +4383,7 @@ export type PostBotsByBotIdMcpByIdProbeResponses = {
     /**
      * OK
      */
-    200: HandlersProbeResponse;
+    200: InternalHandlersProbeResponse;
 };
 
 export type PostBotsByBotIdMcpByIdProbeResponse = PostBotsByBotIdMcpByIdProbeResponses[keyof PostBotsByBotIdMcpByIdProbeResponses];
@@ -4362,7 +4392,7 @@ export type DeleteBotsByBotIdMemoryData = {
     /**
      * Optional: specify memory_ids to delete; if omitted, deletes all
      */
-    body?: HandlersMemoryDeletePayload;
+    body?: InternalHandlersMemoryDeletePayload;
     path: {
         /**
          * Bot ID
@@ -4377,19 +4407,19 @@ export type DeleteBotsByBotIdMemoryErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
     /**
      * Service Unavailable
      */
-    503: HandlersErrorResponse;
+    503: InternalHandlersErrorResponse;
 };
 
 export type DeleteBotsByBotIdMemoryError = DeleteBotsByBotIdMemoryErrors[keyof DeleteBotsByBotIdMemoryErrors];
@@ -4398,7 +4428,7 @@ export type DeleteBotsByBotIdMemoryResponses = {
     /**
      * OK
      */
-    200: AdaptersDeleteResponse;
+    200: GithubComMemohaiMemohInternalMemoryAdaptersDeleteResponse;
 };
 
 export type DeleteBotsByBotIdMemoryResponse = DeleteBotsByBotIdMemoryResponses[keyof DeleteBotsByBotIdMemoryResponses];
@@ -4424,19 +4454,19 @@ export type GetBotsByBotIdMemoryErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
     /**
      * Service Unavailable
      */
-    503: HandlersErrorResponse;
+    503: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdMemoryError = GetBotsByBotIdMemoryErrors[keyof GetBotsByBotIdMemoryErrors];
@@ -4445,7 +4475,7 @@ export type GetBotsByBotIdMemoryResponses = {
     /**
      * OK
      */
-    200: AdaptersSearchResponse;
+    200: GithubComMemohaiMemohInternalMemoryAdaptersSearchResponse;
 };
 
 export type GetBotsByBotIdMemoryResponse = GetBotsByBotIdMemoryResponses[keyof GetBotsByBotIdMemoryResponses];
@@ -4454,7 +4484,7 @@ export type PostBotsByBotIdMemoryData = {
     /**
      * Memory add payload
      */
-    body: HandlersMemoryAddPayload;
+    body: InternalHandlersMemoryAddPayload;
     path: {
         /**
          * Bot ID
@@ -4469,19 +4499,19 @@ export type PostBotsByBotIdMemoryErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
     /**
      * Service Unavailable
      */
-    503: HandlersErrorResponse;
+    503: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdMemoryError = PostBotsByBotIdMemoryErrors[keyof PostBotsByBotIdMemoryErrors];
@@ -4490,7 +4520,7 @@ export type PostBotsByBotIdMemoryResponses = {
     /**
      * OK
      */
-    200: AdaptersSearchResponse;
+    200: GithubComMemohaiMemohInternalMemoryAdaptersSearchResponse;
 };
 
 export type PostBotsByBotIdMemoryResponse = PostBotsByBotIdMemoryResponses[keyof PostBotsByBotIdMemoryResponses];
@@ -4499,7 +4529,7 @@ export type PostBotsByBotIdMemoryCompactData = {
     /**
      * ratio (0,1] required; decay_days optional
      */
-    body: HandlersMemoryCompactPayload;
+    body: InternalHandlersMemoryCompactPayload;
     path: {
         /**
          * Bot ID
@@ -4514,19 +4544,19 @@ export type PostBotsByBotIdMemoryCompactErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
     /**
      * Service Unavailable
      */
-    503: HandlersErrorResponse;
+    503: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdMemoryCompactError = PostBotsByBotIdMemoryCompactErrors[keyof PostBotsByBotIdMemoryCompactErrors];
@@ -4535,7 +4565,7 @@ export type PostBotsByBotIdMemoryCompactResponses = {
     /**
      * OK
      */
-    200: AdaptersCompactResult;
+    200: GithubComMemohaiMemohInternalMemoryAdaptersCompactResult;
 };
 
 export type PostBotsByBotIdMemoryCompactResponse = PostBotsByBotIdMemoryCompactResponses[keyof PostBotsByBotIdMemoryCompactResponses];
@@ -4556,23 +4586,23 @@ export type PostBotsByBotIdMemoryRebuildErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Conflict
      */
-    409: HandlersErrorResponse;
+    409: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
     /**
      * Service Unavailable
      */
-    503: HandlersErrorResponse;
+    503: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdMemoryRebuildError = PostBotsByBotIdMemoryRebuildErrors[keyof PostBotsByBotIdMemoryRebuildErrors];
@@ -4581,7 +4611,7 @@ export type PostBotsByBotIdMemoryRebuildResponses = {
     /**
      * OK
      */
-    200: AdaptersRebuildResult;
+    200: GithubComMemohaiMemohInternalMemoryAdaptersRebuildResult;
 };
 
 export type PostBotsByBotIdMemoryRebuildResponse = PostBotsByBotIdMemoryRebuildResponses[keyof PostBotsByBotIdMemoryRebuildResponses];
@@ -4590,7 +4620,7 @@ export type PostBotsByBotIdMemorySearchData = {
     /**
      * Memory search payload
      */
-    body: HandlersMemorySearchPayload;
+    body: InternalHandlersMemorySearchPayload;
     path: {
         /**
          * Bot ID
@@ -4605,23 +4635,23 @@ export type PostBotsByBotIdMemorySearchErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
     /**
      * Service Unavailable
      */
-    503: HandlersErrorResponse;
+    503: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdMemorySearchError = PostBotsByBotIdMemorySearchErrors[keyof PostBotsByBotIdMemorySearchErrors];
@@ -4630,7 +4660,7 @@ export type PostBotsByBotIdMemorySearchResponses = {
     /**
      * OK
      */
-    200: AdaptersSearchResponse;
+    200: GithubComMemohaiMemohInternalMemoryAdaptersSearchResponse;
 };
 
 export type PostBotsByBotIdMemorySearchResponse = PostBotsByBotIdMemorySearchResponses[keyof PostBotsByBotIdMemorySearchResponses];
@@ -4651,23 +4681,23 @@ export type GetBotsByBotIdMemoryStatusErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Conflict
      */
-    409: HandlersErrorResponse;
+    409: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
     /**
      * Service Unavailable
      */
-    503: HandlersErrorResponse;
+    503: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdMemoryStatusError = GetBotsByBotIdMemoryStatusErrors[keyof GetBotsByBotIdMemoryStatusErrors];
@@ -4676,7 +4706,7 @@ export type GetBotsByBotIdMemoryStatusResponses = {
     /**
      * OK
      */
-    200: AdaptersMemoryStatusResponse;
+    200: GithubComMemohaiMemohInternalMemoryAdaptersMemoryStatusResponse;
 };
 
 export type GetBotsByBotIdMemoryStatusResponse = GetBotsByBotIdMemoryStatusResponses[keyof GetBotsByBotIdMemoryStatusResponses];
@@ -4697,19 +4727,19 @@ export type GetBotsByBotIdMemoryUsageErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
     /**
      * Service Unavailable
      */
-    503: HandlersErrorResponse;
+    503: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdMemoryUsageError = GetBotsByBotIdMemoryUsageErrors[keyof GetBotsByBotIdMemoryUsageErrors];
@@ -4718,7 +4748,7 @@ export type GetBotsByBotIdMemoryUsageResponses = {
     /**
      * OK
      */
-    200: AdaptersUsageResponse;
+    200: GithubComMemohaiMemohInternalMemoryAdaptersUsageResponse;
 };
 
 export type GetBotsByBotIdMemoryUsageResponse = GetBotsByBotIdMemoryUsageResponses[keyof GetBotsByBotIdMemoryUsageResponses];
@@ -4743,19 +4773,19 @@ export type DeleteBotsByBotIdMemoryByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
     /**
      * Service Unavailable
      */
-    503: HandlersErrorResponse;
+    503: InternalHandlersErrorResponse;
 };
 
 export type DeleteBotsByBotIdMemoryByIdError = DeleteBotsByBotIdMemoryByIdErrors[keyof DeleteBotsByBotIdMemoryByIdErrors];
@@ -4764,7 +4794,7 @@ export type DeleteBotsByBotIdMemoryByIdResponses = {
     /**
      * OK
      */
-    200: AdaptersDeleteResponse;
+    200: GithubComMemohaiMemohInternalMemoryAdaptersDeleteResponse;
 };
 
 export type DeleteBotsByBotIdMemoryByIdResponse = DeleteBotsByBotIdMemoryByIdResponses[keyof DeleteBotsByBotIdMemoryByIdResponses];
@@ -4785,15 +4815,15 @@ export type DeleteBotsByBotIdMessagesErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type DeleteBotsByBotIdMessagesError = DeleteBotsByBotIdMessagesErrors[keyof DeleteBotsByBotIdMessagesErrors];
@@ -4830,15 +4860,15 @@ export type GetBotsByBotIdMessagesErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdMessagesError = GetBotsByBotIdMessagesErrors[keyof GetBotsByBotIdMessagesErrors];
@@ -4848,7 +4878,7 @@ export type GetBotsByBotIdMessagesResponses = {
      * OK
      */
     200: {
-        [key: string]: Array<MessageMessage>;
+        [key: string]: Array<GithubComMemohaiMemohInternalMessageMessage>;
     };
 };
 
@@ -4865,11 +4895,11 @@ export type GetBotsByBotIdScheduleErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdScheduleError = GetBotsByBotIdScheduleErrors[keyof GetBotsByBotIdScheduleErrors];
@@ -4878,7 +4908,7 @@ export type GetBotsByBotIdScheduleResponses = {
     /**
      * OK
      */
-    200: ScheduleListResponse;
+    200: GithubComMemohaiMemohInternalScheduleListResponse;
 };
 
 export type GetBotsByBotIdScheduleResponse = GetBotsByBotIdScheduleResponses[keyof GetBotsByBotIdScheduleResponses];
@@ -4887,7 +4917,7 @@ export type PostBotsByBotIdScheduleData = {
     /**
      * Schedule payload
      */
-    body: ScheduleCreateRequest;
+    body: GithubComMemohaiMemohInternalScheduleCreateRequest;
     path?: never;
     query?: never;
     url: '/bots/{bot_id}/schedule';
@@ -4897,11 +4927,11 @@ export type PostBotsByBotIdScheduleErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdScheduleError = PostBotsByBotIdScheduleErrors[keyof PostBotsByBotIdScheduleErrors];
@@ -4910,7 +4940,7 @@ export type PostBotsByBotIdScheduleResponses = {
     /**
      * Created
      */
-    201: ScheduleSchedule;
+    201: GithubComMemohaiMemohInternalScheduleSchedule;
 };
 
 export type PostBotsByBotIdScheduleResponse = PostBotsByBotIdScheduleResponses[keyof PostBotsByBotIdScheduleResponses];
@@ -4931,11 +4961,11 @@ export type DeleteBotsByBotIdScheduleLogsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type DeleteBotsByBotIdScheduleLogsError = DeleteBotsByBotIdScheduleLogsErrors[keyof DeleteBotsByBotIdScheduleLogsErrors];
@@ -4972,11 +5002,11 @@ export type GetBotsByBotIdScheduleLogsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdScheduleLogsError = GetBotsByBotIdScheduleLogsErrors[keyof GetBotsByBotIdScheduleLogsErrors];
@@ -4985,7 +5015,7 @@ export type GetBotsByBotIdScheduleLogsResponses = {
     /**
      * OK
      */
-    200: ScheduleListLogsResponse;
+    200: GithubComMemohaiMemohInternalScheduleListLogsResponse;
 };
 
 export type GetBotsByBotIdScheduleLogsResponse = GetBotsByBotIdScheduleLogsResponses[keyof GetBotsByBotIdScheduleLogsResponses];
@@ -5006,11 +5036,11 @@ export type DeleteBotsByBotIdScheduleByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type DeleteBotsByBotIdScheduleByIdError = DeleteBotsByBotIdScheduleByIdErrors[keyof DeleteBotsByBotIdScheduleByIdErrors];
@@ -5038,15 +5068,15 @@ export type GetBotsByBotIdScheduleByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdScheduleByIdError = GetBotsByBotIdScheduleByIdErrors[keyof GetBotsByBotIdScheduleByIdErrors];
@@ -5055,7 +5085,7 @@ export type GetBotsByBotIdScheduleByIdResponses = {
     /**
      * OK
      */
-    200: ScheduleSchedule;
+    200: GithubComMemohaiMemohInternalScheduleSchedule;
 };
 
 export type GetBotsByBotIdScheduleByIdResponse = GetBotsByBotIdScheduleByIdResponses[keyof GetBotsByBotIdScheduleByIdResponses];
@@ -5064,7 +5094,7 @@ export type PutBotsByBotIdScheduleByIdData = {
     /**
      * Schedule payload
      */
-    body: ScheduleUpdateRequest;
+    body: GithubComMemohaiMemohInternalScheduleUpdateRequest;
     path: {
         /**
          * Schedule ID
@@ -5079,11 +5109,11 @@ export type PutBotsByBotIdScheduleByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutBotsByBotIdScheduleByIdError = PutBotsByBotIdScheduleByIdErrors[keyof PutBotsByBotIdScheduleByIdErrors];
@@ -5092,7 +5122,7 @@ export type PutBotsByBotIdScheduleByIdResponses = {
     /**
      * OK
      */
-    200: ScheduleSchedule;
+    200: GithubComMemohaiMemohInternalScheduleSchedule;
 };
 
 export type PutBotsByBotIdScheduleByIdResponse = PutBotsByBotIdScheduleByIdResponses[keyof PutBotsByBotIdScheduleByIdResponses];
@@ -5126,11 +5156,11 @@ export type GetBotsByBotIdScheduleByIdLogsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdScheduleByIdLogsError = GetBotsByBotIdScheduleByIdLogsErrors[keyof GetBotsByBotIdScheduleByIdLogsErrors];
@@ -5139,7 +5169,7 @@ export type GetBotsByBotIdScheduleByIdLogsResponses = {
     /**
      * OK
      */
-    200: ScheduleListLogsResponse;
+    200: GithubComMemohaiMemohInternalScheduleListLogsResponse;
 };
 
 export type GetBotsByBotIdScheduleByIdLogsResponse = GetBotsByBotIdScheduleByIdLogsResponses[keyof GetBotsByBotIdScheduleByIdLogsResponses];
@@ -5160,11 +5190,11 @@ export type GetBotsByBotIdSessionsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdSessionsError = GetBotsByBotIdSessionsErrors[keyof GetBotsByBotIdSessionsErrors];
@@ -5174,7 +5204,7 @@ export type GetBotsByBotIdSessionsResponses = {
      * OK
      */
     200: {
-        [key: string]: Array<SessionSession>;
+        [key: string]: Array<GithubComMemohaiMemohInternalSessionSession>;
     };
 };
 
@@ -5184,7 +5214,7 @@ export type PostBotsByBotIdSessionsData = {
     /**
      * Session data
      */
-    body: HandlersCreateSessionRequest;
+    body: InternalHandlersCreateSessionRequest;
     path: {
         /**
          * Bot ID
@@ -5199,11 +5229,11 @@ export type PostBotsByBotIdSessionsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdSessionsError = PostBotsByBotIdSessionsErrors[keyof PostBotsByBotIdSessionsErrors];
@@ -5212,7 +5242,7 @@ export type PostBotsByBotIdSessionsResponses = {
     /**
      * Created
      */
-    201: SessionSession;
+    201: GithubComMemohaiMemohInternalSessionSession;
 };
 
 export type PostBotsByBotIdSessionsResponse = PostBotsByBotIdSessionsResponses[keyof PostBotsByBotIdSessionsResponses];
@@ -5237,11 +5267,11 @@ export type DeleteBotsByBotIdSessionsBySessionIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
 };
 
 export type DeleteBotsByBotIdSessionsBySessionIdError = DeleteBotsByBotIdSessionsBySessionIdErrors[keyof DeleteBotsByBotIdSessionsBySessionIdErrors];
@@ -5273,15 +5303,15 @@ export type GetBotsByBotIdSessionsBySessionIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdSessionsBySessionIdError = GetBotsByBotIdSessionsBySessionIdErrors[keyof GetBotsByBotIdSessionsBySessionIdErrors];
@@ -5290,7 +5320,7 @@ export type GetBotsByBotIdSessionsBySessionIdResponses = {
     /**
      * OK
      */
-    200: SessionSession;
+    200: GithubComMemohaiMemohInternalSessionSession;
 };
 
 export type GetBotsByBotIdSessionsBySessionIdResponse = GetBotsByBotIdSessionsBySessionIdResponses[keyof GetBotsByBotIdSessionsBySessionIdResponses];
@@ -5299,7 +5329,7 @@ export type PatchBotsByBotIdSessionsBySessionIdData = {
     /**
      * Fields to update
      */
-    body: HandlersUpdateSessionRequest;
+    body: InternalHandlersUpdateSessionRequest;
     path: {
         /**
          * Bot ID
@@ -5318,15 +5348,15 @@ export type PatchBotsByBotIdSessionsBySessionIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
 };
 
 export type PatchBotsByBotIdSessionsBySessionIdError = PatchBotsByBotIdSessionsBySessionIdErrors[keyof PatchBotsByBotIdSessionsBySessionIdErrors];
@@ -5335,7 +5365,7 @@ export type PatchBotsByBotIdSessionsBySessionIdResponses = {
     /**
      * OK
      */
-    200: SessionSession;
+    200: GithubComMemohaiMemohInternalSessionSession;
 };
 
 export type PatchBotsByBotIdSessionsBySessionIdResponse = PatchBotsByBotIdSessionsBySessionIdResponses[keyof PatchBotsByBotIdSessionsBySessionIdResponses];
@@ -5360,11 +5390,11 @@ export type PostBotsByBotIdSessionsBySessionIdCompactErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdSessionsBySessionIdCompactError = PostBotsByBotIdSessionsBySessionIdCompactErrors[keyof PostBotsByBotIdSessionsBySessionIdCompactErrors];
@@ -5373,7 +5403,7 @@ export type PostBotsByBotIdSessionsBySessionIdCompactResponses = {
     /**
      * OK
      */
-    200: HandlersTriggerCompactResponse;
+    200: InternalHandlersTriggerCompactResponse;
 };
 
 export type PostBotsByBotIdSessionsBySessionIdCompactResponse = PostBotsByBotIdSessionsBySessionIdCompactResponses[keyof PostBotsByBotIdSessionsBySessionIdCompactResponses];
@@ -5403,15 +5433,15 @@ export type GetBotsByBotIdSessionsBySessionIdStatusErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdSessionsBySessionIdStatusError = GetBotsByBotIdSessionsBySessionIdStatusErrors[keyof GetBotsByBotIdSessionsBySessionIdStatusErrors];
@@ -5420,7 +5450,7 @@ export type GetBotsByBotIdSessionsBySessionIdStatusResponses = {
     /**
      * OK
      */
-    200: HandlersSessionInfoResponse;
+    200: InternalHandlersSessionInfoResponse;
 };
 
 export type GetBotsByBotIdSessionsBySessionIdStatusResponse = GetBotsByBotIdSessionsBySessionIdStatusResponses[keyof GetBotsByBotIdSessionsBySessionIdStatusResponses];
@@ -5436,11 +5466,11 @@ export type DeleteBotsByBotIdSettingsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type DeleteBotsByBotIdSettingsError = DeleteBotsByBotIdSettingsErrors[keyof DeleteBotsByBotIdSettingsErrors];
@@ -5463,11 +5493,11 @@ export type GetBotsByBotIdSettingsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdSettingsError = GetBotsByBotIdSettingsErrors[keyof GetBotsByBotIdSettingsErrors];
@@ -5476,7 +5506,7 @@ export type GetBotsByBotIdSettingsResponses = {
     /**
      * OK
      */
-    200: SettingsSettings;
+    200: GithubComMemohaiMemohInternalSettingsSettings;
 };
 
 export type GetBotsByBotIdSettingsResponse = GetBotsByBotIdSettingsResponses[keyof GetBotsByBotIdSettingsResponses];
@@ -5485,7 +5515,7 @@ export type PostBotsByBotIdSettingsData = {
     /**
      * Settings payload
      */
-    body: SettingsUpsertRequest;
+    body: GithubComMemohaiMemohInternalSettingsUpsertRequest;
     path?: never;
     query?: never;
     url: '/bots/{bot_id}/settings';
@@ -5495,11 +5525,11 @@ export type PostBotsByBotIdSettingsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdSettingsError = PostBotsByBotIdSettingsErrors[keyof PostBotsByBotIdSettingsErrors];
@@ -5508,7 +5538,7 @@ export type PostBotsByBotIdSettingsResponses = {
     /**
      * OK
      */
-    200: SettingsSettings;
+    200: GithubComMemohaiMemohInternalSettingsSettings;
 };
 
 export type PostBotsByBotIdSettingsResponse = PostBotsByBotIdSettingsResponses[keyof PostBotsByBotIdSettingsResponses];
@@ -5517,7 +5547,7 @@ export type PutBotsByBotIdSettingsData = {
     /**
      * Settings payload
      */
-    body: SettingsUpsertRequest;
+    body: GithubComMemohaiMemohInternalSettingsUpsertRequest;
     path?: never;
     query?: never;
     url: '/bots/{bot_id}/settings';
@@ -5527,11 +5557,11 @@ export type PutBotsByBotIdSettingsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutBotsByBotIdSettingsError = PutBotsByBotIdSettingsErrors[keyof PutBotsByBotIdSettingsErrors];
@@ -5540,7 +5570,7 @@ export type PutBotsByBotIdSettingsResponses = {
     /**
      * OK
      */
-    200: SettingsSettings;
+    200: GithubComMemohaiMemohInternalSettingsSettings;
 };
 
 export type PutBotsByBotIdSettingsResponse = PutBotsByBotIdSettingsResponses[keyof PutBotsByBotIdSettingsResponses];
@@ -5549,7 +5579,7 @@ export type PostBotsByBotIdSupermarketInstallMcpData = {
     /**
      * Install MCP request
      */
-    body: HandlersInstallMcpRequest;
+    body: InternalHandlersInstallMcpRequest;
     path: {
         /**
          * Bot ID
@@ -5564,15 +5594,15 @@ export type PostBotsByBotIdSupermarketInstallMcpErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Bad Gateway
      */
-    502: HandlersErrorResponse;
+    502: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdSupermarketInstallMcpError = PostBotsByBotIdSupermarketInstallMcpErrors[keyof PostBotsByBotIdSupermarketInstallMcpErrors];
@@ -5590,7 +5620,7 @@ export type PostBotsByBotIdSupermarketInstallSkillData = {
     /**
      * Install skill request
      */
-    body: HandlersInstallSkillRequest;
+    body: InternalHandlersInstallSkillRequest;
     path: {
         /**
          * Bot ID
@@ -5605,15 +5635,15 @@ export type PostBotsByBotIdSupermarketInstallSkillErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Bad Gateway
      */
-    502: HandlersErrorResponse;
+    502: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdSupermarketInstallSkillError = PostBotsByBotIdSupermarketInstallSkillErrors[keyof PostBotsByBotIdSupermarketInstallSkillErrors];
@@ -5658,15 +5688,15 @@ export type GetBotsByBotIdTokenUsageErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByBotIdTokenUsageError = GetBotsByBotIdTokenUsageErrors[keyof GetBotsByBotIdTokenUsageErrors];
@@ -5675,7 +5705,7 @@ export type GetBotsByBotIdTokenUsageResponses = {
     /**
      * OK
      */
-    200: HandlersTokenUsageResponse;
+    200: InternalHandlersTokenUsageResponse;
 };
 
 export type GetBotsByBotIdTokenUsageResponse = GetBotsByBotIdTokenUsageResponses[keyof GetBotsByBotIdTokenUsageResponses];
@@ -5701,15 +5731,15 @@ export type PostBotsByBotIdToolsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdToolsError = PostBotsByBotIdToolsErrors[keyof PostBotsByBotIdToolsErrors];
@@ -5729,7 +5759,7 @@ export type PostBotsByBotIdTtsSynthesizeData = {
     /**
      * Text to synthesize
      */
-    body: HandlersSynthesizeRequest;
+    body: InternalHandlersSynthesizeRequest;
     path: {
         /**
          * Bot ID
@@ -5744,11 +5774,11 @@ export type PostBotsByBotIdTtsSynthesizeErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByBotIdTtsSynthesizeError = PostBotsByBotIdTtsSynthesizeErrors[keyof PostBotsByBotIdTtsSynthesizeErrors];
@@ -5757,7 +5787,7 @@ export type PostBotsByBotIdTtsSynthesizeResponses = {
     /**
      * OK
      */
-    200: HandlersSynthesizeResponse;
+    200: InternalHandlersSynthesizeResponse;
 };
 
 export type PostBotsByBotIdTtsSynthesizeResponse = PostBotsByBotIdTtsSynthesizeResponses[keyof PostBotsByBotIdTtsSynthesizeResponses];
@@ -5778,19 +5808,19 @@ export type DeleteBotsByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type DeleteBotsByIdError = DeleteBotsByIdErrors[keyof DeleteBotsByIdErrors];
@@ -5822,19 +5852,19 @@ export type GetBotsByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByIdError = GetBotsByIdErrors[keyof GetBotsByIdErrors];
@@ -5843,7 +5873,7 @@ export type GetBotsByIdResponses = {
     /**
      * OK
      */
-    200: BotsBot;
+    200: GithubComMemohaiMemohInternalBotsBot;
 };
 
 export type GetBotsByIdResponse = GetBotsByIdResponses[keyof GetBotsByIdResponses];
@@ -5852,7 +5882,7 @@ export type PutBotsByIdData = {
     /**
      * Bot update payload
      */
-    body: BotsUpdateBotRequest;
+    body: GithubComMemohaiMemohInternalBotsUpdateBotRequest;
     path: {
         /**
          * Bot ID
@@ -5867,19 +5897,19 @@ export type PutBotsByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutBotsByIdError = PutBotsByIdErrors[keyof PutBotsByIdErrors];
@@ -5888,10 +5918,83 @@ export type PutBotsByIdResponses = {
     /**
      * OK
      */
-    200: BotsBot;
+    200: GithubComMemohaiMemohInternalBotsBot;
 };
 
 export type PutBotsByIdResponse = PutBotsByIdResponses[keyof PutBotsByIdResponses];
+
+export type PostBotsByIdChannelWeixinQrPollData = {
+    /**
+     * QR code to poll
+     */
+    body: InternalChannelAdaptersWeixinQrPollRequest;
+    path: {
+        /**
+         * Bot ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/bots/{id}/channel/weixin/qr/poll';
+};
+
+export type PostBotsByIdChannelWeixinQrPollErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        [key: string]: string;
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        [key: string]: string;
+    };
+};
+
+export type PostBotsByIdChannelWeixinQrPollError = PostBotsByIdChannelWeixinQrPollErrors[keyof PostBotsByIdChannelWeixinQrPollErrors];
+
+export type PostBotsByIdChannelWeixinQrPollResponses = {
+    /**
+     * OK
+     */
+    200: InternalChannelAdaptersWeixinQrPollResponse;
+};
+
+export type PostBotsByIdChannelWeixinQrPollResponse = PostBotsByIdChannelWeixinQrPollResponses[keyof PostBotsByIdChannelWeixinQrPollResponses];
+
+export type PostBotsByIdChannelWeixinQrStartData = {
+    body?: never;
+    path: {
+        /**
+         * Bot ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/bots/{id}/channel/weixin/qr/start';
+};
+
+export type PostBotsByIdChannelWeixinQrStartErrors = {
+    /**
+     * Internal Server Error
+     */
+    500: {
+        [key: string]: string;
+    };
+};
+
+export type PostBotsByIdChannelWeixinQrStartError = PostBotsByIdChannelWeixinQrStartErrors[keyof PostBotsByIdChannelWeixinQrStartErrors];
+
+export type PostBotsByIdChannelWeixinQrStartResponses = {
+    /**
+     * OK
+     */
+    200: InternalChannelAdaptersWeixinQrStartResponse;
+};
+
+export type PostBotsByIdChannelWeixinQrStartResponse = PostBotsByIdChannelWeixinQrStartResponses[keyof PostBotsByIdChannelWeixinQrStartResponses];
 
 export type DeleteBotsByIdChannelByPlatformData = {
     body?: never;
@@ -5913,15 +6016,15 @@ export type DeleteBotsByIdChannelByPlatformErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type DeleteBotsByIdChannelByPlatformError = DeleteBotsByIdChannelByPlatformErrors[keyof DeleteBotsByIdChannelByPlatformErrors];
@@ -5953,19 +6056,19 @@ export type GetBotsByIdChannelByPlatformErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByIdChannelByPlatformError = GetBotsByIdChannelByPlatformErrors[keyof GetBotsByIdChannelByPlatformErrors];
@@ -5974,7 +6077,7 @@ export type GetBotsByIdChannelByPlatformResponses = {
     /**
      * OK
      */
-    200: ChannelChannelConfig;
+    200: GithubComMemohaiMemohInternalChannelChannelConfig;
 };
 
 export type GetBotsByIdChannelByPlatformResponse = GetBotsByIdChannelByPlatformResponses[keyof GetBotsByIdChannelByPlatformResponses];
@@ -5983,7 +6086,7 @@ export type PutBotsByIdChannelByPlatformData = {
     /**
      * Channel config payload
      */
-    body: ChannelUpsertConfigRequest;
+    body: GithubComMemohaiMemohInternalChannelUpsertConfigRequest;
     path: {
         /**
          * Bot ID
@@ -6002,19 +6105,19 @@ export type PutBotsByIdChannelByPlatformErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutBotsByIdChannelByPlatformError = PutBotsByIdChannelByPlatformErrors[keyof PutBotsByIdChannelByPlatformErrors];
@@ -6023,7 +6126,7 @@ export type PutBotsByIdChannelByPlatformResponses = {
     /**
      * OK
      */
-    200: ChannelChannelConfig;
+    200: GithubComMemohaiMemohInternalChannelChannelConfig;
 };
 
 export type PutBotsByIdChannelByPlatformResponse = PutBotsByIdChannelByPlatformResponses[keyof PutBotsByIdChannelByPlatformResponses];
@@ -6032,7 +6135,7 @@ export type PostBotsByIdChannelByPlatformSendData = {
     /**
      * Send payload
      */
-    body: ChannelSendRequest;
+    body: GithubComMemohaiMemohInternalChannelSendRequest;
     path: {
         /**
          * Bot ID
@@ -6051,19 +6154,19 @@ export type PostBotsByIdChannelByPlatformSendErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByIdChannelByPlatformSendError = PostBotsByIdChannelByPlatformSendErrors[keyof PostBotsByIdChannelByPlatformSendErrors];
@@ -6083,7 +6186,7 @@ export type PostBotsByIdChannelByPlatformSendChatData = {
     /**
      * Send payload
      */
-    body: ChannelSendRequest;
+    body: GithubComMemohaiMemohInternalChannelSendRequest;
     path: {
         /**
          * Bot ID
@@ -6102,19 +6205,19 @@ export type PostBotsByIdChannelByPlatformSendChatErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Unauthorized
      */
-    401: HandlersErrorResponse;
+    401: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBotsByIdChannelByPlatformSendChatError = PostBotsByIdChannelByPlatformSendChatErrors[keyof PostBotsByIdChannelByPlatformSendChatErrors];
@@ -6134,7 +6237,7 @@ export type PatchBotsByIdChannelByPlatformStatusData = {
     /**
      * Channel status payload
      */
-    body: ChannelUpdateChannelStatusRequest;
+    body: GithubComMemohaiMemohInternalChannelUpdateChannelStatusRequest;
     path: {
         /**
          * Bot ID
@@ -6153,19 +6256,19 @@ export type PatchBotsByIdChannelByPlatformStatusErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PatchBotsByIdChannelByPlatformStatusError = PatchBotsByIdChannelByPlatformStatusErrors[keyof PatchBotsByIdChannelByPlatformStatusErrors];
@@ -6174,7 +6277,7 @@ export type PatchBotsByIdChannelByPlatformStatusResponses = {
     /**
      * OK
      */
-    200: ChannelChannelConfig;
+    200: GithubComMemohaiMemohInternalChannelChannelConfig;
 };
 
 export type PatchBotsByIdChannelByPlatformStatusResponse = PatchBotsByIdChannelByPlatformStatusResponses[keyof PatchBotsByIdChannelByPlatformStatusResponses];
@@ -6195,19 +6298,19 @@ export type GetBotsByIdChecksErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBotsByIdChecksError = GetBotsByIdChecksErrors[keyof GetBotsByIdChecksErrors];
@@ -6216,7 +6319,7 @@ export type GetBotsByIdChecksResponses = {
     /**
      * OK
      */
-    200: BotsListChecksResponse;
+    200: GithubComMemohaiMemohInternalBotsListChecksResponse;
 };
 
 export type GetBotsByIdChecksResponse = GetBotsByIdChecksResponses[keyof GetBotsByIdChecksResponses];
@@ -6225,7 +6328,7 @@ export type PutBotsByIdOwnerData = {
     /**
      * Transfer payload
      */
-    body: BotsTransferBotRequest;
+    body: GithubComMemohaiMemohInternalBotsTransferBotRequest;
     path: {
         /**
          * Bot ID
@@ -6240,19 +6343,19 @@ export type PutBotsByIdOwnerErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutBotsByIdOwnerError = PutBotsByIdOwnerErrors[keyof PutBotsByIdOwnerErrors];
@@ -6261,7 +6364,7 @@ export type PutBotsByIdOwnerResponses = {
     /**
      * OK
      */
-    200: BotsBot;
+    200: GithubComMemohaiMemohInternalBotsBot;
 };
 
 export type PutBotsByIdOwnerResponse = PutBotsByIdOwnerResponses[keyof PutBotsByIdOwnerResponses];
@@ -6277,7 +6380,7 @@ export type GetBrowserContextsErrors = {
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetBrowserContextsError = GetBrowserContextsErrors[keyof GetBrowserContextsErrors];
@@ -6286,7 +6389,7 @@ export type GetBrowserContextsResponses = {
     /**
      * OK
      */
-    200: Array<BrowsercontextsBrowserContext>;
+    200: Array<GithubComMemohaiMemohInternalBrowsercontextsBrowserContext>;
 };
 
 export type GetBrowserContextsResponse = GetBrowserContextsResponses[keyof GetBrowserContextsResponses];
@@ -6295,7 +6398,7 @@ export type PostBrowserContextsData = {
     /**
      * Browser context configuration
      */
-    body: BrowsercontextsCreateRequest;
+    body: GithubComMemohaiMemohInternalBrowsercontextsCreateRequest;
     path?: never;
     query?: never;
     url: '/browser-contexts';
@@ -6305,11 +6408,11 @@ export type PostBrowserContextsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostBrowserContextsError = PostBrowserContextsErrors[keyof PostBrowserContextsErrors];
@@ -6318,7 +6421,7 @@ export type PostBrowserContextsResponses = {
     /**
      * Created
      */
-    201: BrowsercontextsBrowserContext;
+    201: GithubComMemohaiMemohInternalBrowsercontextsBrowserContext;
 };
 
 export type PostBrowserContextsResponse = PostBrowserContextsResponses[keyof PostBrowserContextsResponses];
@@ -6334,7 +6437,7 @@ export type GetBrowserContextsCoresErrors = {
     /**
      * Bad Gateway
      */
-    502: HandlersErrorResponse;
+    502: InternalHandlersErrorResponse;
 };
 
 export type GetBrowserContextsCoresError = GetBrowserContextsCoresErrors[keyof GetBrowserContextsCoresErrors];
@@ -6343,7 +6446,7 @@ export type GetBrowserContextsCoresResponses = {
     /**
      * OK
      */
-    200: HandlersBrowserCoresResponse;
+    200: InternalHandlersBrowserCoresResponse;
 };
 
 export type GetBrowserContextsCoresResponse = GetBrowserContextsCoresResponses[keyof GetBrowserContextsCoresResponses];
@@ -6364,11 +6467,11 @@ export type DeleteBrowserContextsByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type DeleteBrowserContextsByIdError = DeleteBrowserContextsByIdErrors[keyof DeleteBrowserContextsByIdErrors];
@@ -6396,11 +6499,11 @@ export type GetBrowserContextsByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
 };
 
 export type GetBrowserContextsByIdError = GetBrowserContextsByIdErrors[keyof GetBrowserContextsByIdErrors];
@@ -6409,7 +6512,7 @@ export type GetBrowserContextsByIdResponses = {
     /**
      * OK
      */
-    200: BrowsercontextsBrowserContext;
+    200: GithubComMemohaiMemohInternalBrowsercontextsBrowserContext;
 };
 
 export type GetBrowserContextsByIdResponse = GetBrowserContextsByIdResponses[keyof GetBrowserContextsByIdResponses];
@@ -6418,7 +6521,7 @@ export type PutBrowserContextsByIdData = {
     /**
      * Updated configuration
      */
-    body: BrowsercontextsUpdateRequest;
+    body: GithubComMemohaiMemohInternalBrowsercontextsUpdateRequest;
     path: {
         /**
          * Browser Context ID
@@ -6433,11 +6536,11 @@ export type PutBrowserContextsByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutBrowserContextsByIdError = PutBrowserContextsByIdErrors[keyof PutBrowserContextsByIdErrors];
@@ -6446,7 +6549,7 @@ export type PutBrowserContextsByIdResponses = {
     /**
      * OK
      */
-    200: BrowsercontextsBrowserContext;
+    200: GithubComMemohaiMemohInternalBrowsercontextsBrowserContext;
 };
 
 export type PutBrowserContextsByIdResponse = PutBrowserContextsByIdResponses[keyof PutBrowserContextsByIdResponses];
@@ -6462,7 +6565,7 @@ export type GetChannelsErrors = {
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetChannelsError = GetChannelsErrors[keyof GetChannelsErrors];
@@ -6471,7 +6574,7 @@ export type GetChannelsResponses = {
     /**
      * OK
      */
-    200: Array<HandlersChannelMeta>;
+    200: Array<InternalHandlersChannelMeta>;
 };
 
 export type GetChannelsResponse = GetChannelsResponses[keyof GetChannelsResponses];
@@ -6492,11 +6595,11 @@ export type GetChannelsByPlatformErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
 };
 
 export type GetChannelsByPlatformError = GetChannelsByPlatformErrors[keyof GetChannelsByPlatformErrors];
@@ -6505,7 +6608,7 @@ export type GetChannelsByPlatformResponses = {
     /**
      * OK
      */
-    200: HandlersChannelMeta;
+    200: InternalHandlersChannelMeta;
 };
 
 export type GetChannelsByPlatformResponse = GetChannelsByPlatformResponses[keyof GetChannelsByPlatformResponses];
@@ -6526,7 +6629,7 @@ export type GetEmailProvidersErrors = {
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetEmailProvidersError = GetEmailProvidersErrors[keyof GetEmailProvidersErrors];
@@ -6535,7 +6638,7 @@ export type GetEmailProvidersResponses = {
     /**
      * OK
      */
-    200: Array<EmailProviderResponse>;
+    200: Array<GithubComMemohaiMemohInternalEmailProviderResponse>;
 };
 
 export type GetEmailProvidersResponse = GetEmailProvidersResponses[keyof GetEmailProvidersResponses];
@@ -6544,7 +6647,7 @@ export type PostEmailProvidersData = {
     /**
      * Email provider configuration
      */
-    body: EmailCreateProviderRequest;
+    body: GithubComMemohaiMemohInternalEmailCreateProviderRequest;
     path?: never;
     query?: never;
     url: '/email-providers';
@@ -6554,11 +6657,11 @@ export type PostEmailProvidersErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostEmailProvidersError = PostEmailProvidersErrors[keyof PostEmailProvidersErrors];
@@ -6567,7 +6670,7 @@ export type PostEmailProvidersResponses = {
     /**
      * Created
      */
-    201: EmailProviderResponse;
+    201: GithubComMemohaiMemohInternalEmailProviderResponse;
 };
 
 export type PostEmailProvidersResponse = PostEmailProvidersResponses[keyof PostEmailProvidersResponses];
@@ -6583,7 +6686,7 @@ export type GetEmailProvidersMetaResponses = {
     /**
      * OK
      */
-    200: Array<EmailProviderMeta>;
+    200: Array<GithubComMemohaiMemohInternalEmailProviderMeta>;
 };
 
 export type GetEmailProvidersMetaResponse = GetEmailProvidersMetaResponses[keyof GetEmailProvidersMetaResponses];
@@ -6604,7 +6707,7 @@ export type DeleteEmailProvidersByIdErrors = {
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type DeleteEmailProvidersByIdError = DeleteEmailProvidersByIdErrors[keyof DeleteEmailProvidersByIdErrors];
@@ -6632,7 +6735,7 @@ export type GetEmailProvidersByIdErrors = {
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
 };
 
 export type GetEmailProvidersByIdError = GetEmailProvidersByIdErrors[keyof GetEmailProvidersByIdErrors];
@@ -6641,7 +6744,7 @@ export type GetEmailProvidersByIdResponses = {
     /**
      * OK
      */
-    200: EmailProviderResponse;
+    200: GithubComMemohaiMemohInternalEmailProviderResponse;
 };
 
 export type GetEmailProvidersByIdResponse = GetEmailProvidersByIdResponses[keyof GetEmailProvidersByIdResponses];
@@ -6650,7 +6753,7 @@ export type PutEmailProvidersByIdData = {
     /**
      * Updated configuration
      */
-    body: EmailUpdateProviderRequest;
+    body: GithubComMemohaiMemohInternalEmailUpdateProviderRequest;
     path: {
         /**
          * Provider ID
@@ -6665,11 +6768,11 @@ export type PutEmailProvidersByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutEmailProvidersByIdError = PutEmailProvidersByIdErrors[keyof PutEmailProvidersByIdErrors];
@@ -6678,7 +6781,7 @@ export type PutEmailProvidersByIdResponses = {
     /**
      * OK
      */
-    200: EmailProviderResponse;
+    200: GithubComMemohaiMemohInternalEmailProviderResponse;
 };
 
 export type PutEmailProvidersByIdResponse = PutEmailProvidersByIdResponses[keyof PutEmailProvidersByIdResponses];
@@ -6699,11 +6802,11 @@ export type GetEmailProvidersByIdOauthAuthorizeErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
 };
 
 export type GetEmailProvidersByIdOauthAuthorizeError = GetEmailProvidersByIdOauthAuthorizeErrors[keyof GetEmailProvidersByIdOauthAuthorizeErrors];
@@ -6735,11 +6838,11 @@ export type GetEmailProvidersByIdOauthStatusErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
 };
 
 export type GetEmailProvidersByIdOauthStatusError = GetEmailProvidersByIdOauthStatusErrors[keyof GetEmailProvidersByIdOauthStatusErrors];
@@ -6748,7 +6851,7 @@ export type GetEmailProvidersByIdOauthStatusResponses = {
     /**
      * OK
      */
-    200: HandlersEmailOAuthStatusResponse;
+    200: InternalHandlersEmailOAuthStatusResponse;
 };
 
 export type GetEmailProvidersByIdOauthStatusResponse = GetEmailProvidersByIdOauthStatusResponses[keyof GetEmailProvidersByIdOauthStatusResponses];
@@ -6769,11 +6872,11 @@ export type DeleteEmailProvidersByIdOauthTokenErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
 };
 
 export type DeleteEmailProvidersByIdOauthTokenError = DeleteEmailProvidersByIdOauthTokenErrors[keyof DeleteEmailProvidersByIdOauthTokenErrors];
@@ -6801,15 +6904,15 @@ export type PostEmailMailgunWebhookByConfigIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostEmailMailgunWebhookByConfigIdError = PostEmailMailgunWebhookByConfigIdErrors[keyof PostEmailMailgunWebhookByConfigIdErrors];
@@ -6845,11 +6948,11 @@ export type GetEmailOauthCallbackErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetEmailOauthCallbackError = GetEmailOauthCallbackErrors[keyof GetEmailOauthCallbackErrors];
@@ -6876,7 +6979,7 @@ export type GetMemoryProvidersErrors = {
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetMemoryProvidersError = GetMemoryProvidersErrors[keyof GetMemoryProvidersErrors];
@@ -6885,7 +6988,7 @@ export type GetMemoryProvidersResponses = {
     /**
      * OK
      */
-    200: Array<AdaptersProviderGetResponse>;
+    200: Array<GithubComMemohaiMemohInternalMemoryAdaptersProviderGetResponse>;
 };
 
 export type GetMemoryProvidersResponse = GetMemoryProvidersResponses[keyof GetMemoryProvidersResponses];
@@ -6894,7 +6997,7 @@ export type PostMemoryProvidersData = {
     /**
      * Memory provider configuration
      */
-    body: AdaptersProviderCreateRequest;
+    body: GithubComMemohaiMemohInternalMemoryAdaptersProviderCreateRequest;
     path?: never;
     query?: never;
     url: '/memory-providers';
@@ -6904,11 +7007,11 @@ export type PostMemoryProvidersErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostMemoryProvidersError = PostMemoryProvidersErrors[keyof PostMemoryProvidersErrors];
@@ -6917,7 +7020,7 @@ export type PostMemoryProvidersResponses = {
     /**
      * Created
      */
-    201: AdaptersProviderGetResponse;
+    201: GithubComMemohaiMemohInternalMemoryAdaptersProviderGetResponse;
 };
 
 export type PostMemoryProvidersResponse = PostMemoryProvidersResponses[keyof PostMemoryProvidersResponses];
@@ -6933,7 +7036,7 @@ export type GetMemoryProvidersMetaResponses = {
     /**
      * OK
      */
-    200: Array<AdaptersProviderMeta>;
+    200: Array<GithubComMemohaiMemohInternalMemoryAdaptersProviderMeta>;
 };
 
 export type GetMemoryProvidersMetaResponse = GetMemoryProvidersMetaResponses[keyof GetMemoryProvidersMetaResponses];
@@ -6954,11 +7057,11 @@ export type DeleteMemoryProvidersByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type DeleteMemoryProvidersByIdError = DeleteMemoryProvidersByIdErrors[keyof DeleteMemoryProvidersByIdErrors];
@@ -6986,11 +7089,11 @@ export type GetMemoryProvidersByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
 };
 
 export type GetMemoryProvidersByIdError = GetMemoryProvidersByIdErrors[keyof GetMemoryProvidersByIdErrors];
@@ -6999,7 +7102,7 @@ export type GetMemoryProvidersByIdResponses = {
     /**
      * OK
      */
-    200: AdaptersProviderGetResponse;
+    200: GithubComMemohaiMemohInternalMemoryAdaptersProviderGetResponse;
 };
 
 export type GetMemoryProvidersByIdResponse = GetMemoryProvidersByIdResponses[keyof GetMemoryProvidersByIdResponses];
@@ -7008,7 +7111,7 @@ export type PutMemoryProvidersByIdData = {
     /**
      * Updated configuration
      */
-    body: AdaptersProviderUpdateRequest;
+    body: GithubComMemohaiMemohInternalMemoryAdaptersProviderUpdateRequest;
     path: {
         /**
          * Provider ID
@@ -7023,11 +7126,11 @@ export type PutMemoryProvidersByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutMemoryProvidersByIdError = PutMemoryProvidersByIdErrors[keyof PutMemoryProvidersByIdErrors];
@@ -7036,7 +7139,7 @@ export type PutMemoryProvidersByIdResponses = {
     /**
      * OK
      */
-    200: AdaptersProviderGetResponse;
+    200: GithubComMemohaiMemohInternalMemoryAdaptersProviderGetResponse;
 };
 
 export type PutMemoryProvidersByIdResponse = PutMemoryProvidersByIdResponses[keyof PutMemoryProvidersByIdResponses];
@@ -7057,15 +7160,15 @@ export type GetMemoryProvidersByIdStatusErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetMemoryProvidersByIdStatusError = GetMemoryProvidersByIdStatusErrors[keyof GetMemoryProvidersByIdStatusErrors];
@@ -7074,7 +7177,7 @@ export type GetMemoryProvidersByIdStatusResponses = {
     /**
      * OK
      */
-    200: AdaptersProviderStatusResponse;
+    200: GithubComMemohaiMemohInternalMemoryAdaptersProviderStatusResponse;
 };
 
 export type GetMemoryProvidersByIdStatusResponse = GetMemoryProvidersByIdStatusResponses[keyof GetMemoryProvidersByIdStatusResponses];
@@ -7099,11 +7202,11 @@ export type GetModelsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetModelsError = GetModelsErrors[keyof GetModelsErrors];
@@ -7112,7 +7215,7 @@ export type GetModelsResponses = {
     /**
      * OK
      */
-    200: Array<ModelsGetResponse>;
+    200: Array<GithubComMemohaiMemohInternalModelsGetResponse>;
 };
 
 export type GetModelsResponse = GetModelsResponses[keyof GetModelsResponses];
@@ -7121,7 +7224,7 @@ export type PostModelsData = {
     /**
      * Model configuration
      */
-    body: ModelsAddRequest;
+    body: GithubComMemohaiMemohInternalModelsAddRequest;
     path?: never;
     query?: never;
     url: '/models';
@@ -7131,11 +7234,11 @@ export type PostModelsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostModelsError = PostModelsErrors[keyof PostModelsErrors];
@@ -7144,7 +7247,7 @@ export type PostModelsResponses = {
     /**
      * Created
      */
-    201: ModelsAddResponse;
+    201: GithubComMemohaiMemohInternalModelsAddResponse;
 };
 
 export type PostModelsResponse = PostModelsResponses[keyof PostModelsResponses];
@@ -7165,11 +7268,11 @@ export type GetModelsCountErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetModelsCountError = GetModelsCountErrors[keyof GetModelsCountErrors];
@@ -7178,7 +7281,7 @@ export type GetModelsCountResponses = {
     /**
      * OK
      */
-    200: ModelsCountResponse;
+    200: GithubComMemohaiMemohInternalModelsCountResponse;
 };
 
 export type GetModelsCountResponse = GetModelsCountResponses[keyof GetModelsCountResponses];
@@ -7199,15 +7302,15 @@ export type DeleteModelsModelByModelIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type DeleteModelsModelByModelIdError = DeleteModelsModelByModelIdErrors[keyof DeleteModelsModelByModelIdErrors];
@@ -7235,15 +7338,15 @@ export type GetModelsModelByModelIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetModelsModelByModelIdError = GetModelsModelByModelIdErrors[keyof GetModelsModelByModelIdErrors];
@@ -7252,7 +7355,7 @@ export type GetModelsModelByModelIdResponses = {
     /**
      * OK
      */
-    200: ModelsGetResponse;
+    200: GithubComMemohaiMemohInternalModelsGetResponse;
 };
 
 export type GetModelsModelByModelIdResponse = GetModelsModelByModelIdResponses[keyof GetModelsModelByModelIdResponses];
@@ -7261,7 +7364,7 @@ export type PutModelsModelByModelIdData = {
     /**
      * Updated model configuration
      */
-    body: ModelsUpdateRequest;
+    body: GithubComMemohaiMemohInternalModelsUpdateRequest;
     path: {
         /**
          * Model ID (e.g., gpt-4)
@@ -7276,15 +7379,15 @@ export type PutModelsModelByModelIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutModelsModelByModelIdError = PutModelsModelByModelIdErrors[keyof PutModelsModelByModelIdErrors];
@@ -7293,7 +7396,7 @@ export type PutModelsModelByModelIdResponses = {
     /**
      * OK
      */
-    200: ModelsGetResponse;
+    200: GithubComMemohaiMemohInternalModelsGetResponse;
 };
 
 export type PutModelsModelByModelIdResponse = PutModelsModelByModelIdResponses[keyof PutModelsModelByModelIdResponses];
@@ -7314,15 +7417,15 @@ export type DeleteModelsByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type DeleteModelsByIdError = DeleteModelsByIdErrors[keyof DeleteModelsByIdErrors];
@@ -7350,15 +7453,15 @@ export type GetModelsByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetModelsByIdError = GetModelsByIdErrors[keyof GetModelsByIdErrors];
@@ -7367,7 +7470,7 @@ export type GetModelsByIdResponses = {
     /**
      * OK
      */
-    200: ModelsGetResponse;
+    200: GithubComMemohaiMemohInternalModelsGetResponse;
 };
 
 export type GetModelsByIdResponse = GetModelsByIdResponses[keyof GetModelsByIdResponses];
@@ -7376,7 +7479,7 @@ export type PutModelsByIdData = {
     /**
      * Updated model configuration
      */
-    body: ModelsUpdateRequest;
+    body: GithubComMemohaiMemohInternalModelsUpdateRequest;
     path: {
         /**
          * Model internal ID (UUID)
@@ -7391,15 +7494,15 @@ export type PutModelsByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutModelsByIdError = PutModelsByIdErrors[keyof PutModelsByIdErrors];
@@ -7408,7 +7511,7 @@ export type PutModelsByIdResponses = {
     /**
      * OK
      */
-    200: ModelsGetResponse;
+    200: GithubComMemohaiMemohInternalModelsGetResponse;
 };
 
 export type PutModelsByIdResponse = PutModelsByIdResponses[keyof PutModelsByIdResponses];
@@ -7429,15 +7532,15 @@ export type PostModelsByIdTestErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostModelsByIdTestError = PostModelsByIdTestErrors[keyof PostModelsByIdTestErrors];
@@ -7446,7 +7549,7 @@ export type PostModelsByIdTestResponses = {
     /**
      * OK
      */
-    200: ModelsTestResponse;
+    200: GithubComMemohaiMemohInternalModelsTestResponse;
 };
 
 export type PostModelsByIdTestResponse = PostModelsByIdTestResponses[keyof PostModelsByIdTestResponses];
@@ -7462,7 +7565,7 @@ export type GetPingResponses = {
     /**
      * OK
      */
-    200: HandlersPingResponse;
+    200: InternalHandlersPingResponse;
 };
 
 export type GetPingResponse = GetPingResponses[keyof GetPingResponses];
@@ -7478,7 +7581,7 @@ export type GetProvidersErrors = {
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetProvidersError = GetProvidersErrors[keyof GetProvidersErrors];
@@ -7487,7 +7590,7 @@ export type GetProvidersResponses = {
     /**
      * OK
      */
-    200: Array<ProvidersGetResponse>;
+    200: Array<GithubComMemohaiMemohInternalProvidersGetResponse>;
 };
 
 export type GetProvidersResponse = GetProvidersResponses[keyof GetProvidersResponses];
@@ -7496,7 +7599,7 @@ export type PostProvidersData = {
     /**
      * Provider configuration
      */
-    body: ProvidersCreateRequest;
+    body: GithubComMemohaiMemohInternalProvidersCreateRequest;
     path?: never;
     query?: never;
     url: '/providers';
@@ -7506,11 +7609,11 @@ export type PostProvidersErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostProvidersError = PostProvidersErrors[keyof PostProvidersErrors];
@@ -7519,7 +7622,7 @@ export type PostProvidersResponses = {
     /**
      * Created
      */
-    201: ProvidersGetResponse;
+    201: GithubComMemohaiMemohInternalProvidersGetResponse;
 };
 
 export type PostProvidersResponse = PostProvidersResponses[keyof PostProvidersResponses];
@@ -7535,7 +7638,7 @@ export type GetProvidersCountErrors = {
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetProvidersCountError = GetProvidersCountErrors[keyof GetProvidersCountErrors];
@@ -7544,7 +7647,7 @@ export type GetProvidersCountResponses = {
     /**
      * OK
      */
-    200: ProvidersCountResponse;
+    200: GithubComMemohaiMemohInternalProvidersCountResponse;
 };
 
 export type GetProvidersCountResponse = GetProvidersCountResponses[keyof GetProvidersCountResponses];
@@ -7565,15 +7668,15 @@ export type GetProvidersNameByNameErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetProvidersNameByNameError = GetProvidersNameByNameErrors[keyof GetProvidersNameByNameErrors];
@@ -7582,7 +7685,7 @@ export type GetProvidersNameByNameResponses = {
     /**
      * OK
      */
-    200: ProvidersGetResponse;
+    200: GithubComMemohaiMemohInternalProvidersGetResponse;
 };
 
 export type GetProvidersNameByNameResponse = GetProvidersNameByNameResponses[keyof GetProvidersNameByNameResponses];
@@ -7607,7 +7710,7 @@ export type GetProvidersOauthCallbackErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
 };
 
 export type GetProvidersOauthCallbackError = GetProvidersOauthCallbackErrors[keyof GetProvidersOauthCallbackErrors];
@@ -7637,15 +7740,15 @@ export type DeleteProvidersByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type DeleteProvidersByIdError = DeleteProvidersByIdErrors[keyof DeleteProvidersByIdErrors];
@@ -7673,15 +7776,15 @@ export type GetProvidersByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetProvidersByIdError = GetProvidersByIdErrors[keyof GetProvidersByIdErrors];
@@ -7690,7 +7793,7 @@ export type GetProvidersByIdResponses = {
     /**
      * OK
      */
-    200: ProvidersGetResponse;
+    200: GithubComMemohaiMemohInternalProvidersGetResponse;
 };
 
 export type GetProvidersByIdResponse = GetProvidersByIdResponses[keyof GetProvidersByIdResponses];
@@ -7699,7 +7802,7 @@ export type PutProvidersByIdData = {
     /**
      * Updated provider configuration
      */
-    body: ProvidersUpdateRequest;
+    body: GithubComMemohaiMemohInternalProvidersUpdateRequest;
     path: {
         /**
          * Provider ID (UUID)
@@ -7714,15 +7817,15 @@ export type PutProvidersByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutProvidersByIdError = PutProvidersByIdErrors[keyof PutProvidersByIdErrors];
@@ -7731,7 +7834,7 @@ export type PutProvidersByIdResponses = {
     /**
      * OK
      */
-    200: ProvidersGetResponse;
+    200: GithubComMemohaiMemohInternalProvidersGetResponse;
 };
 
 export type PutProvidersByIdResponse = PutProvidersByIdResponses[keyof PutProvidersByIdResponses];
@@ -7752,15 +7855,15 @@ export type PostProvidersByIdImportModelsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostProvidersByIdImportModelsError = PostProvidersByIdImportModelsErrors[keyof PostProvidersByIdImportModelsErrors];
@@ -7769,7 +7872,7 @@ export type PostProvidersByIdImportModelsResponses = {
     /**
      * OK
      */
-    200: ProvidersImportModelsResponse;
+    200: GithubComMemohaiMemohInternalProvidersImportModelsResponse;
 };
 
 export type PostProvidersByIdImportModelsResponse = PostProvidersByIdImportModelsResponses[keyof PostProvidersByIdImportModelsResponses];
@@ -7795,15 +7898,15 @@ export type GetProvidersByIdModelsErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetProvidersByIdModelsError = GetProvidersByIdModelsErrors[keyof GetProvidersByIdModelsErrors];
@@ -7812,7 +7915,7 @@ export type GetProvidersByIdModelsResponses = {
     /**
      * OK
      */
-    200: Array<ModelsGetResponse>;
+    200: Array<GithubComMemohaiMemohInternalModelsGetResponse>;
 };
 
 export type GetProvidersByIdModelsResponse = GetProvidersByIdModelsResponses[keyof GetProvidersByIdModelsResponses];
@@ -7833,11 +7936,11 @@ export type GetProvidersByIdOauthAuthorizeErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
 };
 
 export type GetProvidersByIdOauthAuthorizeError = GetProvidersByIdOauthAuthorizeErrors[keyof GetProvidersByIdOauthAuthorizeErrors];
@@ -7846,7 +7949,7 @@ export type GetProvidersByIdOauthAuthorizeResponses = {
     /**
      * OK
      */
-    200: ProvidersOAuthAuthorizeResponse;
+    200: GithubComMemohaiMemohInternalProvidersOAuthAuthorizeResponse;
 };
 
 export type GetProvidersByIdOauthAuthorizeResponse = GetProvidersByIdOauthAuthorizeResponses[keyof GetProvidersByIdOauthAuthorizeResponses];
@@ -7867,11 +7970,11 @@ export type PostProvidersByIdOauthPollErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
 };
 
 export type PostProvidersByIdOauthPollError = PostProvidersByIdOauthPollErrors[keyof PostProvidersByIdOauthPollErrors];
@@ -7880,7 +7983,7 @@ export type PostProvidersByIdOauthPollResponses = {
     /**
      * OK
      */
-    200: ProvidersOAuthStatus;
+    200: GithubComMemohaiMemohInternalProvidersOAuthStatus;
 };
 
 export type PostProvidersByIdOauthPollResponse = PostProvidersByIdOauthPollResponses[keyof PostProvidersByIdOauthPollResponses];
@@ -7901,11 +8004,11 @@ export type GetProvidersByIdOauthStatusErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
 };
 
 export type GetProvidersByIdOauthStatusError = GetProvidersByIdOauthStatusErrors[keyof GetProvidersByIdOauthStatusErrors];
@@ -7914,7 +8017,7 @@ export type GetProvidersByIdOauthStatusResponses = {
     /**
      * OK
      */
-    200: ProvidersOAuthStatus;
+    200: GithubComMemohaiMemohInternalProvidersOAuthStatus;
 };
 
 export type GetProvidersByIdOauthStatusResponse = GetProvidersByIdOauthStatusResponses[keyof GetProvidersByIdOauthStatusResponses];
@@ -7935,11 +8038,11 @@ export type DeleteProvidersByIdOauthTokenErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
 };
 
 export type DeleteProvidersByIdOauthTokenError = DeleteProvidersByIdOauthTokenErrors[keyof DeleteProvidersByIdOauthTokenErrors];
@@ -7967,15 +8070,15 @@ export type PostProvidersByIdTestErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostProvidersByIdTestError = PostProvidersByIdTestErrors[keyof PostProvidersByIdTestErrors];
@@ -7984,7 +8087,7 @@ export type PostProvidersByIdTestResponses = {
     /**
      * OK
      */
-    200: ProvidersTestResponse;
+    200: GithubComMemohaiMemohInternalProvidersTestResponse;
 };
 
 export type PostProvidersByIdTestResponse = PostProvidersByIdTestResponses[keyof PostProvidersByIdTestResponses];
@@ -8005,7 +8108,7 @@ export type GetSearchProvidersErrors = {
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetSearchProvidersError = GetSearchProvidersErrors[keyof GetSearchProvidersErrors];
@@ -8014,7 +8117,7 @@ export type GetSearchProvidersResponses = {
     /**
      * OK
      */
-    200: Array<SearchprovidersGetResponse>;
+    200: Array<GithubComMemohaiMemohInternalSearchprovidersGetResponse>;
 };
 
 export type GetSearchProvidersResponse = GetSearchProvidersResponses[keyof GetSearchProvidersResponses];
@@ -8023,7 +8126,7 @@ export type PostSearchProvidersData = {
     /**
      * Search provider configuration
      */
-    body: SearchprovidersCreateRequest;
+    body: GithubComMemohaiMemohInternalSearchprovidersCreateRequest;
     path?: never;
     query?: never;
     url: '/search-providers';
@@ -8033,11 +8136,11 @@ export type PostSearchProvidersErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostSearchProvidersError = PostSearchProvidersErrors[keyof PostSearchProvidersErrors];
@@ -8046,7 +8149,7 @@ export type PostSearchProvidersResponses = {
     /**
      * Created
      */
-    201: SearchprovidersGetResponse;
+    201: GithubComMemohaiMemohInternalSearchprovidersGetResponse;
 };
 
 export type PostSearchProvidersResponse = PostSearchProvidersResponses[keyof PostSearchProvidersResponses];
@@ -8062,7 +8165,7 @@ export type GetSearchProvidersMetaResponses = {
     /**
      * OK
      */
-    200: Array<SearchprovidersProviderMeta>;
+    200: Array<GithubComMemohaiMemohInternalSearchprovidersProviderMeta>;
 };
 
 export type GetSearchProvidersMetaResponse = GetSearchProvidersMetaResponses[keyof GetSearchProvidersMetaResponses];
@@ -8083,11 +8186,11 @@ export type DeleteSearchProvidersByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type DeleteSearchProvidersByIdError = DeleteSearchProvidersByIdErrors[keyof DeleteSearchProvidersByIdErrors];
@@ -8115,11 +8218,11 @@ export type GetSearchProvidersByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
 };
 
 export type GetSearchProvidersByIdError = GetSearchProvidersByIdErrors[keyof GetSearchProvidersByIdErrors];
@@ -8128,7 +8231,7 @@ export type GetSearchProvidersByIdResponses = {
     /**
      * OK
      */
-    200: SearchprovidersGetResponse;
+    200: GithubComMemohaiMemohInternalSearchprovidersGetResponse;
 };
 
 export type GetSearchProvidersByIdResponse = GetSearchProvidersByIdResponses[keyof GetSearchProvidersByIdResponses];
@@ -8137,7 +8240,7 @@ export type PutSearchProvidersByIdData = {
     /**
      * Updated configuration
      */
-    body: SearchprovidersUpdateRequest;
+    body: GithubComMemohaiMemohInternalSearchprovidersUpdateRequest;
     path: {
         /**
          * Provider ID
@@ -8152,11 +8255,11 @@ export type PutSearchProvidersByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutSearchProvidersByIdError = PutSearchProvidersByIdErrors[keyof PutSearchProvidersByIdErrors];
@@ -8165,7 +8268,7 @@ export type PutSearchProvidersByIdResponses = {
     /**
      * OK
      */
-    200: SearchprovidersGetResponse;
+    200: GithubComMemohaiMemohInternalSearchprovidersGetResponse;
 };
 
 export type PutSearchProvidersByIdResponse = PutSearchProvidersByIdResponses[keyof PutSearchProvidersByIdResponses];
@@ -8181,7 +8284,7 @@ export type GetSpeechModelsErrors = {
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetSpeechModelsError = GetSpeechModelsErrors[keyof GetSpeechModelsErrors];
@@ -8190,7 +8293,7 @@ export type GetSpeechModelsResponses = {
     /**
      * OK
      */
-    200: Array<TtsSpeechModelResponse>;
+    200: Array<GithubComMemohaiMemohInternalTtsSpeechModelResponse>;
 };
 
 export type GetSpeechModelsResponse = GetSpeechModelsResponses[keyof GetSpeechModelsResponses];
@@ -8211,7 +8314,7 @@ export type GetSpeechModelsByIdErrors = {
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
 };
 
 export type GetSpeechModelsByIdError = GetSpeechModelsByIdErrors[keyof GetSpeechModelsByIdErrors];
@@ -8220,7 +8323,7 @@ export type GetSpeechModelsByIdResponses = {
     /**
      * OK
      */
-    200: TtsSpeechModelResponse;
+    200: GithubComMemohaiMemohInternalTtsSpeechModelResponse;
 };
 
 export type GetSpeechModelsByIdResponse = GetSpeechModelsByIdResponses[keyof GetSpeechModelsByIdResponses];
@@ -8241,7 +8344,7 @@ export type GetSpeechModelsByIdCapabilitiesErrors = {
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
 };
 
 export type GetSpeechModelsByIdCapabilitiesError = GetSpeechModelsByIdCapabilitiesErrors[keyof GetSpeechModelsByIdCapabilitiesErrors];
@@ -8250,7 +8353,7 @@ export type GetSpeechModelsByIdCapabilitiesResponses = {
     /**
      * OK
      */
-    200: TtsModelCapabilities;
+    200: GithubComMemohaiMemohInternalTtsModelCapabilities;
 };
 
 export type GetSpeechModelsByIdCapabilitiesResponse = GetSpeechModelsByIdCapabilitiesResponses[keyof GetSpeechModelsByIdCapabilitiesResponses];
@@ -8259,7 +8362,7 @@ export type PostSpeechModelsByIdTestData = {
     /**
      * Text to synthesize
      */
-    body: TtsTestSynthesizeRequest;
+    body: GithubComMemohaiMemohInternalTtsTestSynthesizeRequest;
     path: {
         /**
          * Model ID
@@ -8274,11 +8377,11 @@ export type PostSpeechModelsByIdTestErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostSpeechModelsByIdTestError = PostSpeechModelsByIdTestErrors[keyof PostSpeechModelsByIdTestErrors];
@@ -8301,7 +8404,7 @@ export type GetSpeechProvidersErrors = {
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetSpeechProvidersError = GetSpeechProvidersErrors[keyof GetSpeechProvidersErrors];
@@ -8310,7 +8413,7 @@ export type GetSpeechProvidersResponses = {
     /**
      * OK
      */
-    200: Array<TtsSpeechProviderResponse>;
+    200: Array<GithubComMemohaiMemohInternalTtsSpeechProviderResponse>;
 };
 
 export type GetSpeechProvidersResponse = GetSpeechProvidersResponses[keyof GetSpeechProvidersResponses];
@@ -8326,7 +8429,7 @@ export type GetSpeechProvidersMetaResponses = {
     /**
      * OK
      */
-    200: Array<TtsProviderMetaResponse>;
+    200: Array<GithubComMemohaiMemohInternalTtsProviderMetaResponse>;
 };
 
 export type GetSpeechProvidersMetaResponse = GetSpeechProvidersMetaResponses[keyof GetSpeechProvidersMetaResponses];
@@ -8363,7 +8466,7 @@ export type GetSupermarketMcpsErrors = {
     /**
      * Bad Gateway
      */
-    502: HandlersErrorResponse;
+    502: InternalHandlersErrorResponse;
 };
 
 export type GetSupermarketMcpsError = GetSupermarketMcpsErrors[keyof GetSupermarketMcpsErrors];
@@ -8372,7 +8475,7 @@ export type GetSupermarketMcpsResponses = {
     /**
      * OK
      */
-    200: HandlersSupermarketMcpListResponse;
+    200: InternalHandlersSupermarketMcpListResponse;
 };
 
 export type GetSupermarketMcpsResponse = GetSupermarketMcpsResponses[keyof GetSupermarketMcpsResponses];
@@ -8393,11 +8496,11 @@ export type GetSupermarketMcpsByIdErrors = {
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Bad Gateway
      */
-    502: HandlersErrorResponse;
+    502: InternalHandlersErrorResponse;
 };
 
 export type GetSupermarketMcpsByIdError = GetSupermarketMcpsByIdErrors[keyof GetSupermarketMcpsByIdErrors];
@@ -8406,7 +8509,7 @@ export type GetSupermarketMcpsByIdResponses = {
     /**
      * OK
      */
-    200: HandlersSupermarketMcpEntry;
+    200: InternalHandlersSupermarketMcpEntry;
 };
 
 export type GetSupermarketMcpsByIdResponse = GetSupermarketMcpsByIdResponses[keyof GetSupermarketMcpsByIdResponses];
@@ -8439,7 +8542,7 @@ export type GetSupermarketSkillsErrors = {
     /**
      * Bad Gateway
      */
-    502: HandlersErrorResponse;
+    502: InternalHandlersErrorResponse;
 };
 
 export type GetSupermarketSkillsError = GetSupermarketSkillsErrors[keyof GetSupermarketSkillsErrors];
@@ -8448,7 +8551,7 @@ export type GetSupermarketSkillsResponses = {
     /**
      * OK
      */
-    200: HandlersSupermarketSkillListResponse;
+    200: InternalHandlersSupermarketSkillListResponse;
 };
 
 export type GetSupermarketSkillsResponse = GetSupermarketSkillsResponses[keyof GetSupermarketSkillsResponses];
@@ -8469,11 +8572,11 @@ export type GetSupermarketSkillsByIdErrors = {
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Bad Gateway
      */
-    502: HandlersErrorResponse;
+    502: InternalHandlersErrorResponse;
 };
 
 export type GetSupermarketSkillsByIdError = GetSupermarketSkillsByIdErrors[keyof GetSupermarketSkillsByIdErrors];
@@ -8482,7 +8585,7 @@ export type GetSupermarketSkillsByIdResponses = {
     /**
      * OK
      */
-    200: HandlersSupermarketSkillEntry;
+    200: InternalHandlersSupermarketSkillEntry;
 };
 
 export type GetSupermarketSkillsByIdResponse = GetSupermarketSkillsByIdResponses[keyof GetSupermarketSkillsByIdResponses];
@@ -8498,7 +8601,7 @@ export type GetSupermarketTagsErrors = {
     /**
      * Bad Gateway
      */
-    502: HandlersErrorResponse;
+    502: InternalHandlersErrorResponse;
 };
 
 export type GetSupermarketTagsError = GetSupermarketTagsErrors[keyof GetSupermarketTagsErrors];
@@ -8507,7 +8610,7 @@ export type GetSupermarketTagsResponses = {
     /**
      * OK
      */
-    200: HandlersSupermarketTagsResponse;
+    200: InternalHandlersSupermarketTagsResponse;
 };
 
 export type GetSupermarketTagsResponse = GetSupermarketTagsResponses[keyof GetSupermarketTagsResponses];
@@ -8523,15 +8626,15 @@ export type GetUsersErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetUsersError = GetUsersErrors[keyof GetUsersErrors];
@@ -8540,7 +8643,7 @@ export type GetUsersResponses = {
     /**
      * OK
      */
-    200: AccountsListAccountsResponse;
+    200: GithubComMemohaiMemohInternalAccountsListAccountsResponse;
 };
 
 export type GetUsersResponse = GetUsersResponses[keyof GetUsersResponses];
@@ -8549,7 +8652,7 @@ export type PostUsersData = {
     /**
      * User payload
      */
-    body: AccountsCreateAccountRequest;
+    body: GithubComMemohaiMemohInternalAccountsCreateAccountRequest;
     path?: never;
     query?: never;
     url: '/users';
@@ -8559,15 +8662,15 @@ export type PostUsersErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PostUsersError = PostUsersErrors[keyof PostUsersErrors];
@@ -8576,7 +8679,7 @@ export type PostUsersResponses = {
     /**
      * Created
      */
-    201: AccountsAccount;
+    201: GithubComMemohaiMemohInternalAccountsAccount;
 };
 
 export type PostUsersResponse = PostUsersResponses[keyof PostUsersResponses];
@@ -8592,11 +8695,11 @@ export type GetUsersMeErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetUsersMeError = GetUsersMeErrors[keyof GetUsersMeErrors];
@@ -8605,7 +8708,7 @@ export type GetUsersMeResponses = {
     /**
      * OK
      */
-    200: AccountsAccount;
+    200: GithubComMemohaiMemohInternalAccountsAccount;
 };
 
 export type GetUsersMeResponse = GetUsersMeResponses[keyof GetUsersMeResponses];
@@ -8614,7 +8717,7 @@ export type PutUsersMeData = {
     /**
      * Profile payload
      */
-    body: AccountsUpdateProfileRequest;
+    body: GithubComMemohaiMemohInternalAccountsUpdateProfileRequest;
     path?: never;
     query?: never;
     url: '/users/me';
@@ -8624,11 +8727,11 @@ export type PutUsersMeErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutUsersMeError = PutUsersMeErrors[keyof PutUsersMeErrors];
@@ -8637,7 +8740,7 @@ export type PutUsersMeResponses = {
     /**
      * OK
      */
-    200: AccountsAccount;
+    200: GithubComMemohaiMemohInternalAccountsAccount;
 };
 
 export type PutUsersMeResponse = PutUsersMeResponses[keyof PutUsersMeResponses];
@@ -8658,15 +8761,15 @@ export type GetUsersMeChannelsByPlatformErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetUsersMeChannelsByPlatformError = GetUsersMeChannelsByPlatformErrors[keyof GetUsersMeChannelsByPlatformErrors];
@@ -8675,7 +8778,7 @@ export type GetUsersMeChannelsByPlatformResponses = {
     /**
      * OK
      */
-    200: ChannelChannelIdentityBinding;
+    200: GithubComMemohaiMemohInternalChannelChannelIdentityBinding;
 };
 
 export type GetUsersMeChannelsByPlatformResponse = GetUsersMeChannelsByPlatformResponses[keyof GetUsersMeChannelsByPlatformResponses];
@@ -8684,7 +8787,7 @@ export type PutUsersMeChannelsByPlatformData = {
     /**
      * Channel user config payload
      */
-    body: ChannelUpsertChannelIdentityConfigRequest;
+    body: GithubComMemohaiMemohInternalChannelUpsertChannelIdentityConfigRequest;
     path: {
         /**
          * Channel platform
@@ -8699,11 +8802,11 @@ export type PutUsersMeChannelsByPlatformErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutUsersMeChannelsByPlatformError = PutUsersMeChannelsByPlatformErrors[keyof PutUsersMeChannelsByPlatformErrors];
@@ -8712,7 +8815,7 @@ export type PutUsersMeChannelsByPlatformResponses = {
     /**
      * OK
      */
-    200: ChannelChannelIdentityBinding;
+    200: GithubComMemohaiMemohInternalChannelChannelIdentityBinding;
 };
 
 export type PutUsersMeChannelsByPlatformResponse = PutUsersMeChannelsByPlatformResponses[keyof PutUsersMeChannelsByPlatformResponses];
@@ -8728,15 +8831,15 @@ export type GetUsersMeIdentitiesErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetUsersMeIdentitiesError = GetUsersMeIdentitiesErrors[keyof GetUsersMeIdentitiesErrors];
@@ -8745,7 +8848,7 @@ export type GetUsersMeIdentitiesResponses = {
     /**
      * OK
      */
-    200: HandlersListMyIdentitiesResponse;
+    200: InternalHandlersListMyIdentitiesResponse;
 };
 
 export type GetUsersMeIdentitiesResponse = GetUsersMeIdentitiesResponses[keyof GetUsersMeIdentitiesResponses];
@@ -8754,7 +8857,7 @@ export type PutUsersMePasswordData = {
     /**
      * Password payload
      */
-    body: AccountsUpdatePasswordRequest;
+    body: GithubComMemohaiMemohInternalAccountsUpdatePasswordRequest;
     path?: never;
     query?: never;
     url: '/users/me/password';
@@ -8764,11 +8867,11 @@ export type PutUsersMePasswordErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutUsersMePasswordError = PutUsersMePasswordErrors[keyof PutUsersMePasswordErrors];
@@ -8796,19 +8899,19 @@ export type GetUsersByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type GetUsersByIdError = GetUsersByIdErrors[keyof GetUsersByIdErrors];
@@ -8817,7 +8920,7 @@ export type GetUsersByIdResponses = {
     /**
      * OK
      */
-    200: AccountsAccount;
+    200: GithubComMemohaiMemohInternalAccountsAccount;
 };
 
 export type GetUsersByIdResponse = GetUsersByIdResponses[keyof GetUsersByIdResponses];
@@ -8826,7 +8929,7 @@ export type PutUsersByIdData = {
     /**
      * User update payload
      */
-    body: AccountsUpdateAccountRequest;
+    body: GithubComMemohaiMemohInternalAccountsUpdateAccountRequest;
     path: {
         /**
          * User ID
@@ -8841,19 +8944,19 @@ export type PutUsersByIdErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutUsersByIdError = PutUsersByIdErrors[keyof PutUsersByIdErrors];
@@ -8862,7 +8965,7 @@ export type PutUsersByIdResponses = {
     /**
      * OK
      */
-    200: AccountsAccount;
+    200: GithubComMemohaiMemohInternalAccountsAccount;
 };
 
 export type PutUsersByIdResponse = PutUsersByIdResponses[keyof PutUsersByIdResponses];
@@ -8871,7 +8974,7 @@ export type PutUsersByIdPasswordData = {
     /**
      * Password payload
      */
-    body: AccountsResetPasswordRequest;
+    body: GithubComMemohaiMemohInternalAccountsResetPasswordRequest;
     path: {
         /**
          * User ID
@@ -8886,19 +8989,19 @@ export type PutUsersByIdPasswordErrors = {
     /**
      * Bad Request
      */
-    400: HandlersErrorResponse;
+    400: InternalHandlersErrorResponse;
     /**
      * Forbidden
      */
-    403: HandlersErrorResponse;
+    403: InternalHandlersErrorResponse;
     /**
      * Not Found
      */
-    404: HandlersErrorResponse;
+    404: InternalHandlersErrorResponse;
     /**
      * Internal Server Error
      */
-    500: HandlersErrorResponse;
+    500: InternalHandlersErrorResponse;
 };
 
 export type PutUsersByIdPasswordError = PutUsersByIdPasswordErrors[keyof PutUsersByIdPasswordErrors];

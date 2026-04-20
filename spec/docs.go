@@ -29,7 +29,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.LoginRequest"
+                            "$ref": "#/definitions/internal_handlers.LoginRequest"
                         }
                     }
                 ],
@@ -37,25 +37,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.LoginResponse"
+                            "$ref": "#/definitions/internal_handlers.LoginResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -77,19 +77,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.RefreshResponse"
+                            "$ref": "#/definitions/internal_handlers.RefreshResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -114,25 +114,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/bots.ListBotsResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_bots.ListBotsResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -150,7 +150,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/bots.CreateBotRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_bots.CreateBotRequest"
                         }
                     }
                 ],
@@ -158,25 +158,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/bots.Bot"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_bots.Bot"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -214,25 +214,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/acl.ChannelIdentityCandidateListResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_acl.ChannelIdentityCandidateListResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -265,25 +265,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/acl.ObservedConversationCandidateListResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_acl.ObservedConversationCandidateListResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -316,25 +316,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/acl.ObservedConversationCandidateListResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_acl.ObservedConversationCandidateListResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -360,25 +360,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/acl.DefaultEffectResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_acl.DefaultEffectResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -403,7 +403,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/acl.DefaultEffectResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_acl.DefaultEffectResponse"
                         }
                     }
                 ],
@@ -414,19 +414,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -452,25 +452,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/acl.ListRulesResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_acl.ListRulesResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -495,7 +495,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/acl.CreateRuleRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_acl.CreateRuleRequest"
                         }
                     }
                 ],
@@ -503,25 +503,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/acl.Rule"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_acl.Rule"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -548,7 +548,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/acl.ReorderRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_acl.ReorderRequest"
                         }
                     }
                 ],
@@ -559,19 +559,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -605,7 +605,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/acl.UpdateRuleRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_acl.UpdateRuleRequest"
                         }
                     }
                 ],
@@ -613,25 +613,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/acl.Rule"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_acl.Rule"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -665,19 +665,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -717,19 +717,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/compaction.ListLogsResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_compaction.ListLogsResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -756,13 +756,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -787,19 +787,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.GetContainerResponse"
+                            "$ref": "#/definitions/internal_handlers.GetContainerResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -823,7 +823,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.CreateContainerRequest"
+                            "$ref": "#/definitions/internal_handlers.CreateContainerRequest"
                         }
                     }
                 ],
@@ -831,19 +831,19 @@ const docTemplate = `{
                     "200": {
                         "description": "SSE stream of container creation events",
                         "schema": {
-                            "$ref": "#/definitions/handlers.CreateContainerResponse"
+                            "$ref": "#/definitions/internal_handlers.CreateContainerResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -875,13 +875,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -915,7 +915,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -956,13 +956,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -993,13 +993,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -1032,31 +1032,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.FSFileInfo"
+                            "$ref": "#/definitions/internal_handlers.FSFileInfo"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -1083,7 +1083,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.FSDeleteRequest"
+                            "$ref": "#/definitions/internal_handlers.FSDeleteRequest"
                         }
                     }
                 ],
@@ -1091,31 +1091,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.fsOpResponse"
+                            "$ref": "#/definitions/internal_handlers.fsOpResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -1157,19 +1157,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -1202,25 +1202,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.FSListResponse"
+                            "$ref": "#/definitions/internal_handlers.FSListResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -1247,7 +1247,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.FSMkdirRequest"
+                            "$ref": "#/definitions/internal_handlers.FSMkdirRequest"
                         }
                     }
                 ],
@@ -1255,25 +1255,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.fsOpResponse"
+                            "$ref": "#/definitions/internal_handlers.fsOpResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -1306,25 +1306,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.FSReadResponse"
+                            "$ref": "#/definitions/internal_handlers.FSReadResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -1351,7 +1351,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.FSRenameRequest"
+                            "$ref": "#/definitions/internal_handlers.FSRenameRequest"
                         }
                     }
                 ],
@@ -1359,31 +1359,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.fsOpResponse"
+                            "$ref": "#/definitions/internal_handlers.fsOpResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -1426,25 +1426,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.FSUploadResponse"
+                            "$ref": "#/definitions/internal_handlers.FSUploadResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -1471,7 +1471,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.FSWriteRequest"
+                            "$ref": "#/definitions/internal_handlers.FSWriteRequest"
                         }
                     }
                 ],
@@ -1479,25 +1479,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.fsOpResponse"
+                            "$ref": "#/definitions/internal_handlers.fsOpResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -1522,25 +1522,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.SkillsResponse"
+                            "$ref": "#/definitions/internal_handlers.SkillsResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -1564,7 +1564,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.SkillsUpsertRequest"
+                            "$ref": "#/definitions/internal_handlers.SkillsUpsertRequest"
                         }
                     }
                 ],
@@ -1572,25 +1572,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.skillsOpResponse"
+                            "$ref": "#/definitions/internal_handlers.skillsOpResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -1614,7 +1614,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.SkillsDeleteRequest"
+                            "$ref": "#/definitions/internal_handlers.SkillsDeleteRequest"
                         }
                     }
                 ],
@@ -1622,25 +1622,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.skillsOpResponse"
+                            "$ref": "#/definitions/internal_handlers.skillsOpResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -1666,7 +1666,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.SkillsActionRequest"
+                            "$ref": "#/definitions/internal_handlers.SkillsActionRequest"
                         }
                     }
                 ],
@@ -1674,25 +1674,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.skillsOpResponse"
+                            "$ref": "#/definitions/internal_handlers.skillsOpResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -1723,13 +1723,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ListSnapshotsResponse"
+                            "$ref": "#/definitions/internal_handlers.ListSnapshotsResponse"
                         }
                     },
                     "501": {
                         "description": "Snapshots currently not supported on this backend",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -1753,7 +1753,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.CreateSnapshotRequest"
+                            "$ref": "#/definitions/internal_handlers.CreateSnapshotRequest"
                         }
                     }
                 ],
@@ -1761,25 +1761,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.CreateSnapshotResponse"
+                            "$ref": "#/definitions/internal_handlers.CreateSnapshotResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "501": {
                         "description": "Snapshots currently not supported on this backend",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -1805,7 +1805,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.RollbackRequest"
+                            "$ref": "#/definitions/internal_handlers.RollbackRequest"
                         }
                     }
                 ],
@@ -1819,13 +1819,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -1856,13 +1856,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -1893,13 +1893,13 @@ const docTemplate = `{
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -1924,13 +1924,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.terminalInfoResponse"
+                            "$ref": "#/definitions/internal_handlers.terminalInfoResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -1978,13 +1978,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -2014,14 +2014,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/email.BindingResponse"
+                                "$ref": "#/definitions/github_com_memohai_memoh_internal_email.BindingResponse"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -2051,7 +2051,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/email.CreateBindingRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_email.CreateBindingRequest"
                         }
                     }
                 ],
@@ -2059,19 +2059,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/email.BindingResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_email.BindingResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -2110,7 +2110,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/email.UpdateBindingRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_email.UpdateBindingRequest"
                         }
                     }
                 ],
@@ -2118,19 +2118,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/email.BindingResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_email.BindingResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -2163,7 +2163,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -2212,7 +2212,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -2247,13 +2247,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/email.OutboxItemResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_email.OutboxItemResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -2293,19 +2293,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/heartbeat.ListLogsResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_heartbeat.ListLogsResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -2332,13 +2332,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -2371,7 +2371,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.LocalChannelMessageRequest"
+                            "$ref": "#/definitions/internal_handlers.LocalChannelMessageRequest"
                         }
                     }
                 ],
@@ -2388,19 +2388,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -2435,19 +2435,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -2479,19 +2479,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -2508,31 +2508,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/mcp.ListResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_mcp.ListResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -2550,7 +2550,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/mcp.UpsertRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_mcp.UpsertRequest"
                         }
                     }
                 ],
@@ -2564,25 +2564,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -2602,7 +2602,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.BatchDeleteRequest"
+                            "$ref": "#/definitions/internal_handlers.BatchDeleteRequest"
                         }
                     }
                 ],
@@ -2613,19 +2613,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -2652,7 +2652,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.MCPStdioRequest"
+                            "$ref": "#/definitions/internal_handlers.MCPStdioRequest"
                         }
                     }
                 ],
@@ -2660,25 +2660,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.MCPStdioResponse"
+                            "$ref": "#/definitions/internal_handlers.MCPStdioResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -2726,19 +2726,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -2755,25 +2755,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/mcp.ExportResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_mcp.ExportResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -2793,7 +2793,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/mcp.ImportRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_mcp.ImportRequest"
                         }
                     }
                 ],
@@ -2801,25 +2801,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/mcp.ListResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_mcp.ListResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -2851,25 +2851,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -2894,7 +2894,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/mcp.UpsertRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_mcp.UpsertRequest"
                         }
                     }
                 ],
@@ -2908,25 +2908,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -2953,25 +2953,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -2997,7 +2997,7 @@ const docTemplate = `{
                         "name": "payload",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/handlers.oauthAuthorizeRequest"
+                            "$ref": "#/definitions/internal_handlers.oauthAuthorizeRequest"
                         }
                     }
                 ],
@@ -3005,19 +3005,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/mcp.AuthorizeResult"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_mcp.AuthorizeResult"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -3043,7 +3043,7 @@ const docTemplate = `{
                         "name": "payload",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/handlers.oauthDiscoverRequest"
+                            "$ref": "#/definitions/internal_handlers.oauthDiscoverRequest"
                         }
                     }
                 ],
@@ -3051,19 +3051,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/mcp.DiscoveryResult"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_mcp.DiscoveryResult"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -3083,7 +3083,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.oauthExchangeRequest"
+                            "$ref": "#/definitions/internal_handlers.oauthExchangeRequest"
                         }
                     }
                 ],
@@ -3100,7 +3100,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -3126,19 +3126,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/mcp.OAuthStatus"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_mcp.OAuthStatus"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -3167,7 +3167,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -3193,31 +3193,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ProbeResponse"
+                            "$ref": "#/definitions/internal_handlers.ProbeResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -3252,31 +3252,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/adapters.SearchResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.SearchResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "503": {
                         "description": "Service Unavailable",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -3307,7 +3307,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.memoryAddPayload"
+                            "$ref": "#/definitions/internal_handlers.memoryAddPayload"
                         }
                     }
                 ],
@@ -3315,31 +3315,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/adapters.SearchResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.SearchResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "503": {
                         "description": "Service Unavailable",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -3369,7 +3369,7 @@ const docTemplate = `{
                         "name": "payload",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/handlers.memoryDeletePayload"
+                            "$ref": "#/definitions/internal_handlers.memoryDeletePayload"
                         }
                     }
                 ],
@@ -3377,31 +3377,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/adapters.DeleteResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.DeleteResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "503": {
                         "description": "Service Unavailable",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -3434,7 +3434,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.memoryCompactPayload"
+                            "$ref": "#/definitions/internal_handlers.memoryCompactPayload"
                         }
                     }
                 ],
@@ -3442,31 +3442,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/adapters.CompactResult"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.CompactResult"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "503": {
                         "description": "Service Unavailable",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -3495,37 +3495,37 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/adapters.RebuildResult"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.RebuildResult"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "503": {
                         "description": "Service Unavailable",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -3558,7 +3558,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.memorySearchPayload"
+                            "$ref": "#/definitions/internal_handlers.memorySearchPayload"
                         }
                     }
                 ],
@@ -3566,37 +3566,37 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/adapters.SearchResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.SearchResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "503": {
                         "description": "Service Unavailable",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -3625,37 +3625,37 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/adapters.MemoryStatusResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.MemoryStatusResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "503": {
                         "description": "Service Unavailable",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -3684,31 +3684,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/adapters.UsageResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.UsageResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "503": {
                         "description": "Service Unavailable",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -3744,31 +3744,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/adapters.DeleteResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.DeleteResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "503": {
                         "description": "Service Unavailable",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -3813,7 +3813,7 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "array",
                                 "items": {
-                                    "$ref": "#/definitions/message.Message"
+                                    "$ref": "#/definitions/github_com_memohai_memoh_internal_message.Message"
                                 }
                             }
                         }
@@ -3821,19 +3821,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -3863,19 +3863,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -3892,19 +3892,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/schedule.ListResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_schedule.ListResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -3922,7 +3922,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/schedule.CreateRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_schedule.CreateRequest"
                         }
                     }
                 ],
@@ -3930,19 +3930,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/schedule.Schedule"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_schedule.Schedule"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -3982,19 +3982,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/schedule.ListLogsResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_schedule.ListLogsResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -4021,13 +4021,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -4053,25 +4053,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/schedule.Schedule"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_schedule.Schedule"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -4096,7 +4096,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/schedule.UpdateRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_schedule.UpdateRequest"
                         }
                     }
                 ],
@@ -4104,19 +4104,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/schedule.Schedule"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_schedule.Schedule"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -4143,13 +4143,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -4196,19 +4196,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/schedule.ListLogsResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_schedule.ListLogsResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -4237,7 +4237,7 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "array",
                                 "items": {
-                                    "$ref": "#/definitions/session.Session"
+                                    "$ref": "#/definitions/github_com_memohai_memoh_internal_session.Session"
                                 }
                             }
                         }
@@ -4245,13 +4245,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -4275,7 +4275,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.createSessionRequest"
+                            "$ref": "#/definitions/internal_handlers.createSessionRequest"
                         }
                     }
                 ],
@@ -4283,19 +4283,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/session.Session"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_session.Session"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -4327,25 +4327,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/session.Session"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_session.Session"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -4378,13 +4378,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -4415,7 +4415,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.updateSessionRequest"
+                            "$ref": "#/definitions/internal_handlers.updateSessionRequest"
                         }
                     }
                 ],
@@ -4423,25 +4423,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/session.Session"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_session.Session"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -4474,19 +4474,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.TriggerCompactResponse"
+                            "$ref": "#/definitions/internal_handlers.TriggerCompactResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -4525,25 +4525,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.SessionInfoResponse"
+                            "$ref": "#/definitions/internal_handlers.SessionInfoResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -4560,19 +4560,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/settings.Settings"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_settings.Settings"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -4590,7 +4590,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/settings.UpsertRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_settings.UpsertRequest"
                         }
                     }
                 ],
@@ -4598,19 +4598,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/settings.Settings"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_settings.Settings"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -4628,7 +4628,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/settings.UpsertRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_settings.UpsertRequest"
                         }
                     }
                 ],
@@ -4636,19 +4636,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/settings.Settings"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_settings.Settings"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -4666,13 +4666,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -4698,7 +4698,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.InstallMcpRequest"
+                            "$ref": "#/definitions/internal_handlers.InstallMcpRequest"
                         }
                     }
                 ],
@@ -4712,19 +4712,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "502": {
                         "description": "Bad Gateway",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -4750,7 +4750,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.InstallSkillRequest"
+                            "$ref": "#/definitions/internal_handlers.InstallSkillRequest"
                         }
                     }
                 ],
@@ -4767,19 +4767,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "502": {
                         "description": "Bad Gateway",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -4825,25 +4825,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.TokenUsageResponse"
+                            "$ref": "#/definitions/internal_handlers.TokenUsageResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -4884,19 +4884,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -4929,7 +4929,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.synthesizeRequest"
+                            "$ref": "#/definitions/internal_handlers.synthesizeRequest"
                         }
                     }
                 ],
@@ -4937,19 +4937,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.synthesizeResponse"
+                            "$ref": "#/definitions/internal_handlers.synthesizeResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -4975,31 +4975,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/bots.Bot"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_bots.Bot"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -5024,7 +5024,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/bots.UpdateBotRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_bots.UpdateBotRequest"
                         }
                     }
                 ],
@@ -5032,31 +5032,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/bots.Bot"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_bots.Bot"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -5089,25 +5089,113 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/bots/{id}/channel/weixin/qr/poll": {
+            "post": {
+                "description": "Long-poll the QR code scan status. On confirmed, auto-saves credentials.",
+                "tags": [
+                    "bots"
+                ],
+                "summary": "Poll WeChat QR login status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bot ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "QR code to poll",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/weixin.QRPollRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/weixin.QRPollResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/bots/{id}/channel/weixin/qr/start": {
+            "post": {
+                "description": "Fetch a QR code from WeChat for scanning.",
+                "tags": [
+                    "bots"
+                ],
+                "summary": "Start WeChat QR login",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bot ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/weixin.QRStartResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -5140,31 +5228,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/channel.ChannelConfig"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.ChannelConfig"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -5196,7 +5284,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/channel.UpsertConfigRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.UpsertConfigRequest"
                         }
                     }
                 ],
@@ -5204,31 +5292,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/channel.ChannelConfig"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.ChannelConfig"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -5262,19 +5350,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -5308,7 +5396,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/channel.SendRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.SendRequest"
                         }
                     }
                 ],
@@ -5325,25 +5413,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -5377,7 +5465,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/channel.SendRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.SendRequest"
                         }
                     }
                 ],
@@ -5394,25 +5482,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -5446,7 +5534,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/channel.UpdateChannelStatusRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.UpdateChannelStatusRequest"
                         }
                     }
                 ],
@@ -5454,31 +5542,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/channel.ChannelConfig"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.ChannelConfig"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -5504,31 +5592,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/bots.ListChecksResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_bots.ListChecksResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -5555,7 +5643,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/bots.TransferBotRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_bots.TransferBotRequest"
                         }
                     }
                 ],
@@ -5563,31 +5651,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/bots.Bot"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_bots.Bot"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -5609,14 +5697,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/browsercontexts.BrowserContext"
+                                "$ref": "#/definitions/github_com_memohai_memoh_internal_browsercontexts.BrowserContext"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -5640,7 +5728,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/browsercontexts.CreateRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_browsercontexts.CreateRequest"
                         }
                     }
                 ],
@@ -5648,19 +5736,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/browsercontexts.BrowserContext"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_browsercontexts.BrowserContext"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -5680,13 +5768,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.BrowserCoresResponse"
+                            "$ref": "#/definitions/internal_handlers.BrowserCoresResponse"
                         }
                     },
                     "502": {
                         "description": "Bad Gateway",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -5715,19 +5803,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/browsercontexts.BrowserContext"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_browsercontexts.BrowserContext"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -5758,7 +5846,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/browsercontexts.UpdateRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_browsercontexts.UpdateRequest"
                         }
                     }
                 ],
@@ -5766,19 +5854,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/browsercontexts.BrowserContext"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_browsercontexts.BrowserContext"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -5805,13 +5893,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -5830,14 +5918,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/handlers.ChannelMeta"
+                                "$ref": "#/definitions/internal_handlers.ChannelMeta"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -5863,19 +5951,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ChannelMeta"
+                            "$ref": "#/definitions/internal_handlers.ChannelMeta"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -5904,14 +5992,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/email.ProviderResponse"
+                                "$ref": "#/definitions/github_com_memohai_memoh_internal_email.ProviderResponse"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -5934,7 +6022,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/email.CreateProviderRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_email.CreateProviderRequest"
                         }
                     }
                 ],
@@ -5942,19 +6030,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/email.ProviderResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_email.ProviderResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -5973,7 +6061,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/email.ProviderMeta"
+                                "$ref": "#/definitions/github_com_memohai_memoh_internal_email.ProviderMeta"
                             }
                         }
                     }
@@ -6002,13 +6090,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/email.ProviderResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_email.ProviderResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6038,7 +6126,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/email.UpdateProviderRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_email.UpdateProviderRequest"
                         }
                     }
                 ],
@@ -6046,19 +6134,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/email.ProviderResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_email.ProviderResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6084,7 +6172,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6119,13 +6207,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6150,19 +6238,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.emailOAuthStatusResponse"
+                            "$ref": "#/definitions/internal_handlers.emailOAuthStatusResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6190,13 +6278,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6231,19 +6319,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6285,13 +6373,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6313,14 +6401,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/adapters.ProviderGetResponse"
+                                "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.ProviderGetResponse"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6344,7 +6432,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/adapters.ProviderCreateRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.ProviderCreateRequest"
                         }
                     }
                 ],
@@ -6352,19 +6440,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/adapters.ProviderGetResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.ProviderGetResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6383,7 +6471,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/adapters.ProviderMeta"
+                                "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.ProviderMeta"
                             }
                         }
                     }
@@ -6413,19 +6501,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/adapters.ProviderGetResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.ProviderGetResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6456,7 +6544,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/adapters.ProviderUpdateRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.ProviderUpdateRequest"
                         }
                     }
                 ],
@@ -6464,19 +6552,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/adapters.ProviderGetResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.ProviderGetResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6503,13 +6591,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6538,25 +6626,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/adapters.ProviderStatusResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.ProviderStatusResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6589,20 +6677,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.GetResponse"
+                                "$ref": "#/definitions/github_com_memohai_memoh_internal_models.GetResponse"
                             }
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6620,7 +6708,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.AddRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_models.AddRequest"
                         }
                     }
                 ],
@@ -6628,19 +6716,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/models.AddResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_models.AddResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6665,19 +6753,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.CountResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_models.CountResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6703,25 +6791,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.GetResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_models.GetResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6746,7 +6834,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.UpdateRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_models.UpdateRequest"
                         }
                     }
                 ],
@@ -6754,25 +6842,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.GetResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_models.GetResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6799,19 +6887,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6837,25 +6925,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.GetResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_models.GetResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6880,7 +6968,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.UpdateRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_models.UpdateRequest"
                         }
                     }
                 ],
@@ -6888,25 +6976,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.GetResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_models.GetResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6933,19 +7021,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -6977,25 +7065,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.TestResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_models.TestResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7011,7 +7099,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.PingResponse"
+                            "$ref": "#/definitions/internal_handlers.PingResponse"
                         }
                     }
                 }
@@ -7036,14 +7124,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/providers.GetResponse"
+                                "$ref": "#/definitions/github_com_memohai_memoh_internal_providers.GetResponse"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7067,7 +7155,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/providers.CreateRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_providers.CreateRequest"
                         }
                     }
                 ],
@@ -7075,19 +7163,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/providers.GetResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_providers.GetResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7110,13 +7198,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/providers.CountResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_providers.CountResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7148,25 +7236,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/providers.GetResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_providers.GetResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7204,7 +7292,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7236,25 +7324,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/providers.GetResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_providers.GetResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7285,7 +7373,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/providers.UpdateRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_providers.UpdateRequest"
                         }
                     }
                 ],
@@ -7293,25 +7381,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/providers.GetResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_providers.GetResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7344,19 +7432,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7388,25 +7476,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/providers.ImportModelsResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_providers.ImportModelsResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7440,26 +7528,26 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.GetResponse"
+                                "$ref": "#/definitions/github_com_memohai_memoh_internal_models.GetResponse"
                             }
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7484,19 +7572,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/providers.OAuthAuthorizeResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_providers.OAuthAuthorizeResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7521,19 +7609,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/providers.OAuthStatus"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_providers.OAuthStatus"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7558,19 +7646,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/providers.OAuthStatus"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_providers.OAuthStatus"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7598,13 +7686,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7636,25 +7724,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/providers.TestResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_providers.TestResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7687,14 +7775,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/searchproviders.GetResponse"
+                                "$ref": "#/definitions/github_com_memohai_memoh_internal_searchproviders.GetResponse"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7718,7 +7806,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/searchproviders.CreateRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_searchproviders.CreateRequest"
                         }
                     }
                 ],
@@ -7726,19 +7814,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/searchproviders.GetResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_searchproviders.GetResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7757,7 +7845,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/searchproviders.ProviderMeta"
+                                "$ref": "#/definitions/github_com_memohai_memoh_internal_searchproviders.ProviderMeta"
                             }
                         }
                     }
@@ -7790,19 +7878,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/searchproviders.GetResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_searchproviders.GetResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7833,7 +7921,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/searchproviders.UpdateRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_searchproviders.UpdateRequest"
                         }
                     }
                 ],
@@ -7841,19 +7929,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/searchproviders.GetResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_searchproviders.GetResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7886,13 +7974,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7914,14 +8002,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/tts.SpeechModelResponse"
+                                "$ref": "#/definitions/github_com_memohai_memoh_internal_tts.SpeechModelResponse"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7949,13 +8037,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/tts.SpeechModelResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_tts.SpeechModelResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -7983,13 +8071,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/tts.ModelCapabilities"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_tts.ModelCapabilities"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -8022,7 +8110,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/tts.TestSynthesizeRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_tts.TestSynthesizeRequest"
                         }
                     }
                 ],
@@ -8036,13 +8124,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -8064,14 +8152,14 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/tts.SpeechProviderResponse"
+                                "$ref": "#/definitions/github_com_memohai_memoh_internal_tts.SpeechProviderResponse"
                             }
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -8090,7 +8178,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/tts.ProviderMetaResponse"
+                                "$ref": "#/definitions/github_com_memohai_memoh_internal_tts.ProviderMetaResponse"
                             }
                         }
                     }
@@ -8139,13 +8227,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.SupermarketMcpListResponse"
+                            "$ref": "#/definitions/internal_handlers.SupermarketMcpListResponse"
                         }
                     },
                     "502": {
                         "description": "Bad Gateway",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -8170,19 +8258,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.SupermarketMcpEntry"
+                            "$ref": "#/definitions/internal_handlers.SupermarketMcpEntry"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "502": {
                         "description": "Bad Gateway",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -8224,13 +8312,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.SupermarketSkillListResponse"
+                            "$ref": "#/definitions/internal_handlers.SupermarketSkillListResponse"
                         }
                     },
                     "502": {
                         "description": "Bad Gateway",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -8255,19 +8343,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.SupermarketSkillEntry"
+                            "$ref": "#/definitions/internal_handlers.SupermarketSkillEntry"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "502": {
                         "description": "Bad Gateway",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -8283,13 +8371,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.SupermarketTagsResponse"
+                            "$ref": "#/definitions/internal_handlers.SupermarketTagsResponse"
                         }
                     },
                     "502": {
                         "description": "Bad Gateway",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -8306,25 +8394,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/accounts.ListAccountsResponse"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_accounts.ListAccountsResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -8342,7 +8430,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/accounts.CreateAccountRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_accounts.CreateAccountRequest"
                         }
                     }
                 ],
@@ -8350,25 +8438,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/accounts.Account"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_accounts.Account"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -8385,19 +8473,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/accounts.Account"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_accounts.Account"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -8415,7 +8503,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/accounts.UpdateProfileRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_accounts.UpdateProfileRequest"
                         }
                     }
                 ],
@@ -8423,19 +8511,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/accounts.Account"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_accounts.Account"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -8461,25 +8549,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/channel.ChannelIdentityBinding"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.ChannelIdentityBinding"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -8504,7 +8592,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/channel.UpsertChannelIdentityConfigRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.UpsertChannelIdentityConfigRequest"
                         }
                     }
                 ],
@@ -8512,19 +8600,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/channel.ChannelIdentityBinding"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.ChannelIdentityBinding"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -8541,25 +8629,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/handlers.listMyIdentitiesResponse"
+                            "$ref": "#/definitions/internal_handlers.listMyIdentitiesResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -8579,7 +8667,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/accounts.UpdatePasswordRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_accounts.UpdatePasswordRequest"
                         }
                     }
                 ],
@@ -8590,13 +8678,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -8622,31 +8710,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/accounts.Account"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_accounts.Account"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -8671,7 +8759,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/accounts.UpdateAccountRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_accounts.UpdateAccountRequest"
                         }
                     }
                 ],
@@ -8679,31 +8767,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/accounts.Account"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_accounts.Account"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -8730,7 +8818,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/accounts.ResetPasswordRequest"
+                            "$ref": "#/definitions/github_com_memohai_memoh_internal_accounts.ResetPasswordRequest"
                         }
                     }
                 ],
@@ -8741,25 +8829,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
+                            "$ref": "#/definitions/internal_handlers.ErrorResponse"
                         }
                     }
                 }
@@ -8767,7 +8855,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "accounts.Account": {
+        "github_com_memohai_memoh_internal_accounts.Account": {
             "type": "object",
             "properties": {
                 "avatar_url": {
@@ -8805,7 +8893,7 @@ const docTemplate = `{
                 }
             }
         },
-        "accounts.CreateAccountRequest": {
+        "github_com_memohai_memoh_internal_accounts.CreateAccountRequest": {
             "type": "object",
             "properties": {
                 "avatar_url": {
@@ -8831,18 +8919,18 @@ const docTemplate = `{
                 }
             }
         },
-        "accounts.ListAccountsResponse": {
+        "github_com_memohai_memoh_internal_accounts.ListAccountsResponse": {
             "type": "object",
             "properties": {
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/accounts.Account"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_accounts.Account"
                     }
                 }
             }
         },
-        "accounts.ResetPasswordRequest": {
+        "github_com_memohai_memoh_internal_accounts.ResetPasswordRequest": {
             "type": "object",
             "properties": {
                 "new_password": {
@@ -8850,7 +8938,7 @@ const docTemplate = `{
                 }
             }
         },
-        "accounts.UpdateAccountRequest": {
+        "github_com_memohai_memoh_internal_accounts.UpdateAccountRequest": {
             "type": "object",
             "properties": {
                 "avatar_url": {
@@ -8867,7 +8955,7 @@ const docTemplate = `{
                 }
             }
         },
-        "accounts.UpdatePasswordRequest": {
+        "github_com_memohai_memoh_internal_accounts.UpdatePasswordRequest": {
             "type": "object",
             "properties": {
                 "current_password": {
@@ -8878,7 +8966,7 @@ const docTemplate = `{
                 }
             }
         },
-        "accounts.UpdateProfileRequest": {
+        "github_com_memohai_memoh_internal_accounts.UpdateProfileRequest": {
             "type": "object",
             "properties": {
                 "avatar_url": {
@@ -8892,7 +8980,7 @@ const docTemplate = `{
                 }
             }
         },
-        "acl.ChannelIdentityCandidate": {
+        "github_com_memohai_memoh_internal_acl.ChannelIdentityCandidate": {
             "type": "object",
             "properties": {
                 "avatar_url": {
@@ -8924,18 +9012,18 @@ const docTemplate = `{
                 }
             }
         },
-        "acl.ChannelIdentityCandidateListResponse": {
+        "github_com_memohai_memoh_internal_acl.ChannelIdentityCandidateListResponse": {
             "type": "object",
             "properties": {
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/acl.ChannelIdentityCandidate"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_acl.ChannelIdentityCandidate"
                     }
                 }
             }
         },
-        "acl.CreateRuleRequest": {
+        "github_com_memohai_memoh_internal_acl.CreateRuleRequest": {
             "type": "object",
             "properties": {
                 "channel_identity_id": {
@@ -8954,7 +9042,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "source_scope": {
-                    "$ref": "#/definitions/acl.SourceScope"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_acl.SourceScope"
                 },
                 "subject_channel_type": {
                     "type": "string"
@@ -8964,7 +9052,7 @@ const docTemplate = `{
                 }
             }
         },
-        "acl.DefaultEffectResponse": {
+        "github_com_memohai_memoh_internal_acl.DefaultEffectResponse": {
             "type": "object",
             "properties": {
                 "default_effect": {
@@ -8972,18 +9060,18 @@ const docTemplate = `{
                 }
             }
         },
-        "acl.ListRulesResponse": {
+        "github_com_memohai_memoh_internal_acl.ListRulesResponse": {
             "type": "object",
             "properties": {
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/acl.Rule"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_acl.Rule"
                     }
                 }
             }
         },
-        "acl.ObservedConversationCandidate": {
+        "github_com_memohai_memoh_internal_acl.ObservedConversationCandidate": {
             "type": "object",
             "properties": {
                 "channel": {
@@ -9009,18 +9097,18 @@ const docTemplate = `{
                 }
             }
         },
-        "acl.ObservedConversationCandidateListResponse": {
+        "github_com_memohai_memoh_internal_acl.ObservedConversationCandidateListResponse": {
             "type": "object",
             "properties": {
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/acl.ObservedConversationCandidate"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_acl.ObservedConversationCandidate"
                     }
                 }
             }
         },
-        "acl.ReorderItem": {
+        "github_com_memohai_memoh_internal_acl.ReorderItem": {
             "type": "object",
             "properties": {
                 "id": {
@@ -9031,18 +9119,18 @@ const docTemplate = `{
                 }
             }
         },
-        "acl.ReorderRequest": {
+        "github_com_memohai_memoh_internal_acl.ReorderRequest": {
             "type": "object",
             "properties": {
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/acl.ReorderItem"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_acl.ReorderItem"
                     }
                 }
             }
         },
-        "acl.Rule": {
+        "github_com_memohai_memoh_internal_acl.Rule": {
             "type": "object",
             "properties": {
                 "action": {
@@ -9097,7 +9185,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "source_scope": {
-                    "$ref": "#/definitions/acl.SourceScope"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_acl.SourceScope"
                 },
                 "subject_channel_type": {
                     "type": "string"
@@ -9110,7 +9198,7 @@ const docTemplate = `{
                 }
             }
         },
-        "acl.SourceScope": {
+        "github_com_memohai_memoh_internal_acl.SourceScope": {
             "type": "object",
             "properties": {
                 "conversation_id": {
@@ -9124,7 +9212,7 @@ const docTemplate = `{
                 }
             }
         },
-        "acl.UpdateRuleRequest": {
+        "github_com_memohai_memoh_internal_acl.UpdateRuleRequest": {
             "type": "object",
             "properties": {
                 "channel_identity_id": {
@@ -9143,7 +9231,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "source_scope": {
-                    "$ref": "#/definitions/acl.SourceScope"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_acl.SourceScope"
                 },
                 "subject_channel_type": {
                     "type": "string"
@@ -9153,368 +9241,7 @@ const docTemplate = `{
                 }
             }
         },
-        "adapters.CDFPoint": {
-            "type": "object",
-            "properties": {
-                "cumulative": {
-                    "description": "cumulative weight fraction [0.0, 1.0]",
-                    "type": "number"
-                },
-                "k": {
-                    "description": "rank position (1-based, sorted by value desc)",
-                    "type": "integer"
-                }
-            }
-        },
-        "adapters.CompactResult": {
-            "type": "object",
-            "properties": {
-                "after_count": {
-                    "type": "integer"
-                },
-                "before_count": {
-                    "type": "integer"
-                },
-                "ratio": {
-                    "type": "number"
-                },
-                "results": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/adapters.MemoryItem"
-                    }
-                }
-            }
-        },
-        "adapters.DeleteResponse": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "adapters.HealthStatus": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string"
-                },
-                "ok": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "adapters.MemoryItem": {
-            "type": "object",
-            "properties": {
-                "agent_id": {
-                    "type": "string"
-                },
-                "bot_id": {
-                    "type": "string"
-                },
-                "cdf_curve": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/adapters.CDFPoint"
-                    }
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "hash": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "memory": {
-                    "type": "string"
-                },
-                "metadata": {
-                    "type": "object",
-                    "additionalProperties": {}
-                },
-                "run_id": {
-                    "type": "string"
-                },
-                "score": {
-                    "type": "number"
-                },
-                "top_k_buckets": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/adapters.TopKBucket"
-                    }
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "adapters.MemoryStatusResponse": {
-            "type": "object",
-            "properties": {
-                "can_manual_sync": {
-                    "type": "boolean"
-                },
-                "encoder": {
-                    "$ref": "#/definitions/adapters.HealthStatus"
-                },
-                "indexed_count": {
-                    "type": "integer"
-                },
-                "markdown_file_count": {
-                    "type": "integer"
-                },
-                "memory_mode": {
-                    "type": "string"
-                },
-                "overview_path": {
-                    "type": "string"
-                },
-                "provider_type": {
-                    "type": "string"
-                },
-                "qdrant": {
-                    "$ref": "#/definitions/adapters.HealthStatus"
-                },
-                "qdrant_collection": {
-                    "type": "string"
-                },
-                "source_count": {
-                    "type": "integer"
-                },
-                "source_dir": {
-                    "type": "string"
-                }
-            }
-        },
-        "adapters.Message": {
-            "type": "object",
-            "properties": {
-                "content": {
-                    "type": "string"
-                },
-                "role": {
-                    "type": "string"
-                }
-            }
-        },
-        "adapters.ProviderCollectionStatus": {
-            "type": "object",
-            "properties": {
-                "exists": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "points": {
-                    "type": "integer"
-                },
-                "qdrant": {
-                    "$ref": "#/definitions/adapters.HealthStatus"
-                }
-            }
-        },
-        "adapters.ProviderConfigSchema": {
-            "type": "object",
-            "properties": {
-                "fields": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "$ref": "#/definitions/adapters.ProviderFieldSchema"
-                    }
-                }
-            }
-        },
-        "adapters.ProviderCreateRequest": {
-            "type": "object",
-            "properties": {
-                "config": {
-                    "type": "object",
-                    "additionalProperties": {}
-                },
-                "name": {
-                    "type": "string"
-                },
-                "provider": {
-                    "$ref": "#/definitions/adapters.ProviderType"
-                }
-            }
-        },
-        "adapters.ProviderFieldSchema": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "example": {},
-                "required": {
-                    "type": "boolean"
-                },
-                "secret": {
-                    "type": "boolean"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "adapters.ProviderGetResponse": {
-            "type": "object",
-            "properties": {
-                "config": {
-                    "type": "object",
-                    "additionalProperties": {}
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_default": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "provider": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "adapters.ProviderMeta": {
-            "type": "object",
-            "properties": {
-                "config_schema": {
-                    "$ref": "#/definitions/adapters.ProviderConfigSchema"
-                },
-                "display_name": {
-                    "type": "string"
-                },
-                "provider": {
-                    "type": "string"
-                }
-            }
-        },
-        "adapters.ProviderStatusResponse": {
-            "type": "object",
-            "properties": {
-                "collections": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/adapters.ProviderCollectionStatus"
-                    }
-                },
-                "embedding_model_id": {
-                    "type": "string"
-                },
-                "memory_mode": {
-                    "type": "string"
-                },
-                "provider_type": {
-                    "type": "string"
-                }
-            }
-        },
-        "adapters.ProviderType": {
-            "type": "string",
-            "enum": [
-                "builtin",
-                "mem0",
-                "openviking"
-            ],
-            "x-enum-varnames": [
-                "ProviderBuiltin",
-                "ProviderMem0",
-                "ProviderOpenViking"
-            ]
-        },
-        "adapters.ProviderUpdateRequest": {
-            "type": "object",
-            "properties": {
-                "config": {
-                    "type": "object",
-                    "additionalProperties": {}
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "adapters.RebuildResult": {
-            "type": "object",
-            "properties": {
-                "fs_count": {
-                    "type": "integer"
-                },
-                "missing_count": {
-                    "type": "integer"
-                },
-                "restored_count": {
-                    "type": "integer"
-                },
-                "storage_count": {
-                    "type": "integer"
-                }
-            }
-        },
-        "adapters.SearchResponse": {
-            "type": "object",
-            "properties": {
-                "relations": {
-                    "type": "array",
-                    "items": {}
-                },
-                "results": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/adapters.MemoryItem"
-                    }
-                }
-            }
-        },
-        "adapters.TopKBucket": {
-            "type": "object",
-            "properties": {
-                "index": {
-                    "description": "sparse dimension index (term hash)",
-                    "type": "integer"
-                },
-                "value": {
-                    "description": "weight (term frequency)",
-                    "type": "number"
-                }
-            }
-        },
-        "adapters.UsageResponse": {
-            "type": "object",
-            "properties": {
-                "avg_text_bytes": {
-                    "type": "integer"
-                },
-                "count": {
-                    "type": "integer"
-                },
-                "estimated_storage_bytes": {
-                    "type": "integer"
-                },
-                "total_text_bytes": {
-                    "type": "integer"
-                }
-            }
-        },
-        "bots.Bot": {
+        "github_com_memohai_memoh_internal_bots.Bot": {
             "type": "object",
             "properties": {
                 "avatar_url": {
@@ -9556,7 +9283,7 @@ const docTemplate = `{
                 }
             }
         },
-        "bots.BotCheck": {
+        "github_com_memohai_memoh_internal_bots.BotCheck": {
             "type": "object",
             "properties": {
                 "detail": {
@@ -9586,7 +9313,7 @@ const docTemplate = `{
                 }
             }
         },
-        "bots.CreateBotRequest": {
+        "github_com_memohai_memoh_internal_bots.CreateBotRequest": {
             "type": "object",
             "properties": {
                 "acl_preset": {
@@ -9610,29 +9337,29 @@ const docTemplate = `{
                 }
             }
         },
-        "bots.ListBotsResponse": {
+        "github_com_memohai_memoh_internal_bots.ListBotsResponse": {
             "type": "object",
             "properties": {
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/bots.Bot"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_bots.Bot"
                     }
                 }
             }
         },
-        "bots.ListChecksResponse": {
+        "github_com_memohai_memoh_internal_bots.ListChecksResponse": {
             "type": "object",
             "properties": {
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/bots.BotCheck"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_bots.BotCheck"
                     }
                 }
             }
         },
-        "bots.TransferBotRequest": {
+        "github_com_memohai_memoh_internal_bots.TransferBotRequest": {
             "type": "object",
             "properties": {
                 "owner_user_id": {
@@ -9640,7 +9367,7 @@ const docTemplate = `{
                 }
             }
         },
-        "bots.UpdateBotRequest": {
+        "github_com_memohai_memoh_internal_bots.UpdateBotRequest": {
             "type": "object",
             "properties": {
                 "avatar_url": {
@@ -9661,7 +9388,7 @@ const docTemplate = `{
                 }
             }
         },
-        "browsercontexts.BrowserContext": {
+        "github_com_memohai_memoh_internal_browsercontexts.BrowserContext": {
             "type": "object",
             "properties": {
                 "config": {
@@ -9684,7 +9411,7 @@ const docTemplate = `{
                 }
             }
         },
-        "browsercontexts.CreateRequest": {
+        "github_com_memohai_memoh_internal_browsercontexts.CreateRequest": {
             "type": "object",
             "properties": {
                 "config": {
@@ -9698,7 +9425,7 @@ const docTemplate = `{
                 }
             }
         },
-        "browsercontexts.UpdateRequest": {
+        "github_com_memohai_memoh_internal_browsercontexts.UpdateRequest": {
             "type": "object",
             "properties": {
                 "config": {
@@ -9712,7 +9439,7 @@ const docTemplate = `{
                 }
             }
         },
-        "channel.Action": {
+        "github_com_memohai_memoh_internal_channel.Action": {
             "type": "object",
             "properties": {
                 "label": {
@@ -9729,7 +9456,7 @@ const docTemplate = `{
                 }
             }
         },
-        "channel.Attachment": {
+        "github_com_memohai_memoh_internal_channel.Attachment": {
             "type": "object",
             "properties": {
                 "base64": {
@@ -9771,7 +9498,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "type": {
-                    "$ref": "#/definitions/channel.AttachmentType"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.AttachmentType"
                 },
                 "url": {
                     "type": "string"
@@ -9781,7 +9508,7 @@ const docTemplate = `{
                 }
             }
         },
-        "channel.AttachmentType": {
+        "github_com_memohai_memoh_internal_channel.AttachmentType": {
             "type": "string",
             "enum": [
                 "image",
@@ -9800,7 +9527,7 @@ const docTemplate = `{
                 "AttachmentGIF"
             ]
         },
-        "channel.ChannelCapabilities": {
+        "github_com_memohai_memoh_internal_channel.ChannelCapabilities": {
             "type": "object",
             "properties": {
                 "attachments": {
@@ -9856,14 +9583,14 @@ const docTemplate = `{
                 }
             }
         },
-        "channel.ChannelConfig": {
+        "github_com_memohai_memoh_internal_channel.ChannelConfig": {
             "type": "object",
             "properties": {
                 "bot_id": {
                     "type": "string"
                 },
                 "channel_type": {
-                    "$ref": "#/definitions/channel.ChannelType"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.ChannelType"
                 },
                 "created_at": {
                     "type": "string"
@@ -9897,14 +9624,14 @@ const docTemplate = `{
                 }
             }
         },
-        "channel.ChannelIdentityBinding": {
+        "github_com_memohai_memoh_internal_channel.ChannelIdentityBinding": {
             "type": "object",
             "properties": {
                 "channel_identity_id": {
                     "type": "string"
                 },
                 "channel_type": {
-                    "$ref": "#/definitions/channel.ChannelType"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.ChannelType"
                 },
                 "config": {
                     "type": "object",
@@ -9921,7 +9648,7 @@ const docTemplate = `{
                 }
             }
         },
-        "channel.ChannelType": {
+        "github_com_memohai_memoh_internal_channel.ChannelType": {
             "type": "string",
             "enum": [
                 "telegram",
@@ -9948,13 +9675,13 @@ const docTemplate = `{
                 "ChannelTypeLocal"
             ]
         },
-        "channel.ConfigSchema": {
+        "github_com_memohai_memoh_internal_channel.ConfigSchema": {
             "type": "object",
             "properties": {
                 "fields": {
                     "type": "object",
                     "additionalProperties": {
-                        "$ref": "#/definitions/channel.FieldSchema"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.FieldSchema"
                     }
                 },
                 "version": {
@@ -9962,7 +9689,7 @@ const docTemplate = `{
                 }
             }
         },
-        "channel.FieldSchema": {
+        "github_com_memohai_memoh_internal_channel.FieldSchema": {
             "type": "object",
             "properties": {
                 "description": {
@@ -9985,11 +9712,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "type": {
-                    "$ref": "#/definitions/channel.FieldType"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.FieldType"
                 }
             }
         },
-        "channel.FieldType": {
+        "github_com_memohai_memoh_internal_channel.FieldType": {
             "type": "string",
             "enum": [
                 "string",
@@ -10006,23 +9733,23 @@ const docTemplate = `{
                 "FieldEnum"
             ]
         },
-        "channel.Message": {
+        "github_com_memohai_memoh_internal_channel.Message": {
             "type": "object",
             "properties": {
                 "actions": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/channel.Action"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.Action"
                     }
                 },
                 "attachments": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/channel.Attachment"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.Attachment"
                     }
                 },
                 "format": {
-                    "$ref": "#/definitions/channel.MessageFormat"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.MessageFormat"
                 },
                 "id": {
                     "type": "string"
@@ -10034,21 +9761,21 @@ const docTemplate = `{
                 "parts": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/channel.MessagePart"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.MessagePart"
                     }
                 },
                 "reply": {
-                    "$ref": "#/definitions/channel.ReplyRef"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.ReplyRef"
                 },
                 "text": {
                     "type": "string"
                 },
                 "thread": {
-                    "$ref": "#/definitions/channel.ThreadRef"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.ThreadRef"
                 }
             }
         },
-        "channel.MessageFormat": {
+        "github_com_memohai_memoh_internal_channel.MessageFormat": {
             "type": "string",
             "enum": [
                 "plain",
@@ -10061,7 +9788,7 @@ const docTemplate = `{
                 "MessageFormatRich"
             ]
         },
-        "channel.MessagePart": {
+        "github_com_memohai_memoh_internal_channel.MessagePart": {
             "type": "object",
             "properties": {
                 "channel_identity_id": {
@@ -10080,21 +9807,21 @@ const docTemplate = `{
                 "styles": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/channel.MessageTextStyle"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.MessageTextStyle"
                     }
                 },
                 "text": {
                     "type": "string"
                 },
                 "type": {
-                    "$ref": "#/definitions/channel.MessagePartType"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.MessagePartType"
                 },
                 "url": {
                     "type": "string"
                 }
             }
         },
-        "channel.MessagePartType": {
+        "github_com_memohai_memoh_internal_channel.MessagePartType": {
             "type": "string",
             "enum": [
                 "text",
@@ -10111,7 +9838,7 @@ const docTemplate = `{
                 "MessagePartEmoji"
             ]
         },
-        "channel.MessageTextStyle": {
+        "github_com_memohai_memoh_internal_channel.MessageTextStyle": {
             "type": "string",
             "enum": [
                 "bold",
@@ -10126,7 +9853,7 @@ const docTemplate = `{
                 "MessageStyleCode"
             ]
         },
-        "channel.ReplyRef": {
+        "github_com_memohai_memoh_internal_channel.ReplyRef": {
             "type": "object",
             "properties": {
                 "message_id": {
@@ -10143,21 +9870,21 @@ const docTemplate = `{
                 }
             }
         },
-        "channel.SendRequest": {
+        "github_com_memohai_memoh_internal_channel.SendRequest": {
             "type": "object",
             "properties": {
                 "channel_identity_id": {
                     "type": "string"
                 },
                 "message": {
-                    "$ref": "#/definitions/channel.Message"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.Message"
                 },
                 "target": {
                     "type": "string"
                 }
             }
         },
-        "channel.TargetHint": {
+        "github_com_memohai_memoh_internal_channel.TargetHint": {
             "type": "object",
             "properties": {
                 "example": {
@@ -10168,7 +9895,7 @@ const docTemplate = `{
                 }
             }
         },
-        "channel.TargetSpec": {
+        "github_com_memohai_memoh_internal_channel.TargetSpec": {
             "type": "object",
             "properties": {
                 "format": {
@@ -10177,12 +9904,12 @@ const docTemplate = `{
                 "hints": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/channel.TargetHint"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.TargetHint"
                     }
                 }
             }
         },
-        "channel.ThreadRef": {
+        "github_com_memohai_memoh_internal_channel.ThreadRef": {
             "type": "object",
             "properties": {
                 "id": {
@@ -10190,7 +9917,7 @@ const docTemplate = `{
                 }
             }
         },
-        "channel.UpdateChannelStatusRequest": {
+        "github_com_memohai_memoh_internal_channel.UpdateChannelStatusRequest": {
             "type": "object",
             "properties": {
                 "disabled": {
@@ -10198,7 +9925,7 @@ const docTemplate = `{
                 }
             }
         },
-        "channel.UpsertChannelIdentityConfigRequest": {
+        "github_com_memohai_memoh_internal_channel.UpsertChannelIdentityConfigRequest": {
             "type": "object",
             "properties": {
                 "config": {
@@ -10207,7 +9934,7 @@ const docTemplate = `{
                 }
             }
         },
-        "channel.UpsertConfigRequest": {
+        "github_com_memohai_memoh_internal_channel.UpsertConfigRequest": {
             "type": "object",
             "properties": {
                 "credentials": {
@@ -10233,13 +9960,46 @@ const docTemplate = `{
                 }
             }
         },
-        "compaction.ListLogsResponse": {
+        "github_com_memohai_memoh_internal_channel_identities.ChannelIdentity": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "channel": {
+                    "type": "string"
+                },
+                "channel_subject_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_compaction.ListLogsResponse": {
             "type": "object",
             "properties": {
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/compaction.Log"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_compaction.Log"
                     }
                 },
                 "total_count": {
@@ -10247,7 +10007,7 @@ const docTemplate = `{
                 }
             }
         },
-        "compaction.Log": {
+        "github_com_memohai_memoh_internal_compaction.Log": {
             "type": "object",
             "properties": {
                 "bot_id": {
@@ -10283,7 +10043,7 @@ const docTemplate = `{
                 "usage": {}
             }
         },
-        "email.BindingResponse": {
+        "github_com_memohai_memoh_internal_email.BindingResponse": {
             "type": "object",
             "properties": {
                 "bot_id": {
@@ -10319,18 +10079,18 @@ const docTemplate = `{
                 }
             }
         },
-        "email.ConfigSchema": {
+        "github_com_memohai_memoh_internal_email.ConfigSchema": {
             "type": "object",
             "properties": {
                 "fields": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/email.FieldSchema"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_email.FieldSchema"
                     }
                 }
             }
         },
-        "email.CreateBindingRequest": {
+        "github_com_memohai_memoh_internal_email.CreateBindingRequest": {
             "type": "object",
             "properties": {
                 "can_delete": {
@@ -10354,7 +10114,7 @@ const docTemplate = `{
                 }
             }
         },
-        "email.CreateProviderRequest": {
+        "github_com_memohai_memoh_internal_email.CreateProviderRequest": {
             "type": "object",
             "properties": {
                 "config": {
@@ -10369,7 +10129,7 @@ const docTemplate = `{
                 }
             }
         },
-        "email.FieldSchema": {
+        "github_com_memohai_memoh_internal_email.FieldSchema": {
             "type": "object",
             "properties": {
                 "description": {
@@ -10399,7 +10159,7 @@ const docTemplate = `{
                 }
             }
         },
-        "email.OutboxItemResponse": {
+        "github_com_memohai_memoh_internal_email.OutboxItemResponse": {
             "type": "object",
             "properties": {
                 "attachments": {
@@ -10450,11 +10210,11 @@ const docTemplate = `{
                 }
             }
         },
-        "email.ProviderMeta": {
+        "github_com_memohai_memoh_internal_email.ProviderMeta": {
             "type": "object",
             "properties": {
                 "config_schema": {
-                    "$ref": "#/definitions/email.ConfigSchema"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_email.ConfigSchema"
                 },
                 "display_name": {
                     "type": "string"
@@ -10464,7 +10224,7 @@ const docTemplate = `{
                 }
             }
         },
-        "email.ProviderResponse": {
+        "github_com_memohai_memoh_internal_email.ProviderResponse": {
             "type": "object",
             "properties": {
                 "config": {
@@ -10488,7 +10248,7 @@ const docTemplate = `{
                 }
             }
         },
-        "email.UpdateBindingRequest": {
+        "github_com_memohai_memoh_internal_email.UpdateBindingRequest": {
             "type": "object",
             "properties": {
                 "can_delete": {
@@ -10509,7 +10269,7 @@ const docTemplate = `{
                 }
             }
         },
-        "email.UpdateProviderRequest": {
+        "github_com_memohai_memoh_internal_email.UpdateProviderRequest": {
             "type": "object",
             "properties": {
                 "config": {
@@ -10520,6 +10280,58 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "provider": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_heartbeat.ListLogsResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_heartbeat.Log"
+                    }
+                },
+                "total_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_heartbeat.Log": {
+            "type": "object",
+            "properties": {
+                "bot_id": {
+                    "type": "string"
+                },
+                "completed_at": {
+                    "type": "string"
+                },
+                "error_message": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "result_text": {
+                    "type": "string"
+                },
+                "session_id": {
+                    "type": "string"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "usage": {}
+            }
+        },
+        "github_com_memohai_memoh_internal_mcp.AuthorizeResult": {
+            "type": "object",
+            "properties": {
+                "authorization_url": {
                     "type": "string"
                 }
             }
@@ -10561,7 +10373,7 @@ const docTemplate = `{
                 "tools_cache": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/mcp.ToolDescriptor"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_mcp.ToolDescriptor"
                     }
                 },
                 "type": {
@@ -10572,1249 +10384,7 @@ const docTemplate = `{
                 }
             }
         },
-        "handlers.BatchDeleteRequest": {
-            "type": "object",
-            "properties": {
-                "ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "handlers.BrowserCoresResponse": {
-            "type": "object",
-            "properties": {
-                "cores": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "handlers.CacheStats": {
-            "type": "object",
-            "properties": {
-                "cache_hit_rate": {
-                    "type": "number"
-                },
-                "cache_read_tokens": {
-                    "type": "integer"
-                },
-                "cache_write_tokens": {
-                    "type": "integer"
-                },
-                "total_input_tokens": {
-                    "type": "integer"
-                }
-            }
-        },
-        "handlers.ChannelMeta": {
-            "type": "object",
-            "properties": {
-                "capabilities": {
-                    "$ref": "#/definitions/channel.ChannelCapabilities"
-                },
-                "config_schema": {
-                    "$ref": "#/definitions/channel.ConfigSchema"
-                },
-                "configless": {
-                    "type": "boolean"
-                },
-                "display_name": {
-                    "type": "string"
-                },
-                "target_spec": {
-                    "$ref": "#/definitions/channel.TargetSpec"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "user_config_schema": {
-                    "$ref": "#/definitions/channel.ConfigSchema"
-                }
-            }
-        },
-        "handlers.ContainerGPURequest": {
-            "type": "object",
-            "properties": {
-                "devices": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "handlers.ContextUsage": {
-            "type": "object",
-            "properties": {
-                "context_window": {
-                    "type": "integer"
-                },
-                "used_tokens": {
-                    "type": "integer"
-                }
-            }
-        },
-        "handlers.CreateContainerRequest": {
-            "type": "object",
-            "properties": {
-                "gpu": {
-                    "$ref": "#/definitions/handlers.ContainerGPURequest"
-                },
-                "image": {
-                    "type": "string"
-                },
-                "restore_data": {
-                    "type": "boolean"
-                },
-                "snapshotter": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.CreateContainerResponse": {
-            "type": "object",
-            "properties": {
-                "cdi_devices": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "container_id": {
-                    "type": "string"
-                },
-                "data_restored": {
-                    "type": "boolean"
-                },
-                "has_preserved_data": {
-                    "type": "boolean"
-                },
-                "image": {
-                    "type": "string"
-                },
-                "snapshotter": {
-                    "type": "string"
-                },
-                "started": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "handlers.CreateSnapshotRequest": {
-            "type": "object",
-            "properties": {
-                "snapshot_name": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.CreateSnapshotResponse": {
-            "type": "object",
-            "properties": {
-                "container_id": {
-                    "type": "string"
-                },
-                "display_name": {
-                    "type": "string"
-                },
-                "runtime_snapshot_name": {
-                    "type": "string"
-                },
-                "snapshot_name": {
-                    "type": "string"
-                },
-                "snapshotter": {
-                    "type": "string"
-                },
-                "source": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "integer"
-                }
-            }
-        },
-        "handlers.DailyTokenUsage": {
-            "type": "object",
-            "properties": {
-                "cache_read_tokens": {
-                    "type": "integer"
-                },
-                "cache_write_tokens": {
-                    "type": "integer"
-                },
-                "day": {
-                    "type": "string"
-                },
-                "input_tokens": {
-                    "type": "integer"
-                },
-                "output_tokens": {
-                    "type": "integer"
-                },
-                "reasoning_tokens": {
-                    "type": "integer"
-                }
-            }
-        },
-        "handlers.ErrorResponse": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.FSDeleteRequest": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string"
-                },
-                "recursive": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "handlers.FSFileInfo": {
-            "type": "object",
-            "properties": {
-                "isDir": {
-                    "type": "boolean"
-                },
-                "modTime": {
-                    "type": "string"
-                },
-                "mode": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "path": {
-                    "type": "string"
-                },
-                "size": {
-                    "type": "integer"
-                }
-            }
-        },
-        "handlers.FSListResponse": {
-            "type": "object",
-            "properties": {
-                "entries": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/handlers.FSFileInfo"
-                    }
-                },
-                "path": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.FSMkdirRequest": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.FSReadResponse": {
-            "type": "object",
-            "properties": {
-                "content": {
-                    "type": "string"
-                },
-                "path": {
-                    "type": "string"
-                },
-                "size": {
-                    "type": "integer"
-                }
-            }
-        },
-        "handlers.FSRenameRequest": {
-            "type": "object",
-            "properties": {
-                "newPath": {
-                    "type": "string"
-                },
-                "oldPath": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.FSUploadResponse": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string"
-                },
-                "size": {
-                    "type": "integer"
-                }
-            }
-        },
-        "handlers.FSWriteRequest": {
-            "type": "object",
-            "properties": {
-                "content": {
-                    "type": "string"
-                },
-                "path": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.GetContainerResponse": {
-            "type": "object",
-            "properties": {
-                "cdi_devices": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "container_id": {
-                    "type": "string"
-                },
-                "container_path": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "has_preserved_data": {
-                    "type": "boolean"
-                },
-                "image": {
-                    "type": "string"
-                },
-                "legacy": {
-                    "type": "boolean"
-                },
-                "namespace": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "task_running": {
-                    "type": "boolean"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.InstallMcpRequest": {
-            "type": "object",
-            "properties": {
-                "env": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "mcp_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.InstallSkillRequest": {
-            "type": "object",
-            "properties": {
-                "skill_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.ListSnapshotsResponse": {
-            "type": "object",
-            "properties": {
-                "snapshots": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/handlers.SnapshotInfo"
-                    }
-                },
-                "snapshotter": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.LocalChannelMessageRequest": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "$ref": "#/definitions/channel.Message"
-                },
-                "model_id": {
-                    "type": "string"
-                },
-                "reasoning_effort": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.LoginRequest": {
-            "type": "object",
-            "properties": {
-                "password": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.LoginResponse": {
-            "type": "object",
-            "properties": {
-                "access_token": {
-                    "type": "string"
-                },
-                "display_name": {
-                    "type": "string"
-                },
-                "expires_at": {
-                    "type": "string"
-                },
-                "role": {
-                    "type": "string"
-                },
-                "timezone": {
-                    "type": "string"
-                },
-                "token_type": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.MCPStdioRequest": {
-            "type": "object",
-            "properties": {
-                "args": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "command": {
-                    "type": "string"
-                },
-                "cwd": {
-                    "type": "string"
-                },
-                "env": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.MCPStdioResponse": {
-            "type": "object",
-            "properties": {
-                "connection_id": {
-                    "type": "string"
-                },
-                "tools": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.ModelTokenUsage": {
-            "type": "object",
-            "properties": {
-                "input_tokens": {
-                    "type": "integer"
-                },
-                "model_id": {
-                    "type": "string"
-                },
-                "model_name": {
-                    "type": "string"
-                },
-                "model_slug": {
-                    "type": "string"
-                },
-                "output_tokens": {
-                    "type": "integer"
-                },
-                "provider_name": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.PingResponse": {
-            "type": "object",
-            "properties": {
-                "commit_hash": {
-                    "type": "string"
-                },
-                "container_backend": {
-                    "type": "string"
-                },
-                "snapshot_supported": {
-                    "type": "boolean"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.ProbeResponse": {
-            "type": "object",
-            "properties": {
-                "auth_required": {
-                    "type": "boolean"
-                },
-                "error": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "tools": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/mcp.ToolDescriptor"
-                    }
-                }
-            }
-        },
-        "handlers.RefreshResponse": {
-            "type": "object",
-            "properties": {
-                "access_token": {
-                    "type": "string"
-                },
-                "expires_at": {
-                    "type": "string"
-                },
-                "token_type": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.RollbackRequest": {
-            "type": "object",
-            "properties": {
-                "version": {
-                    "type": "integer"
-                }
-            }
-        },
-        "handlers.SessionInfoResponse": {
-            "type": "object",
-            "properties": {
-                "cache_stats": {
-                    "$ref": "#/definitions/handlers.CacheStats"
-                },
-                "context_usage": {
-                    "$ref": "#/definitions/handlers.ContextUsage"
-                },
-                "message_count": {
-                    "type": "integer"
-                },
-                "skills": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "handlers.SkillItem": {
-            "type": "object",
-            "properties": {
-                "content": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "managed": {
-                    "type": "boolean"
-                },
-                "metadata": {
-                    "type": "object",
-                    "additionalProperties": {}
-                },
-                "name": {
-                    "type": "string"
-                },
-                "raw": {
-                    "type": "string"
-                },
-                "shadowed_by": {
-                    "type": "string"
-                },
-                "source_kind": {
-                    "type": "string"
-                },
-                "source_path": {
-                    "type": "string"
-                },
-                "source_root": {
-                    "type": "string"
-                },
-                "state": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.SkillsActionRequest": {
-            "type": "object",
-            "properties": {
-                "action": {
-                    "type": "string"
-                },
-                "target_path": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.SkillsDeleteRequest": {
-            "type": "object",
-            "properties": {
-                "names": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "handlers.SkillsResponse": {
-            "type": "object",
-            "properties": {
-                "skills": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/handlers.SkillItem"
-                    }
-                }
-            }
-        },
-        "handlers.SkillsUpsertRequest": {
-            "type": "object",
-            "properties": {
-                "skills": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "handlers.SnapshotInfo": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "display_name": {
-                    "type": "string"
-                },
-                "kind": {
-                    "type": "string"
-                },
-                "labels": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "managed": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "parent": {
-                    "type": "string"
-                },
-                "runtime_snapshot_name": {
-                    "type": "string"
-                },
-                "snapshotter": {
-                    "type": "string"
-                },
-                "source": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "integer"
-                }
-            }
-        },
-        "handlers.SupermarketAuthor": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.SupermarketConfigVar": {
-            "type": "object",
-            "properties": {
-                "defaultValue": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "key": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.SupermarketMcpEntry": {
-            "type": "object",
-            "properties": {
-                "args": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "author": {
-                    "$ref": "#/definitions/handlers.SupermarketAuthor"
-                },
-                "command": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "env": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/handlers.SupermarketConfigVar"
-                    }
-                },
-                "headers": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/handlers.SupermarketConfigVar"
-                    }
-                },
-                "homepage": {
-                    "type": "string"
-                },
-                "icon": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "transport": {
-                    "type": "string"
-                },
-                "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.SupermarketMcpListResponse": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/handlers.SupermarketMcpEntry"
-                    }
-                },
-                "limit": {
-                    "type": "integer"
-                },
-                "page": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
-        "handlers.SupermarketSkillEntry": {
-            "type": "object",
-            "properties": {
-                "content": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "files": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "id": {
-                    "type": "string"
-                },
-                "metadata": {
-                    "$ref": "#/definitions/handlers.SupermarketSkillMetadata"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.SupermarketSkillListResponse": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/handlers.SupermarketSkillEntry"
-                    }
-                },
-                "limit": {
-                    "type": "integer"
-                },
-                "page": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
-        "handlers.SupermarketSkillMetadata": {
-            "type": "object",
-            "properties": {
-                "author": {
-                    "$ref": "#/definitions/handlers.SupermarketAuthor"
-                },
-                "homepage": {
-                    "type": "string"
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "handlers.SupermarketTagsResponse": {
-            "type": "object",
-            "properties": {
-                "tags": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "handlers.TokenUsageResponse": {
-            "type": "object",
-            "properties": {
-                "by_model": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/handlers.ModelTokenUsage"
-                    }
-                },
-                "chat": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/handlers.DailyTokenUsage"
-                    }
-                },
-                "heartbeat": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/handlers.DailyTokenUsage"
-                    }
-                },
-                "schedule": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/handlers.DailyTokenUsage"
-                    }
-                }
-            }
-        },
-        "handlers.TriggerCompactResponse": {
-            "type": "object",
-            "properties": {
-                "message_count": {
-                    "type": "integer"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "summary": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.createSessionRequest": {
-            "type": "object",
-            "properties": {
-                "channel_type": {
-                    "type": "string"
-                },
-                "metadata": {
-                    "type": "object",
-                    "additionalProperties": {}
-                },
-                "title": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.emailOAuthStatusResponse": {
-            "type": "object",
-            "properties": {
-                "configured": {
-                    "type": "boolean"
-                },
-                "email_address": {
-                    "type": "string"
-                },
-                "expired": {
-                    "type": "boolean"
-                },
-                "expires_at": {
-                    "type": "string"
-                },
-                "has_token": {
-                    "type": "boolean"
-                },
-                "provider": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.fsOpResponse": {
-            "type": "object",
-            "properties": {
-                "ok": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "handlers.listMyIdentitiesResponse": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/identities.ChannelIdentity"
-                    }
-                },
-                "user_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.memoryAddPayload": {
-            "type": "object",
-            "properties": {
-                "embedding_enabled": {
-                    "type": "boolean"
-                },
-                "filters": {
-                    "type": "object",
-                    "additionalProperties": {}
-                },
-                "infer": {
-                    "type": "boolean"
-                },
-                "message": {
-                    "type": "string"
-                },
-                "messages": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/adapters.Message"
-                    }
-                },
-                "metadata": {
-                    "type": "object",
-                    "additionalProperties": {}
-                },
-                "namespace": {
-                    "type": "string"
-                },
-                "run_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.memoryCompactPayload": {
-            "type": "object",
-            "properties": {
-                "decay_days": {
-                    "type": "integer"
-                },
-                "ratio": {
-                    "type": "number"
-                }
-            }
-        },
-        "handlers.memoryDeletePayload": {
-            "type": "object",
-            "properties": {
-                "memory_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "handlers.memorySearchPayload": {
-            "type": "object",
-            "properties": {
-                "embedding_enabled": {
-                    "type": "boolean"
-                },
-                "filters": {
-                    "type": "object",
-                    "additionalProperties": {}
-                },
-                "limit": {
-                    "type": "integer"
-                },
-                "no_stats": {
-                    "type": "boolean"
-                },
-                "query": {
-                    "type": "string"
-                },
-                "run_id": {
-                    "type": "string"
-                },
-                "sources": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "handlers.oauthAuthorizeRequest": {
-            "type": "object",
-            "properties": {
-                "callback_url": {
-                    "type": "string"
-                },
-                "client_id": {
-                    "type": "string"
-                },
-                "client_secret": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.oauthDiscoverRequest": {
-            "type": "object",
-            "properties": {
-                "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.oauthExchangeRequest": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "state": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.skillsOpResponse": {
-            "type": "object",
-            "properties": {
-                "ok": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "handlers.synthesizeRequest": {
-            "type": "object",
-            "properties": {
-                "text": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.synthesizeResponse": {
-            "type": "object",
-            "properties": {
-                "content_type": {
-                    "type": "string"
-                },
-                "size": {
-                    "type": "integer"
-                },
-                "temp_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.terminalInfoResponse": {
-            "type": "object",
-            "properties": {
-                "available": {
-                    "type": "boolean"
-                },
-                "shell": {
-                    "type": "string"
-                }
-            }
-        },
-        "handlers.updateSessionRequest": {
-            "type": "object",
-            "properties": {
-                "metadata": {
-                    "type": "object",
-                    "additionalProperties": {}
-                },
-                "title": {
-                    "type": "string"
-                }
-            }
-        },
-        "heartbeat.ListLogsResponse": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/heartbeat.Log"
-                    }
-                },
-                "total_count": {
-                    "type": "integer"
-                }
-            }
-        },
-        "heartbeat.Log": {
-            "type": "object",
-            "properties": {
-                "bot_id": {
-                    "type": "string"
-                },
-                "completed_at": {
-                    "type": "string"
-                },
-                "error_message": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "result_text": {
-                    "type": "string"
-                },
-                "session_id": {
-                    "type": "string"
-                },
-                "started_at": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "usage": {}
-            }
-        },
-        "identities.ChannelIdentity": {
-            "type": "object",
-            "properties": {
-                "avatar_url": {
-                    "type": "string"
-                },
-                "channel": {
-                    "type": "string"
-                },
-                "channel_subject_id": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "display_name": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "metadata": {
-                    "type": "object",
-                    "additionalProperties": {}
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "mcp.AuthorizeResult": {
-            "type": "object",
-            "properties": {
-                "authorization_url": {
-                    "type": "string"
-                }
-            }
-        },
-        "mcp.DiscoveryResult": {
+        "github_com_memohai_memoh_internal_mcp.DiscoveryResult": {
             "type": "object",
             "properties": {
                 "authorization_endpoint": {
@@ -11843,29 +10413,29 @@ const docTemplate = `{
                 }
             }
         },
-        "mcp.ExportResponse": {
+        "github_com_memohai_memoh_internal_mcp.ExportResponse": {
             "type": "object",
             "properties": {
                 "mcpServers": {
                     "type": "object",
                     "additionalProperties": {
-                        "$ref": "#/definitions/mcp.MCPServerEntry"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_mcp.MCPServerEntry"
                     }
                 }
             }
         },
-        "mcp.ImportRequest": {
+        "github_com_memohai_memoh_internal_mcp.ImportRequest": {
             "type": "object",
             "properties": {
                 "mcpServers": {
                     "type": "object",
                     "additionalProperties": {
-                        "$ref": "#/definitions/mcp.MCPServerEntry"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_mcp.MCPServerEntry"
                     }
                 }
             }
         },
-        "mcp.ListResponse": {
+        "github_com_memohai_memoh_internal_mcp.ListResponse": {
             "type": "object",
             "properties": {
                 "items": {
@@ -11876,7 +10446,7 @@ const docTemplate = `{
                 }
             }
         },
-        "mcp.MCPServerEntry": {
+        "github_com_memohai_memoh_internal_mcp.MCPServerEntry": {
             "type": "object",
             "properties": {
                 "args": {
@@ -11911,7 +10481,7 @@ const docTemplate = `{
                 }
             }
         },
-        "mcp.OAuthStatus": {
+        "github_com_memohai_memoh_internal_mcp.OAuthStatus": {
             "type": "object",
             "properties": {
                 "auth_server": {
@@ -11937,7 +10507,7 @@ const docTemplate = `{
                 }
             }
         },
-        "mcp.ToolDescriptor": {
+        "github_com_memohai_memoh_internal_mcp.ToolDescriptor": {
             "type": "object",
             "properties": {
                 "description": {
@@ -11952,7 +10522,7 @@ const docTemplate = `{
                 }
             }
         },
-        "mcp.UpsertRequest": {
+        "github_com_memohai_memoh_internal_mcp.UpsertRequest": {
             "type": "object",
             "properties": {
                 "args": {
@@ -11996,13 +10566,374 @@ const docTemplate = `{
                 }
             }
         },
-        "message.Message": {
+        "github_com_memohai_memoh_internal_memory_adapters.CDFPoint": {
+            "type": "object",
+            "properties": {
+                "cumulative": {
+                    "description": "cumulative weight fraction [0.0, 1.0]",
+                    "type": "number"
+                },
+                "k": {
+                    "description": "rank position (1-based, sorted by value desc)",
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_memory_adapters.CompactResult": {
+            "type": "object",
+            "properties": {
+                "after_count": {
+                    "type": "integer"
+                },
+                "before_count": {
+                    "type": "integer"
+                },
+                "ratio": {
+                    "type": "number"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.MemoryItem"
+                    }
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_memory_adapters.DeleteResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_memory_adapters.HealthStatus": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_memory_adapters.MemoryItem": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string"
+                },
+                "bot_id": {
+                    "type": "string"
+                },
+                "cdf_curve": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.CDFPoint"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "hash": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "memory": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "run_id": {
+                    "type": "string"
+                },
+                "score": {
+                    "type": "number"
+                },
+                "top_k_buckets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.TopKBucket"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_memory_adapters.MemoryStatusResponse": {
+            "type": "object",
+            "properties": {
+                "can_manual_sync": {
+                    "type": "boolean"
+                },
+                "encoder": {
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.HealthStatus"
+                },
+                "indexed_count": {
+                    "type": "integer"
+                },
+                "markdown_file_count": {
+                    "type": "integer"
+                },
+                "memory_mode": {
+                    "type": "string"
+                },
+                "overview_path": {
+                    "type": "string"
+                },
+                "provider_type": {
+                    "type": "string"
+                },
+                "qdrant": {
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.HealthStatus"
+                },
+                "qdrant_collection": {
+                    "type": "string"
+                },
+                "source_count": {
+                    "type": "integer"
+                },
+                "source_dir": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_memory_adapters.Message": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_memory_adapters.ProviderCollectionStatus": {
+            "type": "object",
+            "properties": {
+                "exists": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "points": {
+                    "type": "integer"
+                },
+                "qdrant": {
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.HealthStatus"
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_memory_adapters.ProviderConfigSchema": {
+            "type": "object",
+            "properties": {
+                "fields": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.ProviderFieldSchema"
+                    }
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_memory_adapters.ProviderCreateRequest": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "name": {
+                    "type": "string"
+                },
+                "provider": {
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.ProviderType"
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_memory_adapters.ProviderFieldSchema": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "example": {},
+                "required": {
+                    "type": "boolean"
+                },
+                "secret": {
+                    "type": "boolean"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_memory_adapters.ProviderGetResponse": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_default": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_memory_adapters.ProviderMeta": {
+            "type": "object",
+            "properties": {
+                "config_schema": {
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.ProviderConfigSchema"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_memory_adapters.ProviderStatusResponse": {
+            "type": "object",
+            "properties": {
+                "collections": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.ProviderCollectionStatus"
+                    }
+                },
+                "embedding_model_id": {
+                    "type": "string"
+                },
+                "memory_mode": {
+                    "type": "string"
+                },
+                "provider_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_memory_adapters.ProviderType": {
+            "type": "string",
+            "enum": [
+                "builtin",
+                "mem0",
+                "openviking"
+            ],
+            "x-enum-varnames": [
+                "ProviderBuiltin",
+                "ProviderMem0",
+                "ProviderOpenViking"
+            ]
+        },
+        "github_com_memohai_memoh_internal_memory_adapters.ProviderUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_memory_adapters.RebuildResult": {
+            "type": "object",
+            "properties": {
+                "fs_count": {
+                    "type": "integer"
+                },
+                "missing_count": {
+                    "type": "integer"
+                },
+                "restored_count": {
+                    "type": "integer"
+                },
+                "storage_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_memory_adapters.SearchResponse": {
+            "type": "object",
+            "properties": {
+                "relations": {
+                    "type": "array",
+                    "items": {}
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.MemoryItem"
+                    }
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_memory_adapters.TopKBucket": {
+            "type": "object",
+            "properties": {
+                "index": {
+                    "description": "sparse dimension index (term hash)",
+                    "type": "integer"
+                },
+                "value": {
+                    "description": "weight (term frequency)",
+                    "type": "number"
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_memory_adapters.UsageResponse": {
+            "type": "object",
+            "properties": {
+                "avg_text_bytes": {
+                    "type": "integer"
+                },
+                "count": {
+                    "type": "integer"
+                },
+                "estimated_storage_bytes": {
+                    "type": "integer"
+                },
+                "total_text_bytes": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_message.Message": {
             "type": "object",
             "properties": {
                 "assets": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/message.MessageAsset"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_message.MessageAsset"
                     }
                 },
                 "bot_id": {
@@ -12068,7 +10999,7 @@ const docTemplate = `{
                 }
             }
         },
-        "message.MessageAsset": {
+        "github_com_memohai_memoh_internal_message.MessageAsset": {
             "type": "object",
             "properties": {
                 "content_hash": {
@@ -12098,11 +11029,14 @@ const docTemplate = `{
                 }
             }
         },
-        "models.AddRequest": {
+        "github_com_memohai_memoh_internal_models.AddRequest": {
             "type": "object",
             "properties": {
                 "config": {
-                    "$ref": "#/definitions/models.ModelConfig"
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
                 "model_id": {
                     "type": "string"
@@ -12114,11 +11048,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "type": {
-                    "$ref": "#/definitions/models.ModelType"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_models.ModelType"
                 }
             }
         },
-        "models.AddResponse": {
+        "github_com_memohai_memoh_internal_models.AddResponse": {
             "type": "object",
             "properties": {
                 "id": {
@@ -12129,7 +11063,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.CountResponse": {
+        "github_com_memohai_memoh_internal_models.CountResponse": {
             "type": "object",
             "properties": {
                 "count": {
@@ -12137,11 +11071,14 @@ const docTemplate = `{
                 }
             }
         },
-        "models.GetResponse": {
+        "github_com_memohai_memoh_internal_models.GetResponse": {
             "type": "object",
             "properties": {
                 "config": {
-                    "$ref": "#/definitions/models.ModelConfig"
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
                 "id": {
                     "type": "string"
@@ -12156,34 +11093,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "type": {
-                    "$ref": "#/definitions/models.ModelType"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_models.ModelType"
                 }
             }
         },
-        "models.ModelConfig": {
-            "type": "object",
-            "properties": {
-                "compatibilities": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "context_window": {
-                    "type": "integer"
-                },
-                "dimensions": {
-                    "type": "integer"
-                },
-                "reasoning_efforts": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "models.ModelType": {
+        "github_com_memohai_memoh_internal_models.ModelType": {
             "type": "string",
             "enum": [
                 "chat",
@@ -12196,7 +11110,7 @@ const docTemplate = `{
                 "ModelTypeSpeech"
             ]
         },
-        "models.TestResponse": {
+        "github_com_memohai_memoh_internal_models.TestResponse": {
             "type": "object",
             "properties": {
                 "latency_ms": {
@@ -12209,11 +11123,11 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "status": {
-                    "$ref": "#/definitions/models.TestStatus"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_models.TestStatus"
                 }
             }
         },
-        "models.TestStatus": {
+        "github_com_memohai_memoh_internal_models.TestStatus": {
             "type": "string",
             "enum": [
                 "ok",
@@ -12228,11 +11142,14 @@ const docTemplate = `{
                 "TestStatusError"
             ]
         },
-        "models.UpdateRequest": {
+        "github_com_memohai_memoh_internal_models.UpdateRequest": {
             "type": "object",
             "properties": {
                 "config": {
-                    "$ref": "#/definitions/models.ModelConfig"
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
                 "model_id": {
                     "type": "string"
@@ -12244,11 +11161,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "type": {
-                    "$ref": "#/definitions/models.ModelType"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_models.ModelType"
                 }
             }
         },
-        "providers.CountResponse": {
+        "github_com_memohai_memoh_internal_providers.CountResponse": {
             "type": "object",
             "properties": {
                 "count": {
@@ -12256,7 +11173,7 @@ const docTemplate = `{
                 }
             }
         },
-        "providers.CreateRequest": {
+        "github_com_memohai_memoh_internal_providers.CreateRequest": {
             "type": "object",
             "required": [
                 "client_type",
@@ -12282,7 +11199,7 @@ const docTemplate = `{
                 }
             }
         },
-        "providers.GetResponse": {
+        "github_com_memohai_memoh_internal_providers.GetResponse": {
             "type": "object",
             "properties": {
                 "client_type": {
@@ -12316,7 +11233,7 @@ const docTemplate = `{
                 }
             }
         },
-        "providers.ImportModelsResponse": {
+        "github_com_memohai_memoh_internal_providers.ImportModelsResponse": {
             "type": "object",
             "properties": {
                 "created": {
@@ -12333,7 +11250,7 @@ const docTemplate = `{
                 }
             }
         },
-        "providers.OAuthAccount": {
+        "github_com_memohai_memoh_internal_providers.OAuthAccount": {
             "type": "object",
             "properties": {
                 "avatar_url": {
@@ -12356,21 +11273,21 @@ const docTemplate = `{
                 }
             }
         },
-        "providers.OAuthAuthorizeResponse": {
+        "github_com_memohai_memoh_internal_providers.OAuthAuthorizeResponse": {
             "type": "object",
             "properties": {
                 "auth_url": {
                     "type": "string"
                 },
                 "device": {
-                    "$ref": "#/definitions/providers.OAuthDeviceStatus"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_providers.OAuthDeviceStatus"
                 },
                 "mode": {
                     "type": "string"
                 }
             }
         },
-        "providers.OAuthDeviceStatus": {
+        "github_com_memohai_memoh_internal_providers.OAuthDeviceStatus": {
             "type": "object",
             "properties": {
                 "expires_at": {
@@ -12390,11 +11307,11 @@ const docTemplate = `{
                 }
             }
         },
-        "providers.OAuthStatus": {
+        "github_com_memohai_memoh_internal_providers.OAuthStatus": {
             "type": "object",
             "properties": {
                 "account": {
-                    "$ref": "#/definitions/providers.OAuthAccount"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_providers.OAuthAccount"
                 },
                 "callback_url": {
                     "type": "string"
@@ -12403,7 +11320,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "device": {
-                    "$ref": "#/definitions/providers.OAuthDeviceStatus"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_providers.OAuthDeviceStatus"
                 },
                 "expired": {
                     "type": "boolean"
@@ -12419,7 +11336,7 @@ const docTemplate = `{
                 }
             }
         },
-        "providers.TestResponse": {
+        "github_com_memohai_memoh_internal_providers.TestResponse": {
             "type": "object",
             "properties": {
                 "latency_ms": {
@@ -12433,7 +11350,7 @@ const docTemplate = `{
                 }
             }
         },
-        "providers.UpdateRequest": {
+        "github_com_memohai_memoh_internal_providers.UpdateRequest": {
             "type": "object",
             "properties": {
                 "client_type": {
@@ -12458,7 +11375,7 @@ const docTemplate = `{
                 }
             }
         },
-        "schedule.CreateRequest": {
+        "github_com_memohai_memoh_internal_schedule.CreateRequest": {
             "type": "object",
             "properties": {
                 "command": {
@@ -12471,7 +11388,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "max_calls": {
-                    "$ref": "#/definitions/schedule.NullableInt"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_schedule.NullableInt"
                 },
                 "name": {
                     "type": "string"
@@ -12481,13 +11398,13 @@ const docTemplate = `{
                 }
             }
         },
-        "schedule.ListLogsResponse": {
+        "github_com_memohai_memoh_internal_schedule.ListLogsResponse": {
             "type": "object",
             "properties": {
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/schedule.Log"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_schedule.Log"
                     }
                 },
                 "total_count": {
@@ -12495,18 +11412,18 @@ const docTemplate = `{
                 }
             }
         },
-        "schedule.ListResponse": {
+        "github_com_memohai_memoh_internal_schedule.ListResponse": {
             "type": "object",
             "properties": {
                 "items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/schedule.Schedule"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_schedule.Schedule"
                     }
                 }
             }
         },
-        "schedule.Log": {
+        "github_com_memohai_memoh_internal_schedule.Log": {
             "type": "object",
             "properties": {
                 "bot_id": {
@@ -12539,7 +11456,7 @@ const docTemplate = `{
                 "usage": {}
             }
         },
-        "schedule.NullableInt": {
+        "github_com_memohai_memoh_internal_schedule.NullableInt": {
             "type": "object",
             "properties": {
                 "set": {
@@ -12550,7 +11467,7 @@ const docTemplate = `{
                 }
             }
         },
-        "schedule.Schedule": {
+        "github_com_memohai_memoh_internal_schedule.Schedule": {
             "type": "object",
             "properties": {
                 "bot_id": {
@@ -12588,7 +11505,7 @@ const docTemplate = `{
                 }
             }
         },
-        "schedule.UpdateRequest": {
+        "github_com_memohai_memoh_internal_schedule.UpdateRequest": {
             "type": "object",
             "properties": {
                 "command": {
@@ -12601,7 +11518,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "max_calls": {
-                    "$ref": "#/definitions/schedule.NullableInt"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_schedule.NullableInt"
                 },
                 "name": {
                     "type": "string"
@@ -12611,7 +11528,7 @@ const docTemplate = `{
                 }
             }
         },
-        "searchproviders.CreateRequest": {
+        "github_com_memohai_memoh_internal_searchproviders.CreateRequest": {
             "type": "object",
             "properties": {
                 "config": {
@@ -12622,11 +11539,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "provider": {
-                    "$ref": "#/definitions/searchproviders.ProviderName"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_searchproviders.ProviderName"
                 }
             }
         },
-        "searchproviders.GetResponse": {
+        "github_com_memohai_memoh_internal_searchproviders.GetResponse": {
             "type": "object",
             "properties": {
                 "config": {
@@ -12653,18 +11570,18 @@ const docTemplate = `{
                 }
             }
         },
-        "searchproviders.ProviderConfigSchema": {
+        "github_com_memohai_memoh_internal_searchproviders.ProviderConfigSchema": {
             "type": "object",
             "properties": {
                 "fields": {
                     "type": "object",
                     "additionalProperties": {
-                        "$ref": "#/definitions/searchproviders.ProviderFieldSchema"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_searchproviders.ProviderFieldSchema"
                     }
                 }
             }
         },
-        "searchproviders.ProviderFieldSchema": {
+        "github_com_memohai_memoh_internal_searchproviders.ProviderFieldSchema": {
             "type": "object",
             "properties": {
                 "description": {
@@ -12688,11 +11605,11 @@ const docTemplate = `{
                 }
             }
         },
-        "searchproviders.ProviderMeta": {
+        "github_com_memohai_memoh_internal_searchproviders.ProviderMeta": {
             "type": "object",
             "properties": {
                 "config_schema": {
-                    "$ref": "#/definitions/searchproviders.ProviderConfigSchema"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_searchproviders.ProviderConfigSchema"
                 },
                 "display_name": {
                     "type": "string"
@@ -12702,7 +11619,7 @@ const docTemplate = `{
                 }
             }
         },
-        "searchproviders.ProviderName": {
+        "github_com_memohai_memoh_internal_searchproviders.ProviderName": {
             "type": "string",
             "enum": [
                 "brave",
@@ -12733,7 +11650,7 @@ const docTemplate = `{
                 "ProviderYandex"
             ]
         },
-        "searchproviders.UpdateRequest": {
+        "github_com_memohai_memoh_internal_searchproviders.UpdateRequest": {
             "type": "object",
             "properties": {
                 "config": {
@@ -12747,11 +11664,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "provider": {
-                    "$ref": "#/definitions/searchproviders.ProviderName"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_searchproviders.ProviderName"
                 }
             }
         },
-        "session.Session": {
+        "github_com_memohai_memoh_internal_session.Session": {
             "type": "object",
             "properties": {
                 "bot_id": {
@@ -12794,7 +11711,45 @@ const docTemplate = `{
                 }
             }
         },
-        "settings.Settings": {
+        "github_com_memohai_memoh_internal_settings.ChatTimingConfig": {
+            "type": "object",
+            "properties": {
+                "debounce_max_wait": {
+                    "type": "integer"
+                },
+                "debounce_quiet_period": {
+                    "type": "integer"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "idle_comp_enabled": {
+                    "type": "boolean"
+                },
+                "idle_comp_min_idle_before_credit": {
+                    "type": "integer"
+                },
+                "idle_comp_window_size": {
+                    "type": "integer"
+                },
+                "interrupt_enabled": {
+                    "type": "boolean"
+                },
+                "interrupt_max_consecutive": {
+                    "type": "integer"
+                },
+                "interrupt_max_rounds": {
+                    "type": "integer"
+                },
+                "talk_value": {
+                    "type": "number"
+                },
+                "timing_gate": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_memohai_memoh_internal_settings.Settings": {
             "type": "object",
             "properties": {
                 "acl_default_effect": {
@@ -12805,6 +11760,9 @@ const docTemplate = `{
                 },
                 "chat_model_id": {
                     "type": "string"
+                },
+                "chat_timing": {
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_settings.ChatTimingConfig"
                 },
                 "compaction_enabled": {
                     "type": "boolean"
@@ -12862,7 +11820,7 @@ const docTemplate = `{
                 }
             }
         },
-        "settings.UpsertRequest": {
+        "github_com_memohai_memoh_internal_settings.UpsertRequest": {
             "type": "object",
             "properties": {
                 "acl_default_effect": {
@@ -12873,6 +11831,9 @@ const docTemplate = `{
                 },
                 "chat_model_id": {
                     "type": "string"
+                },
+                "chat_timing": {
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_settings.ChatTimingConfig"
                 },
                 "compaction_enabled": {
                     "type": "boolean"
@@ -12930,7 +11891,7 @@ const docTemplate = `{
                 }
             }
         },
-        "tts.ModelCapabilities": {
+        "github_com_memohai_memoh_internal_tts.ModelCapabilities": {
             "type": "object",
             "properties": {
                 "formats": {
@@ -12939,25 +11900,31 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "languages": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "pitch": {
-                    "$ref": "#/definitions/tts.ParamConstraint"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_tts.ParamConstraint"
                 },
                 "speed": {
-                    "$ref": "#/definitions/tts.ParamConstraint"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_tts.ParamConstraint"
                 },
                 "voices": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/tts.VoiceInfo"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_tts.VoiceInfo"
                     }
                 }
             }
         },
-        "tts.ModelInfo": {
+        "github_com_memohai_memoh_internal_tts.ModelInfo": {
             "type": "object",
             "properties": {
                 "capabilities": {
-                    "$ref": "#/definitions/tts.ModelCapabilities"
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_tts.ModelCapabilities"
                 },
                 "description": {
                     "type": "string"
@@ -12970,7 +11937,7 @@ const docTemplate = `{
                 }
             }
         },
-        "tts.ParamConstraint": {
+        "github_com_memohai_memoh_internal_tts.ParamConstraint": {
             "type": "object",
             "properties": {
                 "default": {
@@ -12990,7 +11957,7 @@ const docTemplate = `{
                 }
             }
         },
-        "tts.ProviderMetaResponse": {
+        "github_com_memohai_memoh_internal_tts.ProviderMetaResponse": {
             "type": "object",
             "properties": {
                 "default_model": {
@@ -13005,7 +11972,7 @@ const docTemplate = `{
                 "models": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/tts.ModelInfo"
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_tts.ModelInfo"
                     }
                 },
                 "provider": {
@@ -13013,7 +11980,7 @@ const docTemplate = `{
                 }
             }
         },
-        "tts.SpeechModelResponse": {
+        "github_com_memohai_memoh_internal_tts.SpeechModelResponse": {
             "type": "object",
             "properties": {
                 "config": {
@@ -13043,7 +12010,7 @@ const docTemplate = `{
                 }
             }
         },
-        "tts.SpeechProviderResponse": {
+        "github_com_memohai_memoh_internal_tts.SpeechProviderResponse": {
             "type": "object",
             "properties": {
                 "client_type": {
@@ -13066,7 +12033,7 @@ const docTemplate = `{
                 }
             }
         },
-        "tts.TestSynthesizeRequest": {
+        "github_com_memohai_memoh_internal_tts.TestSynthesizeRequest": {
             "type": "object",
             "properties": {
                 "config": {
@@ -13078,7 +12045,7 @@ const docTemplate = `{
                 }
             }
         },
-        "tts.VoiceInfo": {
+        "github_com_memohai_memoh_internal_tts.VoiceInfo": {
             "type": "object",
             "properties": {
                 "id": {
@@ -13088,6 +12055,1197 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.BatchDeleteRequest": {
+            "type": "object",
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_handlers.BrowserCoresResponse": {
+            "type": "object",
+            "properties": {
+                "cores": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_handlers.CacheStats": {
+            "type": "object",
+            "properties": {
+                "cache_hit_rate": {
+                    "type": "number"
+                },
+                "cache_read_tokens": {
+                    "type": "integer"
+                },
+                "cache_write_tokens": {
+                    "type": "integer"
+                },
+                "total_input_tokens": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_handlers.ChannelMeta": {
+            "type": "object",
+            "properties": {
+                "capabilities": {
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.ChannelCapabilities"
+                },
+                "config_schema": {
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.ConfigSchema"
+                },
+                "configless": {
+                    "type": "boolean"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "target_spec": {
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.TargetSpec"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "user_config_schema": {
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.ConfigSchema"
+                }
+            }
+        },
+        "internal_handlers.ContainerGPURequest": {
+            "type": "object",
+            "properties": {
+                "devices": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_handlers.ContextUsage": {
+            "type": "object",
+            "properties": {
+                "context_window": {
+                    "type": "integer"
+                },
+                "used_tokens": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_handlers.CreateContainerRequest": {
+            "type": "object",
+            "properties": {
+                "gpu": {
+                    "$ref": "#/definitions/internal_handlers.ContainerGPURequest"
+                },
+                "image": {
+                    "type": "string"
+                },
+                "restore_data": {
+                    "type": "boolean"
+                },
+                "snapshotter": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.CreateContainerResponse": {
+            "type": "object",
+            "properties": {
+                "cdi_devices": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "container_id": {
+                    "type": "string"
+                },
+                "data_restored": {
+                    "type": "boolean"
+                },
+                "has_preserved_data": {
+                    "type": "boolean"
+                },
+                "image": {
+                    "type": "string"
+                },
+                "snapshotter": {
+                    "type": "string"
+                },
+                "started": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_handlers.CreateSnapshotRequest": {
+            "type": "object",
+            "properties": {
+                "snapshot_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.CreateSnapshotResponse": {
+            "type": "object",
+            "properties": {
+                "container_id": {
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "runtime_snapshot_name": {
+                    "type": "string"
+                },
+                "snapshot_name": {
+                    "type": "string"
+                },
+                "snapshotter": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_handlers.DailyTokenUsage": {
+            "type": "object",
+            "properties": {
+                "cache_read_tokens": {
+                    "type": "integer"
+                },
+                "cache_write_tokens": {
+                    "type": "integer"
+                },
+                "day": {
+                    "type": "string"
+                },
+                "input_tokens": {
+                    "type": "integer"
+                },
+                "output_tokens": {
+                    "type": "integer"
+                },
+                "reasoning_tokens": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_handlers.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.FSDeleteRequest": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string"
+                },
+                "recursive": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_handlers.FSFileInfo": {
+            "type": "object",
+            "properties": {
+                "isDir": {
+                    "type": "boolean"
+                },
+                "modTime": {
+                    "type": "string"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_handlers.FSListResponse": {
+            "type": "object",
+            "properties": {
+                "entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_handlers.FSFileInfo"
+                    }
+                },
+                "path": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.FSMkdirRequest": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.FSReadResponse": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_handlers.FSRenameRequest": {
+            "type": "object",
+            "properties": {
+                "newPath": {
+                    "type": "string"
+                },
+                "oldPath": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.FSUploadResponse": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_handlers.FSWriteRequest": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.GetContainerResponse": {
+            "type": "object",
+            "properties": {
+                "cdi_devices": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "container_id": {
+                    "type": "string"
+                },
+                "container_path": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "has_preserved_data": {
+                    "type": "boolean"
+                },
+                "image": {
+                    "type": "string"
+                },
+                "legacy": {
+                    "type": "boolean"
+                },
+                "namespace": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "task_running": {
+                    "type": "boolean"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.InstallMcpRequest": {
+            "type": "object",
+            "properties": {
+                "env": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "mcp_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.InstallSkillRequest": {
+            "type": "object",
+            "properties": {
+                "skill_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.ListSnapshotsResponse": {
+            "type": "object",
+            "properties": {
+                "snapshots": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_handlers.SnapshotInfo"
+                    }
+                },
+                "snapshotter": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.LocalChannelMessageRequest": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "$ref": "#/definitions/github_com_memohai_memoh_internal_channel.Message"
+                },
+                "model_id": {
+                    "type": "string"
+                },
+                "reasoning_effort": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.LoginRequest": {
+            "type": "object",
+            "properties": {
+                "password": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "timezone": {
+                    "type": "string"
+                },
+                "token_type": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.MCPStdioRequest": {
+            "type": "object",
+            "properties": {
+                "args": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "command": {
+                    "type": "string"
+                },
+                "cwd": {
+                    "type": "string"
+                },
+                "env": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.MCPStdioResponse": {
+            "type": "object",
+            "properties": {
+                "connection_id": {
+                    "type": "string"
+                },
+                "tools": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.ModelTokenUsage": {
+            "type": "object",
+            "properties": {
+                "input_tokens": {
+                    "type": "integer"
+                },
+                "model_id": {
+                    "type": "string"
+                },
+                "model_name": {
+                    "type": "string"
+                },
+                "model_slug": {
+                    "type": "string"
+                },
+                "output_tokens": {
+                    "type": "integer"
+                },
+                "provider_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.PingResponse": {
+            "type": "object",
+            "properties": {
+                "commit_hash": {
+                    "type": "string"
+                },
+                "container_backend": {
+                    "type": "string"
+                },
+                "snapshot_supported": {
+                    "type": "boolean"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.ProbeResponse": {
+            "type": "object",
+            "properties": {
+                "auth_required": {
+                    "type": "boolean"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tools": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_mcp.ToolDescriptor"
+                    }
+                }
+            }
+        },
+        "internal_handlers.RefreshResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "token_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.RollbackRequest": {
+            "type": "object",
+            "properties": {
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_handlers.SessionInfoResponse": {
+            "type": "object",
+            "properties": {
+                "cache_stats": {
+                    "$ref": "#/definitions/internal_handlers.CacheStats"
+                },
+                "context_usage": {
+                    "$ref": "#/definitions/internal_handlers.ContextUsage"
+                },
+                "message_count": {
+                    "type": "integer"
+                },
+                "skills": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_handlers.SkillItem": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "managed": {
+                    "type": "boolean"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "name": {
+                    "type": "string"
+                },
+                "raw": {
+                    "type": "string"
+                },
+                "shadowed_by": {
+                    "type": "string"
+                },
+                "source_kind": {
+                    "type": "string"
+                },
+                "source_path": {
+                    "type": "string"
+                },
+                "source_root": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.SkillsActionRequest": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "target_path": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.SkillsDeleteRequest": {
+            "type": "object",
+            "properties": {
+                "names": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_handlers.SkillsResponse": {
+            "type": "object",
+            "properties": {
+                "skills": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_handlers.SkillItem"
+                    }
+                }
+            }
+        },
+        "internal_handlers.SkillsUpsertRequest": {
+            "type": "object",
+            "properties": {
+                "skills": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_handlers.SnapshotInfo": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "labels": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "managed": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent": {
+                    "type": "string"
+                },
+                "runtime_snapshot_name": {
+                    "type": "string"
+                },
+                "snapshotter": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_handlers.SupermarketAuthor": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.SupermarketConfigVar": {
+            "type": "object",
+            "properties": {
+                "defaultValue": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.SupermarketMcpEntry": {
+            "type": "object",
+            "properties": {
+                "args": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "author": {
+                    "$ref": "#/definitions/internal_handlers.SupermarketAuthor"
+                },
+                "command": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "env": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_handlers.SupermarketConfigVar"
+                    }
+                },
+                "headers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_handlers.SupermarketConfigVar"
+                    }
+                },
+                "homepage": {
+                    "type": "string"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "transport": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.SupermarketMcpListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_handlers.SupermarketMcpEntry"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_handlers.SupermarketSkillEntry": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "files": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "$ref": "#/definitions/internal_handlers.SupermarketSkillMetadata"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.SupermarketSkillListResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_handlers.SupermarketSkillEntry"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_handlers.SupermarketSkillMetadata": {
+            "type": "object",
+            "properties": {
+                "author": {
+                    "$ref": "#/definitions/internal_handlers.SupermarketAuthor"
+                },
+                "homepage": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_handlers.SupermarketTagsResponse": {
+            "type": "object",
+            "properties": {
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_handlers.TokenUsageResponse": {
+            "type": "object",
+            "properties": {
+                "by_model": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_handlers.ModelTokenUsage"
+                    }
+                },
+                "chat": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_handlers.DailyTokenUsage"
+                    }
+                },
+                "heartbeat": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_handlers.DailyTokenUsage"
+                    }
+                },
+                "schedule": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_handlers.DailyTokenUsage"
+                    }
+                }
+            }
+        },
+        "internal_handlers.TriggerCompactResponse": {
+            "type": "object",
+            "properties": {
+                "message_count": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "summary": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.createSessionRequest": {
+            "type": "object",
+            "properties": {
+                "channel_type": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.emailOAuthStatusResponse": {
+            "type": "object",
+            "properties": {
+                "configured": {
+                    "type": "boolean"
+                },
+                "email_address": {
+                    "type": "string"
+                },
+                "expired": {
+                    "type": "boolean"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "has_token": {
+                    "type": "boolean"
+                },
+                "provider": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.fsOpResponse": {
+            "type": "object",
+            "properties": {
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_handlers.listMyIdentitiesResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_channel_identities.ChannelIdentity"
+                    }
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.memoryAddPayload": {
+            "type": "object",
+            "properties": {
+                "embedding_enabled": {
+                    "type": "boolean"
+                },
+                "filters": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "infer": {
+                    "type": "boolean"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "messages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_memohai_memoh_internal_memory_adapters.Message"
+                    }
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "namespace": {
+                    "type": "string"
+                },
+                "run_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.memoryCompactPayload": {
+            "type": "object",
+            "properties": {
+                "decay_days": {
+                    "type": "integer"
+                },
+                "ratio": {
+                    "type": "number"
+                }
+            }
+        },
+        "internal_handlers.memoryDeletePayload": {
+            "type": "object",
+            "properties": {
+                "memory_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_handlers.memorySearchPayload": {
+            "type": "object",
+            "properties": {
+                "embedding_enabled": {
+                    "type": "boolean"
+                },
+                "filters": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "no_stats": {
+                    "type": "boolean"
+                },
+                "query": {
+                    "type": "string"
+                },
+                "run_id": {
+                    "type": "string"
+                },
+                "sources": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_handlers.oauthAuthorizeRequest": {
+            "type": "object",
+            "properties": {
+                "callback_url": {
+                    "type": "string"
+                },
+                "client_id": {
+                    "type": "string"
+                },
+                "client_secret": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.oauthDiscoverRequest": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.oauthExchangeRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.skillsOpResponse": {
+            "type": "object",
+            "properties": {
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_handlers.synthesizeRequest": {
+            "type": "object",
+            "properties": {
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.synthesizeResponse": {
+            "type": "object",
+            "properties": {
+                "content_type": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "temp_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.terminalInfoResponse": {
+            "type": "object",
+            "properties": {
+                "available": {
+                    "type": "boolean"
+                },
+                "shell": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handlers.updateSessionRequest": {
+            "type": "object",
+            "properties": {
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "weixin.QRPollRequest": {
+            "type": "object",
+            "properties": {
+                "qr_code": {
+                    "type": "string"
+                }
+            }
+        },
+        "weixin.QRPollResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "wait, scaned, confirmed, expired",
+                    "type": "string"
+                }
+            }
+        },
+        "weixin.QRStartResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "qr_code": {
+                    "type": "string"
+                },
+                "qr_code_url": {
                     "type": "string"
                 }
             }

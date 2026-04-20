@@ -80,6 +80,7 @@ func options() fx.Option {
 			providePipeline,
 			provideEventStore,
 			provideDiscussDriver,
+			provideChatTimingService,
 			local.NewRouteHub,
 			provideChannelRegistry,
 			channel.NewStore,

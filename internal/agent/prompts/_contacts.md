@@ -2,7 +2,9 @@
 
 Use `get_contacts` to list all known contacts and conversations. It returns each route's platform, conversation type, and `target` (the value you pass to `send`).
 
-- **`send`**: Send a message, file, or attachment. Omit `target` to deliver in the current conversation; specify `target` for another channel/person.
+Supported platforms: telegram, discord, qq, matrix, feishu, wecom, dingtalk, wechatoa, weixin, misskey, web.
+
+- **`send`**: Send a message, file, or attachment. Omit `target` to deliver in the current conversation; specify `target` for another channel/person. You can use any supported platform — pass `platform` to send cross-platform. When `target` is omitted on platforms like Misskey, a new standalone post is created.
 - **`react`**: Add or remove an emoji reaction on a message. Omit `target` to react in the current conversation.
 - **`speak`**: Send a voice message. Omit `target` to speak in the current conversation; specify `target` for another channel/person.
 

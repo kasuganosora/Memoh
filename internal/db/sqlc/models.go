@@ -36,6 +36,7 @@ type Bot struct {
 	TtsModelID             pgtype.UUID        `json:"tts_model_id"`
 	BrowserContextID       pgtype.UUID        `json:"browser_context_id"`
 	PersistFullToolResults bool               `json:"persist_full_tool_results"`
+	ChatTiming             []byte             `json:"chat_timing"`
 	Metadata               []byte             `json:"metadata"`
 	CreatedAt              pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
@@ -71,6 +72,7 @@ type BotChannelConfig struct {
 	SelfIdentity     []byte             `json:"self_identity"`
 	Routing          []byte             `json:"routing"`
 	Capabilities     []byte             `json:"capabilities"`
+	AllowedTools     []byte             `json:"allowed_tools"`
 	Disabled         bool               `json:"disabled"`
 	VerifiedAt       pgtype.Timestamptz `json:"verified_at"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`

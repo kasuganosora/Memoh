@@ -103,6 +103,11 @@ type RunConfig struct {
 	// boundaries and injects them as user messages so the model learns
 	// about completed background work.
 	BackgroundManager *background.Manager
+
+	// AllowedTools restricts which tools are available for this run.
+	// When empty or nil, all tools are available (no filtering).
+	// When non-empty, only tools whose names appear in this list are provided.
+	AllowedTools []string
 }
 
 // GenerateResult holds the result of a non-streaming agent invocation.
