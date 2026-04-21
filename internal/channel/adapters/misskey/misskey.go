@@ -62,8 +62,8 @@ func (*MisskeyAdapter) Descriptor() channel.Descriptor {
 			Markdown:       true,
 			Reply:          true,
 			Reactions:      true,
-			Attachments:    false,
-			Media:          false,
+			Attachments:    true,
+			Media:          true,
 			Streaming:      false,
 			BlockStreaming: true,
 			Edit:           false,
@@ -351,17 +351,35 @@ type streamChannelBody struct {
 
 // misskeyNote represents a Misskey note (post).
 type misskeyNote struct {
-	ID         string       `json:"id"`
-	Text       string       `json:"text"`
-	CW         string       `json:"cw"`
-	UserID     string       `json:"userId"`
-	User       misskeyUser  `json:"user"`
-	ReplyID    string       `json:"replyId"`
-	RenoteID   string       `json:"renoteId"`
-	CreatedAt  string       `json:"createdAt"`
-	Mentions   []string     `json:"mentions"`
-	Visibility string       `json:"visibility"`
-	Reply      *misskeyNote `json:"reply"`
+	ID         string        `json:"id"`
+	Text       string        `json:"text"`
+	CW         string        `json:"cw"`
+	UserID     string        `json:"userId"`
+	User       misskeyUser   `json:"user"`
+	ReplyID    string        `json:"replyId"`
+	RenoteID   string        `json:"renoteId"`
+	CreatedAt  string        `json:"createdAt"`
+	Mentions   []string      `json:"mentions"`
+	Visibility string        `json:"visibility"`
+	Reply      *misskeyNote  `json:"reply"`
+	Files      []misskeyFile `json:"files"`
+}
+
+// misskeyFile represents a file attached to a Misskey note.
+type misskeyFile struct {
+	ID           string           `json:"id"`
+	Name         string           `json:"name"`
+	Type         string           `json:"type"`
+	URL          string           `json:"url"`
+	ThumbnailURL string           `json:"thumbnailUrl"`
+	Size         int64            `json:"size"`
+	IsSensitive  bool             `json:"isSensitive"`
+	Properties   misskeyFileProps `json:"properties"`
+}
+
+type misskeyFileProps struct {
+	Width  int `json:"width"`
+	Height int `json:"height"`
 }
 
 type misskeyUser struct {
@@ -469,7 +487,8 @@ func (a *MisskeyAdapter) handleChannelEvent(ctx context.Context, cfg channel.Cha
 
 func (*MisskeyAdapter) buildInboundMessage(me *meResponse, note misskeyNote) (channel.InboundMessage, bool) {
 	text := strings.TrimSpace(note.Text)
-	if text == "" {
+	attachments := collectMisskeyAttachments(note)
+	if text == "" && len(attachments) == 0 {
 		return channel.InboundMessage{}, false
 	}
 
@@ -543,10 +562,11 @@ func (*MisskeyAdapter) buildInboundMessage(me *meResponse, note misskeyNote) (ch
 	return channel.InboundMessage{
 		Channel: Type,
 		Message: channel.Message{
-			ID:     note.ID,
-			Format: channel.MessageFormatPlain,
-			Text:   text,
-			Reply:  replyRef,
+			ID:          note.ID,
+			Format:      channel.MessageFormatPlain,
+			Text:        text,
+			Reply:       replyRef,
+			Attachments: attachments,
 		},
 		ReplyTarget: note.ID,
 		Sender: channel.Identity{
@@ -599,11 +619,11 @@ func (a *MisskeyAdapter) handleTimelineNote(ctx context.Context, cfg channel.Cha
 		return
 	}
 	text := strings.TrimSpace(note.Text)
-	if text == "" {
-		return // file-only or empty note
+	if text == "" && len(note.Files) == 0 {
+		return // empty note
 	}
-	if len([]rune(text)) < misskeyTimelineMinTextLen {
-		return // too short
+	if text != "" && len([]rune(text)) < misskeyTimelineMinTextLen {
+		return // too short (but allow file-only notes through)
 	}
 	if note.Visibility == "specified" {
 		return // DM, not timeline material
@@ -626,6 +646,7 @@ func (a *MisskeyAdapter) handleTimelineNote(ctx context.Context, cfg channel.Cha
 // buildTimelineInboundMessage creates an InboundMessage from a timeline note.
 func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source string) channel.InboundMessage {
 	text := strings.TrimSpace(note.Text)
+	attachments := collectMisskeyAttachments(note)
 
 	// Prefix with timeline context so the LLM understands where this came from.
 	username := note.User.Username
@@ -633,7 +654,11 @@ func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source stri
 	if displayName == "" {
 		displayName = username
 	}
-	text = fmt.Sprintf("[Timeline/%s] @%s: %s", source, username, text)
+	if text != "" {
+		text = fmt.Sprintf("[Timeline/%s] @%s: %s", source, username, text)
+	} else if len(attachments) > 0 {
+		text = fmt.Sprintf("[Timeline/%s] @%s: [shared %d file(s)]", source, username, len(attachments))
+	}
 
 	attrs := map[string]string{
 		"user_id":  note.UserID,
@@ -656,9 +681,10 @@ func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source stri
 	return channel.InboundMessage{
 		Channel: Type,
 		Message: channel.Message{
-			ID:     note.ID,
-			Format: channel.MessageFormatPlain,
-			Text:   text,
+			ID:          note.ID,
+			Format:      channel.MessageFormatPlain,
+			Text:        text,
+			Attachments: attachments,
 		},
 		ReplyTarget: note.ID,
 		Sender: channel.Identity{
@@ -679,6 +705,48 @@ func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source stri
 			"visibility":      note.Visibility,
 			"note_id":         note.ID,
 		},
+	}
+}
+
+// collectMisskeyAttachments extracts channel.Attachment slice from a Misskey note's files.
+func collectMisskeyAttachments(note misskeyNote) []channel.Attachment {
+	if len(note.Files) == 0 {
+		return nil
+	}
+	attachments := make([]channel.Attachment, 0, len(note.Files))
+	for _, f := range note.Files {
+		if f.URL == "" && f.Type == "" {
+			continue
+		}
+		att := channel.Attachment{
+			Type:           mapMisskeyAttachmentType(f.Type),
+			URL:            f.URL,
+			Name:           f.Name,
+			Mime:           f.Type,
+			Size:           f.Size,
+			Width:          f.Properties.Width,
+			Height:         f.Properties.Height,
+			ThumbnailURL:   f.ThumbnailURL,
+			SourcePlatform: "misskey",
+		}
+		attachments = append(attachments, channel.NormalizeInboundChannelAttachment(att))
+	}
+	return attachments
+}
+
+// mapMisskeyAttachmentType maps a Misskey file MIME type to a channel AttachmentType.
+func mapMisskeyAttachmentType(mime string) channel.AttachmentType {
+	switch {
+	case strings.HasPrefix(mime, "image/gif"):
+		return channel.AttachmentGIF
+	case strings.HasPrefix(mime, "image/"):
+		return channel.AttachmentImage
+	case strings.HasPrefix(mime, "video/"):
+		return channel.AttachmentVideo
+	case strings.HasPrefix(mime, "audio/"):
+		return channel.AttachmentAudio
+	default:
+		return channel.AttachmentFile
 	}
 }
 
