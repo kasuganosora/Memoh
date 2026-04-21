@@ -18,13 +18,15 @@ import (
 )
 
 const (
-	misskeyMaxNoteLength      = 3000
-	misskeyReconnectDelay     = 5 * time.Second
-	misskeyPingInterval       = 30 * time.Second
-	misskeyWriteTimeout       = 10 * time.Second
-	misskeyReadBufferSize     = 1 << 16
-	misskeyWriteBufferSize    = 1 << 16
-	misskeyTimelineMinTextLen = 5 // minimum text length for timeline notes
+	misskeyMaxNoteLength        = 3000
+	misskeyReconnectDelay       = 5 * time.Second
+	misskeyPingInterval         = 30 * time.Second
+	misskeyWriteTimeout         = 10 * time.Second
+	misskeyReadBufferSize       = 1 << 16
+	misskeyWriteBufferSize      = 1 << 16
+	misskeyTimelineMinTextLen   = 5                // minimum text length for timeline notes
+	misskeyDedupTTL             = 2 * time.Minute  // TTL for timeline note dedup cache
+	misskeyDedupCleanupInterval = 30 * time.Second // cleanup interval for dedup cache
 )
 
 // MisskeyAdapter implements the channel.Adapter interfaces for Misskey.
@@ -252,6 +254,7 @@ func (a *MisskeyAdapter) runStream(ctx context.Context, cfg channel.ChannelConfi
 
 	// Subscribe to timeline channels based on routing config.
 	tlCfg := parseTimelineConfig(cfg.Routing)
+	needDedup := tlCfg.Home && tlCfg.Local // dedup only needed when both timelines are active
 	if tlCfg.Home {
 		if err := subscribeChannel(conn, "homeTimeline", "memoh-home"); err != nil {
 			return fmt.Errorf("misskey ws connect homeTimeline: %w", err)
@@ -267,6 +270,38 @@ func (a *MisskeyAdapter) runStream(ctx context.Context, cfg channel.ChannelConfi
 		if a.logger != nil {
 			a.logger.Info("subscribed to localTimeline", slog.String("config_id", cfg.ID))
 		}
+	}
+
+	// Timeline note dedup cache: prevents processing the same note twice
+	// when both home and local timelines are active.
+	var dedup map[string]time.Time
+	var dedupMu sync.Mutex
+	if needDedup {
+		dedup = make(map[string]time.Time)
+		// Periodic cleanup of expired entries.
+		cleanupDone := make(chan struct{})
+		go func() {
+			ticker := time.NewTicker(misskeyDedupCleanupInterval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-cleanupDone:
+					return
+				case <-ticker.C:
+					dedupMu.Lock()
+					now := time.Now()
+					for id, ts := range dedup {
+						if now.Sub(ts) > misskeyDedupTTL {
+							delete(dedup, id)
+						}
+					}
+					dedupMu.Unlock()
+				}
+			}
+		}()
+		defer close(cleanupDone)
 	}
 
 	// Start ping ticker.
@@ -297,7 +332,7 @@ func (a *MisskeyAdapter) runStream(ctx context.Context, cfg channel.ChannelConfi
 		if readErr != nil {
 			return fmt.Errorf("misskey ws read: %w", readErr)
 		}
-		a.handleStreamMessage(ctx, cfg, me, handler, msgBytes)
+		a.handleStreamMessage(ctx, cfg, me, handler, msgBytes, dedup, &dedupMu)
 	}
 }
 
@@ -337,7 +372,7 @@ type misskeyUser struct {
 	AvatarURL string `json:"avatarUrl"`
 }
 
-func (a *MisskeyAdapter) handleStreamMessage(ctx context.Context, cfg channel.ChannelConfig, me *meResponse, handler channel.InboundHandler, raw []byte) {
+func (a *MisskeyAdapter) handleStreamMessage(ctx context.Context, cfg channel.ChannelConfig, me *meResponse, handler channel.InboundHandler, raw []byte, dedup map[string]time.Time, dedupMu *sync.Mutex) {
 	var msg streamMessage
 	if err := json.Unmarshal(raw, &msg); err != nil {
 		return
@@ -348,18 +383,18 @@ func (a *MisskeyAdapter) handleStreamMessage(ctx context.Context, cfg channel.Ch
 		if err := json.Unmarshal(msg.Body, &body); err != nil {
 			return
 		}
-		a.handleChannelEvent(ctx, cfg, me, handler, body)
+		a.handleChannelEvent(ctx, cfg, me, handler, body, dedup, dedupMu)
 	}
 }
 
-func (a *MisskeyAdapter) handleChannelEvent(ctx context.Context, cfg channel.ChannelConfig, me *meResponse, handler channel.InboundHandler, body streamChannelBody) {
+func (a *MisskeyAdapter) handleChannelEvent(ctx context.Context, cfg channel.ChannelConfig, me *meResponse, handler channel.InboundHandler, body streamChannelBody, dedup map[string]time.Time, dedupMu *sync.Mutex) {
 	switch body.Type {
 	case "note":
 		// Timeline note events from homeTimeline or localTimeline subscriptions.
 		if body.ID != "memoh-home" && body.ID != "memoh-local" {
 			return
 		}
-		a.handleTimelineNote(ctx, cfg, me, handler, body)
+		a.handleTimelineNote(ctx, cfg, me, handler, body, dedup, dedupMu)
 		return
 	case "mention", "reply":
 		var note misskeyNote
@@ -514,13 +549,25 @@ func (*MisskeyAdapter) buildInboundMessage(me *meResponse, note misskeyNote) (ch
 }
 
 // handleTimelineNote processes a note event from a timeline subscription.
-func (a *MisskeyAdapter) handleTimelineNote(ctx context.Context, cfg channel.ChannelConfig, me *meResponse, handler channel.InboundHandler, body streamChannelBody) {
+func (a *MisskeyAdapter) handleTimelineNote(ctx context.Context, cfg channel.ChannelConfig, me *meResponse, handler channel.InboundHandler, body streamChannelBody, dedup map[string]time.Time, dedupMu *sync.Mutex) {
 	var note misskeyNote
 	if err := json.Unmarshal(body.Body, &note); err != nil {
 		if a.logger != nil {
 			a.logger.Warn("parse timeline note failed", slog.String("config_id", cfg.ID), slog.Any("error", err))
 		}
 		return
+	}
+
+	// Dedup: when both home and local timelines are active, the same note
+	// can arrive from both channels. Only process it once.
+	if dedup != nil {
+		dedupMu.Lock()
+		if ts, seen := dedup[note.ID]; seen && time.Since(ts) < misskeyDedupTTL {
+			dedupMu.Unlock()
+			return
+		}
+		dedup[note.ID] = time.Now()
+		dedupMu.Unlock()
 	}
 
 	// Basic filtering: skip noise.
@@ -583,11 +630,8 @@ func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source stri
 		}
 	}
 
-	// All timeline notes aggregate into a single route per source.
-	convID := "timeline-home"
-	if source == "local" {
-		convID = "timeline-local"
-	}
+	// All timeline notes aggregate into a single conversation.
+	convID := "timeline"
 
 	return channel.InboundMessage{
 		Channel: Type,
