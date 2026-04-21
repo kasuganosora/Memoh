@@ -29,6 +29,7 @@ type RenderedSegment struct {
 	IsSelfSent   bool                   `json:"is_self_sent,omitempty"`
 	MentionsMe   bool                   `json:"mentions_me,omitempty"`
 	RepliesToMe  bool                   `json:"replies_to_me,omitempty"`
+	IsTimeline   bool                   `json:"is_timeline,omitempty"`
 	ImageRefs    []ImageAttachmentRef   `json:"image_refs,omitempty"`
 }
 
@@ -118,6 +119,7 @@ func renderMessage(msg *ICMessage, params RenderParams) RenderedSegment {
 			IsSelfSent:   msg.IsSelfSent,
 			MentionsMe:   mentionsMe,
 			RepliesToMe:  repliesToMe,
+			IsTimeline:   msg.IsTimeline,
 		}
 	}
 
@@ -165,6 +167,7 @@ func renderMessage(msg *ICMessage, params RenderParams) RenderedSegment {
 		IsSelfSent:   msg.IsSelfSent,
 		MentionsMe:   mentionsMe,
 		RepliesToMe:  repliesToMe,
+		IsTimeline:   msg.IsTimeline,
 		ImageRefs:    imageRefs,
 	}
 }

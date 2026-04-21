@@ -1072,6 +1072,10 @@
       "toolAccessHint": "留空表示允许所有工具。设置后，通过此渠道聊天时仅允许使用选中的工具。",
       "selectAllTools": "全选",
       "clearAllTools": "清空",
+      "timelineSettings": "时间线",
+      "timelineHint": "订阅 Misskey 时间线流。Bot 将观察时间线上的帖子并自行决定是否回复。",
+      "homeTimeline": "主页时间线",
+      "localTimeline": "本站时间线",
       "weixinQr": {
         "title": "扫码登录",
         "description": "使用微信扫描二维码以连接微信账号。",

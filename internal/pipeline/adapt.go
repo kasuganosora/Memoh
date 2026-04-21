@@ -72,6 +72,7 @@ func adaptMessage(msg channel.InboundMessage, sessionID, channelIdentityID, disp
 			ConversationType: convType,
 			Target:           strings.TrimSpace(msg.ReplyTarget),
 		},
+		IsTimeline: metadataBool(msg.Metadata, "is_timeline"),
 	}
 }
 

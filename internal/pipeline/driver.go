@@ -646,7 +646,7 @@ func injectImagePartsIntoLastUserMessage(msgs []sdk.Message, parts []sdk.ImagePa
 
 func wasRecentlyMentioned(rc RenderedContext, afterMs int64) bool {
 	for _, seg := range rc {
-		if seg.ReceivedAtMs > afterMs && (seg.MentionsMe || seg.RepliesToMe) {
+		if seg.ReceivedAtMs > afterMs && (seg.MentionsMe || seg.RepliesToMe || seg.IsTimeline) {
 			return true
 		}
 	}

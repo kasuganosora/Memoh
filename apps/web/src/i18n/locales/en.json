@@ -1076,6 +1076,10 @@
       "toolAccessHint": "Leave empty to allow all tools. When set, only the selected tools will be available when chatting through this channel.",
       "selectAllTools": "Select All",
       "clearAllTools": "Clear All",
+      "timelineSettings": "Timeline",
+      "timelineHint": "Subscribe to Misskey timeline streams. The bot will observe timeline notes and decide whether to respond.",
+      "homeTimeline": "Home Timeline",
+      "localTimeline": "Local Timeline",
       "weixinQr": {
         "title": "QR Code Login",
         "description": "Scan the QR code with WeChat to connect your account.",

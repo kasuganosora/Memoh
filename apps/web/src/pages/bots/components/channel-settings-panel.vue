@@ -263,6 +263,39 @@
       </div>
     </template>
 
+    <!-- Timeline Settings (Misskey only) -->
+    <template v-if="isEditMode && platformType === 'misskey'">
+      <Separator />
+      <div class="space-y-3">
+        <h4 class="text-xs font-medium">
+          {{ $t('bots.channels.timelineSettings') }}
+        </h4>
+        <p class="text-xs text-muted-foreground">
+          {{ $t('bots.channels.timelineHint') }}
+        </p>
+        <div class="space-y-2">
+          <label class="flex items-center gap-2 text-xs cursor-pointer">
+            <input
+              type="checkbox"
+              class="size-3.5 rounded border-border"
+              :checked="form.timelineHome"
+              @change="form.timelineHome = ($event.target as HTMLInputElement).checked"
+            >
+            {{ $t('bots.channels.homeTimeline') }}
+          </label>
+          <label class="flex items-center gap-2 text-xs cursor-pointer">
+            <input
+              type="checkbox"
+              class="size-3.5 rounded border-border"
+              :checked="form.timelineLocal"
+              @change="form.timelineLocal = ($event.target as HTMLInputElement).checked"
+            >
+            {{ $t('bots.channels.localTimeline') }}
+          </label>
+        </div>
+      </div>
+    </template>
+
     <Separator />
 
     <div class="flex justify-end gap-2 ">
@@ -391,10 +424,14 @@ const form = reactive<{
   credentials: Record<string, unknown>
   disabled: boolean
   allowedTools: string[]
+  timelineHome: boolean
+  timelineLocal: boolean
 }>({
   credentials: {},
   disabled: false,
   allowedTools: [],
+  timelineHome: false,
+  timelineLocal: false,
 })
 
 const visibleSecrets = reactive<Record<string, boolean>>({})
@@ -480,6 +517,10 @@ function initForm() {
   form.credentials = creds
   form.disabled = props.channelItem.config?.disabled ?? false
   form.allowedTools = props.channelItem.config?.allowed_tools ?? []
+  const routing = props.channelItem.config?.routing as Record<string, unknown> | undefined
+  const timeline = (routing?.timeline ?? {}) as Record<string, unknown>
+  form.timelineHome = !!timeline.home
+  form.timelineLocal = !!timeline.local
   lastSavedConfigId.value = String(props.channelItem.config?.id || '').trim()
 }
 
@@ -566,11 +607,16 @@ async function saveChannel(disabled: boolean, nextAction: 'save' | 'toggle') {
   if (!validateFeishuWebhookSecrets()) return
   action.value = nextAction
   try {
+    // Build routing object for timeline settings (Misskey).
+    const routing: Record<string, unknown> | undefined = platformType.value === 'misskey'
+      ? { timeline: { home: form.timelineHome, local: form.timelineLocal } }
+      : undefined
     const result = await upsertChannel({
       platform: platformType.value,
       data: {
         credentials: buildCredentials(),
         allowed_tools: form.allowedTools.length > 0 ? form.allowedTools : undefined,
+        routing,
         disabled,
       },
     })

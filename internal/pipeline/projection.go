@@ -20,6 +20,7 @@ type ICMessage struct {
 	EditUTCOffsetMin int              `json:"edit_utc_offset_min,omitempty"`
 	Deleted          bool             `json:"deleted,omitempty"`
 	IsSelfSent       bool             `json:"is_self_sent,omitempty"`
+	IsTimeline       bool             `json:"is_timeline,omitempty"`
 	Conversation     ConversationMeta `json:"conversation"`
 }
 
@@ -197,6 +198,7 @@ func reduceMessage(ic *IntermediateContext, event MessageEvent) {
 		Content:      event.Content,
 		Attachments:  event.Attachments,
 		IsSelfSent:   event.IsSelfSent,
+		IsTimeline:   event.IsTimeline,
 		Conversation: event.Conversation,
 	}
 

@@ -18,12 +18,13 @@ import (
 )
 
 const (
-	misskeyMaxNoteLength   = 3000
-	misskeyReconnectDelay  = 5 * time.Second
-	misskeyPingInterval    = 30 * time.Second
-	misskeyWriteTimeout    = 10 * time.Second
-	misskeyReadBufferSize  = 1 << 16
-	misskeyWriteBufferSize = 1 << 16
+	misskeyMaxNoteLength      = 3000
+	misskeyReconnectDelay     = 5 * time.Second
+	misskeyPingInterval       = 30 * time.Second
+	misskeyWriteTimeout       = 10 * time.Second
+	misskeyReadBufferSize     = 1 << 16
+	misskeyWriteBufferSize    = 1 << 16
+	misskeyTimelineMinTextLen = 5 // minimum text length for timeline notes
 )
 
 // MisskeyAdapter implements the channel.Adapter interfaces for Misskey.
@@ -249,6 +250,25 @@ func (a *MisskeyAdapter) runStream(ctx context.Context, cfg channel.ChannelConfi
 		return fmt.Errorf("misskey ws connect main: %w", err)
 	}
 
+	// Subscribe to timeline channels based on routing config.
+	tlCfg := parseTimelineConfig(cfg.Routing)
+	if tlCfg.Home {
+		if err := subscribeChannel(conn, "homeTimeline", "memoh-home"); err != nil {
+			return fmt.Errorf("misskey ws connect homeTimeline: %w", err)
+		}
+		if a.logger != nil {
+			a.logger.Info("subscribed to homeTimeline", slog.String("config_id", cfg.ID))
+		}
+	}
+	if tlCfg.Local {
+		if err := subscribeChannel(conn, "localTimeline", "memoh-local"); err != nil {
+			return fmt.Errorf("misskey ws connect localTimeline: %w", err)
+		}
+		if a.logger != nil {
+			a.logger.Info("subscribed to localTimeline", slog.String("config_id", cfg.ID))
+		}
+	}
+
 	// Start ping ticker.
 	pingDone := make(chan struct{})
 	go func() {
@@ -334,6 +354,13 @@ func (a *MisskeyAdapter) handleStreamMessage(ctx context.Context, cfg channel.Ch
 
 func (a *MisskeyAdapter) handleChannelEvent(ctx context.Context, cfg channel.ChannelConfig, me *meResponse, handler channel.InboundHandler, body streamChannelBody) {
 	switch body.Type {
+	case "note":
+		// Timeline note events from homeTimeline or localTimeline subscriptions.
+		if body.ID != "memoh-home" && body.ID != "memoh-local" {
+			return
+		}
+		a.handleTimelineNote(ctx, cfg, me, handler, body)
+		return
 	case "mention", "reply":
 		var note misskeyNote
 		if err := json.Unmarshal(body.Body, &note); err != nil {
@@ -486,6 +513,111 @@ func (*MisskeyAdapter) buildInboundMessage(me *meResponse, note misskeyNote) (ch
 	}, true
 }
 
+// handleTimelineNote processes a note event from a timeline subscription.
+func (a *MisskeyAdapter) handleTimelineNote(ctx context.Context, cfg channel.ChannelConfig, me *meResponse, handler channel.InboundHandler, body streamChannelBody) {
+	var note misskeyNote
+	if err := json.Unmarshal(body.Body, &note); err != nil {
+		if a.logger != nil {
+			a.logger.Warn("parse timeline note failed", slog.String("config_id", cfg.ID), slog.Any("error", err))
+		}
+		return
+	}
+
+	// Basic filtering: skip noise.
+	if note.UserID == me.ID {
+		return // own notes
+	}
+	// Skip pure renotes (reposts without commentary).
+	if note.RenoteID != "" && strings.TrimSpace(note.Text) == "" {
+		return
+	}
+	text := strings.TrimSpace(note.Text)
+	if text == "" {
+		return // file-only or empty note
+	}
+	if len([]rune(text)) < misskeyTimelineMinTextLen {
+		return // too short
+	}
+	if note.Visibility == "specified" {
+		return // DM, not timeline material
+	}
+
+	source := "home"
+	if body.ID == "memoh-local" {
+		source = "local"
+	}
+
+	inbound := a.buildTimelineInboundMessage(note, source)
+	a.logInbound(cfg.ID, inbound)
+	go func() {
+		if err := handler(ctx, cfg, inbound); err != nil && a.logger != nil {
+			a.logger.Error("handle timeline inbound failed", slog.String("config_id", cfg.ID), slog.Any("error", err))
+		}
+	}()
+}
+
+// buildTimelineInboundMessage creates an InboundMessage from a timeline note.
+func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source string) channel.InboundMessage {
+	text := strings.TrimSpace(note.Text)
+
+	// Prefix with timeline context so the LLM understands where this came from.
+	username := note.User.Username
+	displayName := note.User.Name
+	if displayName == "" {
+		displayName = username
+	}
+	text = fmt.Sprintf("[Timeline/%s] @%s: %s", source, username, text)
+
+	attrs := map[string]string{
+		"user_id":  note.UserID,
+		"username": note.User.Username,
+	}
+	if note.User.Host != "" {
+		attrs["host"] = note.User.Host
+	}
+
+	receivedAt := time.Now().UTC()
+	if note.CreatedAt != "" {
+		if t, err := time.Parse(time.RFC3339, note.CreatedAt); err == nil {
+			receivedAt = t
+		}
+	}
+
+	// All timeline notes aggregate into a single route per source.
+	convID := "timeline-home"
+	if source == "local" {
+		convID = "timeline-local"
+	}
+
+	return channel.InboundMessage{
+		Channel: Type,
+		Message: channel.Message{
+			ID:     note.ID,
+			Format: channel.MessageFormatPlain,
+			Text:   text,
+		},
+		ReplyTarget: note.ID,
+		Sender: channel.Identity{
+			SubjectID:   note.UserID,
+			DisplayName: displayName,
+			Attributes:  attrs,
+		},
+		Conversation: channel.Conversation{
+			ID:   convID,
+			Type: channel.ConversationTypeGroup,
+		},
+		ReceivedAt: receivedAt,
+		Source:     "misskey",
+		Metadata: map[string]any{
+			"is_timeline":     true,
+			"is_mentioned":    false,
+			"timeline_source": source,
+			"visibility":      note.Visibility,
+			"note_id":         note.ID,
+		},
+	}
+}
+
 func (a *MisskeyAdapter) logInbound(configID string, msg channel.InboundMessage) {
 	if a.logger == nil {
 		return
@@ -623,6 +755,63 @@ func (s *misskeyBlockStream) Push(_ context.Context, event channel.PreparedStrea
 		}
 	}
 	return nil
+}
+
+// --- Timeline configuration ---
+
+// timelineConfig holds timeline subscription settings parsed from routing.
+type timelineConfig struct {
+	Home  bool `json:"home"`
+	Local bool `json:"local"`
+}
+
+// parseTimelineConfig extracts timeline settings from the routing config.
+func parseTimelineConfig(routing map[string]any) timelineConfig {
+	if routing == nil {
+		return timelineConfig{}
+	}
+	var cfg timelineConfig
+	tl, ok := routing["timeline"]
+	if !ok {
+		return timelineConfig{}
+	}
+	v, ok := tl.(map[string]any)
+	if !ok {
+		return timelineConfig{}
+	}
+	if home, ok := v["home"]; ok {
+		cfg.Home = toBool(home)
+	}
+	if local, ok := v["local"]; ok {
+		cfg.Local = toBool(local)
+	}
+	return cfg
+}
+
+func toBool(v any) bool {
+	switch b := v.(type) {
+	case bool:
+		return b
+	case string:
+		return strings.EqualFold(b, "true") || b == "1"
+	case json.Number:
+		return b.String() == "1"
+	case float64:
+		return b == 1
+	default:
+		return false
+	}
+}
+
+// subscribeChannel sends a channel connect message over the WebSocket.
+func subscribeChannel(conn *websocket.Conn, channelName, id string) error {
+	return conn.WriteJSON(map[string]any{
+		"type": "connect",
+		"body": map[string]any{
+			"channel": channelName,
+			"id":      id,
+		},
+	})
 }
 
 func (s *misskeyBlockStream) Close(ctx context.Context) error {

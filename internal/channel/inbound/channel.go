@@ -999,6 +999,9 @@ func shouldTriggerAssistantResponse(msg channel.InboundMessage) bool {
 	if metadataBool(msg.Metadata, "is_reply_to_bot") {
 		return true
 	}
+	if metadataBool(msg.Metadata, "is_timeline") {
+		return true
+	}
 	return false
 }
 
