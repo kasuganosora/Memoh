@@ -254,7 +254,7 @@ func (a *MisskeyAdapter) runStream(ctx context.Context, cfg channel.ChannelConfi
 
 	// Subscribe to timeline channels based on routing config.
 	tlCfg := parseTimelineConfig(cfg.Routing)
-	needDedup := tlCfg.Home && tlCfg.Local // dedup only needed when both timelines are active
+	needDedup := tlCfg.Home || tlCfg.Local // dedup needed when any timeline is active
 	if tlCfg.Home {
 		if err := subscribeChannel(conn, "homeTimeline", "memoh-home"); err != nil {
 			return fmt.Errorf("misskey ws connect homeTimeline: %w", err)
@@ -404,6 +404,16 @@ func (a *MisskeyAdapter) handleChannelEvent(ctx context.Context, cfg channel.Cha
 			}
 			return
 		}
+		// Dedup: skip if this note was already processed from timeline.
+		if dedup != nil && note.ID != "" {
+			dedupMu.Lock()
+			if ts, seen := dedup[note.ID]; seen && time.Since(ts) < misskeyDedupTTL {
+				dedupMu.Unlock()
+				return
+			}
+			dedup[note.ID] = time.Now()
+			dedupMu.Unlock()
+		}
 		// Skip notes from self.
 		if note.UserID == me.ID {
 			return
@@ -430,6 +440,16 @@ func (a *MisskeyAdapter) handleChannelEvent(ctx context.Context, cfg channel.Cha
 		}
 		if notif.Type != "mention" && notif.Type != "reply" {
 			return
+		}
+		// Dedup: skip if this note was already processed from timeline or channel event.
+		if dedup != nil && notif.Note.ID != "" {
+			dedupMu.Lock()
+			if ts, seen := dedup[notif.Note.ID]; seen && time.Since(ts) < misskeyDedupTTL {
+				dedupMu.Unlock()
+				return
+			}
+			dedup[notif.Note.ID] = time.Now()
+			dedupMu.Unlock()
 		}
 		if notif.Note.UserID == me.ID {
 			return
