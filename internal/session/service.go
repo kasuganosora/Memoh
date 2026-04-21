@@ -344,7 +344,7 @@ func (s *Service) CreateNewSession(ctx context.Context, botID, routeID, channelT
 }
 
 // EnsureActiveSession returns the active session for a route, creating one if it doesn't exist.
-func (s *Service) EnsureActiveSession(ctx context.Context, botID, routeID, channelType string) (Session, error) {
+func (s *Service) EnsureActiveSession(ctx context.Context, botID, routeID, channelType string, metadata map[string]any) (Session, error) {
 	sess, err := s.GetActiveForRoute(ctx, routeID)
 	if err == nil {
 		return sess, nil
@@ -354,6 +354,7 @@ func (s *Service) EnsureActiveSession(ctx context.Context, botID, routeID, chann
 		BotID:       botID,
 		RouteID:     routeID,
 		ChannelType: channelType,
+		Metadata:    metadata,
 	})
 	if err != nil {
 		return Session{}, fmt.Errorf("auto-create session: %w", err)

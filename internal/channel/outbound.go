@@ -200,6 +200,8 @@ func buildOutboundMessages(msg OutboundMessage, policy OutboundPolicy) ([]Outbou
 		return nil, errors.New("message is required")
 	}
 	normalized := normalizeOutboundMessage(msg.Message)
+	normalized.Text = FilterThinkingTags(normalized.Text)
+	normalized.Text = FilterReasoningArray(normalized.Text)
 	attachments := append([]Attachment(nil), normalized.Attachments...)
 	chunker := policy.Chunker
 	if normalized.Format == MessageFormatMarkdown {
@@ -624,6 +626,7 @@ func (s *managerOutboundStream) Push(ctx context.Context, event StreamEvent) err
 
 	if event.Type == StreamEventDelta && event.Delta != "" && event.Phase != StreamPhaseReasoning {
 		event.Delta = FilterReasoningArray(event.Delta)
+		event.Delta = FilterThinkingTags(event.Delta)
 		return s.pushDelta(ctx, event)
 	}
 
@@ -777,6 +780,7 @@ func (s *managerOutboundStream) pushFinalWithChunking(ctx context.Context, event
 	msg := normalizeOutboundMessage(event.Final.Message)
 	text := strings.TrimSpace(msg.PlainText())
 	text = FilterReasoningArray(text)
+	text = FilterThinkingTags(text)
 	textRunes := runeLen(text)
 	if s.manager.logger != nil {
 		s.manager.logger.Debug("stream final chunking evaluate",

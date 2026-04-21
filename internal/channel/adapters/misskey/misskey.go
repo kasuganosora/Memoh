@@ -962,6 +962,7 @@ func (s *misskeyBlockStream) Close(ctx context.Context) error {
 	// Filter out raw JSON reasoning arrays that some APIs (e.g. Zhipu/GLM)
 	// incorrectly emit in the content field when context overflows.
 	msg.Message.Text = channel.FilterReasoningArray(msg.Message.Text)
+	msg.Message.Text = channel.FilterThinkingTags(msg.Message.Text)
 	if len(msg.Attachments) == 0 && len(s.attachments) > 0 {
 		msg.Attachments = append(msg.Attachments, s.attachments...)
 	}

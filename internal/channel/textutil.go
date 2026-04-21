@@ -2,8 +2,21 @@ package channel
 
 import (
 	"encoding/json"
+	"regexp"
 	"strings"
 )
+
+// filterThinkingRe matches <thinking>...</thinking> and <think\>...</think\> blocks
+// (including multiline content). Some LLMs (e.g. GLM) emit these as plain text
+// instead of structured reasoning events.
+var filterThinkingRe = regexp.MustCompile(`(?is)<think(?:ing)?>\s*.*?\s*</think(?:ing)?>`)
+
+// FilterThinkingTags strips <thinking>...</thinking> and <think\>...</think\> blocks
+// from LLM output text. These tags may appear when a model does not use structured
+// reasoning output and instead embeds thinking as raw text in the content.
+func FilterThinkingTags(text string) string {
+	return strings.TrimSpace(filterThinkingRe.ReplaceAllString(text, ""))
+}
 
 // FilterReasoningArray detects and extracts text from raw JSON reasoning arrays
 // that some APIs (e.g. Zhipu/GLM) incorrectly emit inside the content field

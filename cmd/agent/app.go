@@ -567,8 +567,8 @@ type sessionEnsurerAdapter struct {
 	svc *sessionpkg.Service
 }
 
-func (a *sessionEnsurerAdapter) EnsureActiveSession(ctx context.Context, botID, routeID, channelType string) (inbound.SessionResult, error) {
-	sess, err := a.svc.EnsureActiveSession(ctx, botID, routeID, channelType)
+func (a *sessionEnsurerAdapter) EnsureActiveSession(ctx context.Context, botID, routeID, channelType string, metadata map[string]any) (inbound.SessionResult, error) {
+	sess, err := a.svc.EnsureActiveSession(ctx, botID, routeID, channelType, metadata)
 	if err != nil {
 		return inbound.SessionResult{}, err
 	}

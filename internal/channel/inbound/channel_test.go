@@ -196,7 +196,7 @@ type fakeSessionEnsurer struct {
 	lastRouteID   string
 }
 
-func (f *fakeSessionEnsurer) EnsureActiveSession(_ context.Context, _, routeID, _ string) (SessionResult, error) {
+func (f *fakeSessionEnsurer) EnsureActiveSession(_ context.Context, _, routeID, _ string, _ map[string]any) (SessionResult, error) {
 	f.lastRouteID = routeID
 	if f.activeErr != nil {
 		return SessionResult{}, f.activeErr

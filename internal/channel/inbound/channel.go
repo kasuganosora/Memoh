@@ -70,7 +70,7 @@ type ttsModelResolver interface {
 
 // SessionEnsurer resolves or creates an active session for a route.
 type SessionEnsurer interface {
-	EnsureActiveSession(ctx context.Context, botID, routeID, channelType string) (SessionResult, error)
+	EnsureActiveSession(ctx context.Context, botID, routeID, channelType string, metadata map[string]any) (SessionResult, error)
 	GetActiveSession(ctx context.Context, routeID string) (SessionResult, error)
 	// CreateNewSession always creates a fresh session and sets it as the
 	// active session for the given route, replacing any previous one.
@@ -363,9 +363,10 @@ func (p *ChannelInboundProcessor) HandleInbound(ctx context.Context, cfg channel
 	// Retry up to 3 times with short backoff to avoid persisting messages with NULL session_id.
 	sessionID := ""
 	sessionType := ""
+	sessionMeta := buildSessionMetadata(msg)
 	if p.sessionEnsurer != nil {
 		for attempt := range 3 {
-			sess, sessErr := p.sessionEnsurer.EnsureActiveSession(ctx, identity.BotID, resolved.RouteID, msg.Channel.String())
+			sess, sessErr := p.sessionEnsurer.EnsureActiveSession(ctx, identity.BotID, resolved.RouteID, msg.Channel.String(), sessionMeta)
 			if sessErr == nil {
 				sessionID = sess.ID
 				sessionType = sess.Type
@@ -2340,6 +2341,23 @@ func (p *ChannelInboundProcessor) dispatchReactions(
 			}
 		}
 	}
+}
+
+// buildSessionMetadata extracts session-persistent fields from an inbound message.
+// These are stored on the session's metadata JSONB column for identification and filtering.
+func buildSessionMetadata(msg channel.InboundMessage) map[string]any {
+	m := make(map[string]any)
+	m["channel"] = msg.Channel.String()
+
+	if msg.Metadata != nil {
+		if v, ok := msg.Metadata["is_timeline"]; ok {
+			m["is_timeline"] = v
+		}
+		if v, ok := msg.Metadata["timeline_source"]; ok {
+			m["timeline_source"] = v
+		}
+	}
+	return m
 }
 
 // buildRouteMetadata extracts user/conversation information for route metadata persistence.
