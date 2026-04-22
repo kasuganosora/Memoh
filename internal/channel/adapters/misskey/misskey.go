@@ -772,8 +772,8 @@ func (a *MisskeyAdapter) Send(ctx context.Context, cfg channel.ChannelConfig, ms
 		return err
 	}
 	text := strings.TrimSpace(msg.Message.Message.PlainText())
-	if text == "" {
-		return errors.New("message text is required")
+	if text == "" && len(msg.Message.Attachments) == 0 {
+		return errors.New("message text or attachments required")
 	}
 	text = textutil.TruncateRunesWithSuffix(text, misskeyMaxNoteLength, "...")
 
@@ -791,7 +791,13 @@ func (a *MisskeyAdapter) Send(ctx context.Context, cfg channel.ChannelConfig, ms
 		visibility = "home"
 	}
 
-	_, err = createNote(ctx, mkCfg, text, replyID, visibility)
+	// Upload attachments to Misskey Drive and collect file IDs.
+	fileIDs, err := a.uploadAttachments(ctx, mkCfg, msg.Message.Attachments)
+	if err != nil && a.logger != nil {
+		a.logger.Warn("misskey: some attachments failed to upload", slog.Any("error", err))
+	}
+
+	_, err = createNote(ctx, mkCfg, text, replyID, visibility, fileIDs...)
 	if err != nil {
 		if a.logger != nil {
 			a.logger.Error("send note failed", slog.String("config_id", cfg.ID), slog.Any("error", err))
@@ -799,6 +805,73 @@ func (a *MisskeyAdapter) Send(ctx context.Context, cfg channel.ChannelConfig, ms
 		return err
 	}
 	return nil
+}
+
+// uploadAttachments uploads prepared attachments to Misskey Drive and returns
+// the resulting file IDs. Failed uploads are skipped silently.
+func (a *MisskeyAdapter) uploadAttachments(ctx context.Context, cfg Config, attachments []channel.PreparedAttachment) ([]string, error) {
+	if len(attachments) == 0 {
+		return nil, nil
+	}
+	var fileIDs []string
+	var firstErr error
+	for _, att := range attachments {
+		if att.Open == nil {
+			continue
+		}
+		reader, err := att.Open(ctx)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = fmt.Errorf("open attachment %s: %w", att.Name, err)
+			}
+			continue
+		}
+		filename := att.Name
+		if filename == "" {
+			filename = "upload"
+			if ext := mimeToExt(att.Mime); ext != "" {
+				filename += ext
+			}
+		}
+		driveFile, err := uploadToDrive(ctx, cfg, reader, filename, att.Mime)
+		_ = reader.Close()
+		if err != nil {
+			if a.logger != nil {
+				a.logger.Warn("misskey: drive upload failed", slog.String("name", filename), slog.Any("error", err))
+			}
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		if a.logger != nil {
+			a.logger.Debug("misskey: file uploaded to drive", slog.String("id", driveFile.ID), slog.String("name", driveFile.Name))
+		}
+		fileIDs = append(fileIDs, driveFile.ID)
+	}
+	return fileIDs, firstErr
+}
+
+// mimeToExt returns a common file extension for the given MIME type.
+func mimeToExt(mime string) string {
+	switch strings.ToLower(mime) {
+	case "image/png":
+		return ".png"
+	case "image/jpeg", "image/jpg":
+		return ".jpg"
+	case "image/gif":
+		return ".gif"
+	case "image/webp":
+		return ".webp"
+	case "image/svg+xml":
+		return ".svg"
+	case "video/mp4":
+		return ".mp4"
+	case "audio/mpeg":
+		return ".mp3"
+	default:
+		return ""
+	}
 }
 
 // --- Reactor ---

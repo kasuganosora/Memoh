@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"time"
 )
@@ -77,7 +78,7 @@ type meResponse struct {
 }
 
 // createNote creates a note on the Misskey instance.
-func createNote(ctx context.Context, cfg Config, text, replyID, visibility string) (*createNoteResponse, error) {
+func createNote(ctx context.Context, cfg Config, text, replyID, visibility string, fileIDs ...string) (*createNoteResponse, error) {
 	if visibility == "" {
 		visibility = "public"
 	}
@@ -86,6 +87,11 @@ func createNote(ctx context.Context, cfg Config, text, replyID, visibility strin
 		Text:       text,
 		Visibility: visibility,
 		ReplyID:    replyID,
+	}
+	for _, id := range fileIDs {
+		if id != "" {
+			req.FileIDs = append(req.FileIDs, id)
+		}
 	}
 	raw, err := apiRequest(ctx, cfg, "notes/create", req)
 	if err != nil {
@@ -128,4 +134,68 @@ func deleteReaction(ctx context.Context, cfg Config, noteID string) error {
 		"noteId": noteID,
 	})
 	return err
+}
+
+// driveFileResponse is the response from drive/files/create.
+type driveFileResponse struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Type string `json:"type"`
+	URL  string `json:"url"`
+}
+
+// uploadToDrive uploads a file to the Misskey Drive via multipart form-data.
+func uploadToDrive(ctx context.Context, cfg Config, reader io.Reader, filename, contentType string) (*driveFileResponse, error) {
+	url := cfg.apiURL() + "/drive/files/create"
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+
+	// Write the access token field.
+	if err := writer.WriteField("i", cfg.AccessToken); err != nil {
+		return nil, fmt.Errorf("misskey drive upload field: %w", err)
+	}
+
+	// Create the file part.
+	part, err := writer.CreateFormFile("file", filename)
+	if err != nil {
+		return nil, fmt.Errorf("misskey drive upload form: %w", err)
+	}
+	if _, err := io.Copy(part, reader); err != nil {
+		return nil, fmt.Errorf("misskey drive upload copy: %w", err)
+	}
+
+	if err := writer.Close(); err != nil {
+		return nil, fmt.Errorf("misskey drive upload close: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, &body)
+	if err != nil {
+		return nil, fmt.Errorf("misskey drive upload request: %w", err)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(req) //nolint:gosec // URL is user-configured
+	if err != nil {
+		return nil, fmt.Errorf("misskey drive upload do: %w", err)
+	}
+	defer func() {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}()
+
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return nil, fmt.Errorf("misskey drive upload read: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("misskey drive/files/create: status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result driveFileResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("misskey drive/files/create unmarshal: %w", err)
+	}
+	return &result, nil
 }
