@@ -15,6 +15,7 @@ import (
 	"github.com/memohai/memoh/internal/channel"
 	"github.com/memohai/memoh/internal/chattiming"
 	"github.com/memohai/memoh/internal/conversation"
+	"github.com/memohai/memoh/internal/memory/adapters"
 	messagepkg "github.com/memohai/memoh/internal/message"
 	sessionpkg "github.com/memohai/memoh/internal/session"
 )
@@ -60,6 +61,15 @@ type DiscussDriverDeps struct {
 
 	// SettingsService loads per-bot settings including chat_timing config.
 	SettingsService settingsLoader
+
+	// MemoryFormation extracts facts from conversations passively.
+	// When nil, passive memory extraction is disabled.
+	MemoryFormation memoryFormationRunner
+}
+
+// memoryFormationRunner runs the Extract -> Decide -> Apply pipeline on messages.
+type memoryFormationRunner interface {
+	OnAfterChat(ctx context.Context, req adapters.AfterChatRequest) error
 }
 
 // settingsLoader is a minimal interface for loading bot settings.
@@ -321,6 +331,7 @@ func (d *DiscussDriver) handleReply(ctx context.Context, sess *discussSession, r
 			log.Debug("chat timing: talk_value threshold not met",
 				slog.Int("new_messages", newMsgCount),
 				slog.Int("threshold", threshold))
+			d.extractPassiveMemory(ctx, sess, rc, log)
 			return
 		}
 	}
@@ -362,6 +373,7 @@ func (d *DiscussDriver) handleReply(ctx context.Context, sess *discussSession, r
 				slog.String("reason", result.Reason))
 			// Mark as processed so we don't re-evaluate these messages.
 			sess.lastProcessedMs = time.Now().UnixMilli()
+			d.extractPassiveMemory(ctx, sess, rc, log)
 			return
 		case chattiming.TimingWait:
 			log.Info("chat timing: gate decided wait",
@@ -525,6 +537,56 @@ func (d *DiscussDriver) handleReplyWithAgent(ctx context.Context, sess *discussS
 	}
 }
 
+// extractPassiveMemory runs lightweight fact extraction on accumulated messages
+// when the bot decides not to respond. This allows learning community knowledge,
+// user patterns, and slang without actively participating in the conversation.
+func (d *DiscussDriver) extractPassiveMemory(ctx context.Context, sess *discussSession, rc RenderedContext, log *slog.Logger) {
+	if d.deps.MemoryFormation == nil {
+		return
+	}
+
+	// Collect new messages since last processing, excluding bot's own messages.
+	var messages []adapters.Message
+	for _, seg := range rc {
+		if seg.ReceivedAtMs <= sess.lastProcessedMs {
+			continue
+		}
+		if seg.IsMyself {
+			continue
+		}
+		// Extract text content from rendered segments.
+		var textParts []string
+		for _, piece := range seg.Content {
+			if piece.Text != "" {
+				textParts = append(textParts, piece.Text)
+			}
+		}
+		if len(textParts) == 0 {
+			continue
+		}
+		messages = append(messages, adapters.Message{
+			Role:    "user",
+			Content: strings.Join(textParts, "\n"),
+		})
+	}
+
+	if len(messages) == 0 {
+		return
+	}
+
+	req := adapters.AfterChatRequest{
+		BotID:             sess.config.BotID,
+		Messages:          messages,
+		ChannelIdentityID: sess.config.ChannelIdentityID,
+	}
+
+	go func() {
+		if err := d.deps.MemoryFormation.OnAfterChat(context.Background(), req); err != nil {
+			log.Warn("passive memory extraction failed", slog.Any("error", err))
+		}
+	}()
+}
+
 // broadcastDiscussEvent forwards an agent stream event to the RouteHub so the
 // Web UI can display thinking, tool calls, and text deltas in real time.
 func (d *DiscussDriver) broadcastDiscussEvent(botID string, event agentpkg.StreamEvent) {
@@ -646,7 +708,7 @@ func injectImagePartsIntoLastUserMessage(msgs []sdk.Message, parts []sdk.ImagePa
 
 func wasRecentlyMentioned(rc RenderedContext, afterMs int64) bool {
 	for _, seg := range rc {
-		if seg.ReceivedAtMs > afterMs && (seg.MentionsMe || seg.RepliesToMe || seg.IsTimeline) {
+		if seg.ReceivedAtMs > afterMs && (seg.MentionsMe || seg.RepliesToMe) {
 			return true
 		}
 	}

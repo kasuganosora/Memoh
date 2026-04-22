@@ -1000,9 +1000,6 @@ func shouldTriggerAssistantResponse(msg channel.InboundMessage) bool {
 	if metadataBool(msg.Metadata, "is_reply_to_bot") {
 		return true
 	}
-	if metadataBool(msg.Metadata, "is_timeline") {
-		return true
-	}
 	return false
 }
 
@@ -2355,6 +2352,9 @@ func buildSessionMetadata(msg channel.InboundMessage) map[string]any {
 		}
 		if v, ok := msg.Metadata["timeline_source"]; ok {
 			m["timeline_source"] = v
+		}
+		if v, ok := msg.Metadata["is_discuss_timeline"]; ok {
+			m["is_discuss_timeline"] = v
 		}
 	}
 	return m

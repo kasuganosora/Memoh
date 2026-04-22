@@ -332,7 +332,7 @@ func (a *MisskeyAdapter) runStream(ctx context.Context, cfg channel.ChannelConfi
 		if readErr != nil {
 			return fmt.Errorf("misskey ws read: %w", readErr)
 		}
-		a.handleStreamMessage(ctx, cfg, me, handler, msgBytes, dedup, &dedupMu)
+		a.handleStreamMessage(ctx, cfg, me, handler, msgBytes, dedup, &dedupMu, tlCfg)
 	}
 }
 
@@ -390,7 +390,7 @@ type misskeyUser struct {
 	AvatarURL string `json:"avatarUrl"`
 }
 
-func (a *MisskeyAdapter) handleStreamMessage(ctx context.Context, cfg channel.ChannelConfig, me *meResponse, handler channel.InboundHandler, raw []byte, dedup map[string]time.Time, dedupMu *sync.Mutex) {
+func (a *MisskeyAdapter) handleStreamMessage(ctx context.Context, cfg channel.ChannelConfig, me *meResponse, handler channel.InboundHandler, raw []byte, dedup map[string]time.Time, dedupMu *sync.Mutex, tlCfg timelineConfig) {
 	var msg streamMessage
 	if err := json.Unmarshal(raw, &msg); err != nil {
 		return
@@ -401,18 +401,18 @@ func (a *MisskeyAdapter) handleStreamMessage(ctx context.Context, cfg channel.Ch
 		if err := json.Unmarshal(msg.Body, &body); err != nil {
 			return
 		}
-		a.handleChannelEvent(ctx, cfg, me, handler, body, dedup, dedupMu)
+		a.handleChannelEvent(ctx, cfg, me, handler, body, dedup, dedupMu, tlCfg)
 	}
 }
 
-func (a *MisskeyAdapter) handleChannelEvent(ctx context.Context, cfg channel.ChannelConfig, me *meResponse, handler channel.InboundHandler, body streamChannelBody, dedup map[string]time.Time, dedupMu *sync.Mutex) {
+func (a *MisskeyAdapter) handleChannelEvent(ctx context.Context, cfg channel.ChannelConfig, me *meResponse, handler channel.InboundHandler, body streamChannelBody, dedup map[string]time.Time, dedupMu *sync.Mutex, tlCfg timelineConfig) {
 	switch body.Type {
 	case "note":
 		// Timeline note events from homeTimeline or localTimeline subscriptions.
 		if body.ID != "memoh-home" && body.ID != "memoh-local" {
 			return
 		}
-		a.handleTimelineNote(ctx, cfg, me, handler, body, dedup, dedupMu)
+		a.handleTimelineNote(ctx, cfg, me, handler, body, dedup, dedupMu, tlCfg)
 		return
 	case "mention", "reply":
 		var note misskeyNote
@@ -589,7 +589,7 @@ func (*MisskeyAdapter) buildInboundMessage(me *meResponse, note misskeyNote) (ch
 }
 
 // handleTimelineNote processes a note event from a timeline subscription.
-func (a *MisskeyAdapter) handleTimelineNote(ctx context.Context, cfg channel.ChannelConfig, me *meResponse, handler channel.InboundHandler, body streamChannelBody, dedup map[string]time.Time, dedupMu *sync.Mutex) {
+func (a *MisskeyAdapter) handleTimelineNote(ctx context.Context, cfg channel.ChannelConfig, me *meResponse, handler channel.InboundHandler, body streamChannelBody, dedup map[string]time.Time, dedupMu *sync.Mutex, tlCfg timelineConfig) {
 	var note misskeyNote
 	if err := json.Unmarshal(body.Body, &note); err != nil {
 		if a.logger != nil {
@@ -634,7 +634,7 @@ func (a *MisskeyAdapter) handleTimelineNote(ctx context.Context, cfg channel.Cha
 		source = "local"
 	}
 
-	inbound := a.buildTimelineInboundMessage(note, source)
+	inbound := a.buildTimelineInboundMessage(note, source, tlCfg.Discuss)
 	a.logInbound(cfg.ID, inbound)
 	go func() {
 		if err := handler(ctx, cfg, inbound); err != nil && a.logger != nil {
@@ -644,7 +644,7 @@ func (a *MisskeyAdapter) handleTimelineNote(ctx context.Context, cfg channel.Cha
 }
 
 // buildTimelineInboundMessage creates an InboundMessage from a timeline note.
-func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source string) channel.InboundMessage {
+func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source string, discuss bool) channel.InboundMessage {
 	text := strings.TrimSpace(note.Text)
 	attachments := collectMisskeyAttachments(note)
 
@@ -699,11 +699,12 @@ func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source stri
 		ReceivedAt: receivedAt,
 		Source:     "misskey",
 		Metadata: map[string]any{
-			"is_timeline":     true,
-			"is_mentioned":    false,
-			"timeline_source": source,
-			"visibility":      note.Visibility,
-			"note_id":         note.ID,
+			"is_timeline":        true,
+			"is_mentioned":       false,
+			"is_discuss_timeline": discuss,
+			"timeline_source":    source,
+			"visibility":         note.Visibility,
+			"note_id":            note.ID,
 		},
 	}
 }
@@ -893,8 +894,9 @@ func (s *misskeyBlockStream) Push(_ context.Context, event channel.PreparedStrea
 
 // timelineConfig holds timeline subscription settings parsed from routing.
 type timelineConfig struct {
-	Home  bool `json:"home"`
-	Local bool `json:"local"`
+	Home    bool `json:"home"`
+	Local   bool `json:"local"`
+	Discuss bool `json:"discuss"` // use discuss mode for timeline sessions (smart timing)
 }
 
 // parseTimelineConfig extracts timeline settings from the routing config.
@@ -916,6 +918,9 @@ func parseTimelineConfig(routing map[string]any) timelineConfig {
 	}
 	if local, ok := v["local"]; ok {
 		cfg.Local = toBool(local)
+	}
+	if discuss, ok := v["discuss"]; ok {
+		cfg.Discuss = toBool(discuss)
 	}
 	return cfg
 }

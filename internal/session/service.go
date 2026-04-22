@@ -350,10 +350,17 @@ func (s *Service) EnsureActiveSession(ctx context.Context, botID, routeID, chann
 		return sess, nil
 	}
 
+	// Timeline routes with discuss mode enabled default to discuss session type.
+	sessionType := ""
+	if metadataBool(metadata, "is_discuss_timeline") {
+		sessionType = TypeDiscuss
+	}
+
 	sess, err = s.Create(ctx, CreateInput{
 		BotID:       botID,
 		RouteID:     routeID,
 		ChannelType: channelType,
+		Type:        sessionType,
 		Metadata:    metadata,
 	})
 	if err != nil {
@@ -403,6 +410,22 @@ func parseJSONMap(data []byte) map[string]any {
 	var m map[string]any
 	_ = json.Unmarshal(data, &m)
 	return m
+}
+
+func metadataBool(m map[string]any, key string) bool {
+	if m == nil {
+		return false
+	}
+	v, ok := m[key]
+	if !ok {
+		return false
+	}
+	switch b := v.(type) {
+	case bool:
+		return b
+	default:
+		return false
+	}
 }
 
 func toSessionFromListRow(row sqlc.ListSessionsByBotRow) Session {

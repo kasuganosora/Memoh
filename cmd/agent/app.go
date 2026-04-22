@@ -180,6 +180,13 @@ func provideMemoryProviderRegistry(log *slog.Logger, llm memprovider.LLM, chatSe
 	return registry
 }
 
+func provideDefaultMemoryProvider(log *slog.Logger, llm memprovider.LLM, chatService *conversation.Service, accountService *accounts.Service, manager *workspace.Manager) *membuiltin.BuiltinProvider {
+	fileRuntime := handlers.NewBuiltinMemoryRuntime(manager)
+	p := membuiltin.NewBuiltinProvider(log, fileRuntime, chatService, accountService)
+	p.SetLLM(llm)
+	return p
+}
+
 func providePipeline() *pipelinepkg.Pipeline {
 	return pipelinepkg.NewPipeline(pipelinepkg.RenderParams{})
 }
@@ -188,7 +195,7 @@ func provideEventStore(log *slog.Logger, queries *dbsqlc.Queries) *pipelinepkg.E
 	return pipelinepkg.NewEventStore(log, queries)
 }
 
-func provideDiscussDriver(log *slog.Logger, pipeline *pipelinepkg.Pipeline, eventStore *pipelinepkg.EventStore, agent *agentpkg.Agent, msgService *message.DBService, chatTimingService *chattiming.Service, settingsService *settings.Service) *pipelinepkg.DiscussDriver {
+func provideDiscussDriver(log *slog.Logger, pipeline *pipelinepkg.Pipeline, eventStore *pipelinepkg.EventStore, agent *agentpkg.Agent, msgService *message.DBService, chatTimingService *chattiming.Service, settingsService *settings.Service, defaultProvider *membuiltin.BuiltinProvider) *pipelinepkg.DiscussDriver {
 	return pipelinepkg.NewDiscussDriver(pipelinepkg.DiscussDriverDeps{
 		Pipeline:          pipeline,
 		EventStore:        eventStore,
@@ -197,6 +204,7 @@ func provideDiscussDriver(log *slog.Logger, pipeline *pipelinepkg.Pipeline, even
 		Logger:            log,
 		ChatTimingService: chatTimingService,
 		SettingsService:   settingsService,
+		MemoryFormation:   defaultProvider,
 	})
 }
 
