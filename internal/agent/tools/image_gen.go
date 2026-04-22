@@ -129,11 +129,76 @@ func (p *ImageGenProvider) execGenerateImage(ctx context.Context, session Sessio
 		return nil, fmt.Errorf("failed to resolve provider credentials: %w", err)
 	}
 
+	var result any
 	// Dispatch: models with image-api compat use the dedicated /images/generations endpoint.
 	if modelResp.HasCompatibility(models.CompatImageApi) {
-		return p.execImageAPI(ctx, botID, prompt, modelResp, provider, creds)
+		result, err = p.execImageAPI(ctx, botID, prompt, modelResp, provider, creds)
+	} else {
+		result, err = p.execChatImage(ctx, botID, prompt, size, modelResp, provider, creds)
 	}
-	return p.execChatImage(ctx, botID, prompt, size, modelResp, provider, creds)
+	if err != nil {
+		return nil, err
+	}
+
+	// Emit the generated image as an attachment event so the channel adapter
+	// can deliver it to the user (e.g. upload to Misskey Drive, attach to Telegram).
+	p.emitImageAttachment(session, result)
+
+	return result, nil
+}
+
+// emitImageAttachment inspects the image generation result and emits a
+// StreamEventAttachment when the session has an active stream emitter.
+func (*ImageGenProvider) emitImageAttachment(session SessionContext, result any) {
+	if session.Emitter == nil {
+		return
+	}
+
+	m, ok := result.(map[string]any)
+	if !ok {
+		return
+	}
+
+	var att Attachment
+
+	// Path A: container save succeeded — result has "path" and "media_type".
+	if path, _ := m["path"].(string); path != "" {
+		att = Attachment{
+			Type: "image",
+			Path: path,
+			Mime: fmt.Sprintf("%v", m["media_type"]),
+		}
+		if sz, ok := m["size_bytes"].(int); ok {
+			att.Size = int64(sz)
+		}
+	} else {
+		// Path B: container unreachable — result has inline base64 "content".
+		// The content array contains {"type": "image", "data": "...", "mimeType": "..."}
+		content, _ := m["content"].([]map[string]any)
+		for _, item := range content {
+			if t, _ := item["type"].(string); t == "image" {
+				data, _ := item["data"].(string)
+				mime, _ := item["mimeType"].(string)
+				if data != "" {
+					att = Attachment{
+						Type: "image",
+						URL:  fmt.Sprintf("data:%s;base64,%s", mime, data),
+						Mime: mime,
+					}
+				}
+				break
+			}
+		}
+	}
+
+	if att.Type == "" {
+		return
+	}
+
+	session.Emitter(ToolStreamEvent{
+		Type:        StreamEventAttachment,
+		Attachments: []Attachment{att},
+	})
 }
 
 // execChatImage generates an image via the chat-based path (models that return
