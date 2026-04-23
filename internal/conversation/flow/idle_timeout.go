@@ -69,7 +69,7 @@ const defaultIdleTimeout = 90 * time.Second
 // withIdleTimeout returns a context that is cancelled if no Reset() call is
 // made within the adaptive idle timeout. The returned idleCancel must have
 // Reset() called for each meaningful event to prevent the timeout from firing.
-// The timeout adapts: base + 10s per tool call, capped at 300s.
+// The timeout adapts: base + 60s per tool call, capped at 600s.
 func withIdleTimeout(parent context.Context, baseTimeout ...time.Duration) (context.Context, *idleCancel) {
 	bt := defaultIdleTimeout
 	if len(baseTimeout) > 0 && baseTimeout[0] > 0 {

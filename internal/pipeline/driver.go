@@ -581,7 +581,10 @@ func (d *DiscussDriver) extractPassiveMemory(ctx context.Context, sess *discussS
 	}
 
 	go func() {
-		if err := d.deps.MemoryFormation.OnAfterChat(context.Background(), req); err != nil {
+		// Use a bounded context so this goroutine does not outlive a graceful shutdown indefinitely.
+		memCtx, memCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer memCancel()
+		if err := d.deps.MemoryFormation.OnAfterChat(memCtx, req); err != nil {
 			log.Warn("passive memory extraction failed", slog.Any("error", err))
 		}
 	}()
@@ -632,6 +635,32 @@ func agentEventToChannelEvent(e agentpkg.StreamEvent) (channel.StreamEvent, bool
 		return channel.StreamEvent{Type: channel.StreamEventAgentEnd}, true
 	case agentpkg.EventError:
 		return channel.StreamEvent{Type: channel.StreamEventError, Error: e.Error}, true
+	case agentpkg.EventAttachment:
+		atts := make([]channel.Attachment, 0, len(e.Attachments))
+		for _, a := range e.Attachments {
+			atts = append(atts, channel.Attachment{
+				Type:        channel.AttachmentType(a.Type),
+				URL:         a.URL,
+				Name:        a.Name,
+				Mime:        a.Mime,
+				ContentHash: a.ContentHash,
+				Size:        a.Size,
+				Metadata:    a.Metadata,
+			})
+		}
+		return channel.StreamEvent{Type: channel.StreamEventAttachment, Attachments: atts}, true
+	case agentpkg.EventReaction:
+		reacts := make([]channel.ReactRequest, 0, len(e.Reactions))
+		for _, r := range e.Reactions {
+			reacts = append(reacts, channel.ReactRequest{Emoji: r.Emoji})
+		}
+		return channel.StreamEvent{Type: channel.StreamEventReaction, Reactions: reacts}, true
+	case agentpkg.EventSpeech:
+		speeches := make([]channel.SpeechRequest, 0, len(e.Speeches))
+		for _, s := range e.Speeches {
+			speeches = append(speeches, channel.SpeechRequest{Text: s.Text})
+		}
+		return channel.StreamEvent{Type: channel.StreamEventSpeech, Speeches: speeches}, true
 	default:
 		return channel.StreamEvent{}, false
 	}
