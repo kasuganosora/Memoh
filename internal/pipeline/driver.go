@@ -55,6 +55,12 @@ type DiscussDriverDeps struct {
 	Broadcaster    DiscussStreamBroadcaster
 	Logger         *slog.Logger
 
+	// AttachmentSender delivers inline attachments (e.g. generated images)
+	// to the channel adapter in discuss mode. When nil, attachment events
+	// from the agent stream are broadcast to the Web UI but not delivered
+	// to the channel.
+	AttachmentSender DiscussAttachmentSender
+
 	// ChatTimingService provides smart timing components. When nil, all timing
 	// features are disabled and behavior is identical to the legacy implementation.
 	ChatTimingService *chattiming.Service
@@ -75,6 +81,12 @@ type memoryFormationRunner interface {
 // settingsLoader is a minimal interface for loading bot settings.
 type settingsLoader interface {
 	GetBotChatTiming(ctx context.Context, botID string) (json.RawMessage, error)
+}
+
+// DiscussAttachmentSender delivers inline attachments to the channel adapter
+// in discuss mode. Implemented by channel.Manager.
+type DiscussAttachmentSender interface {
+	SendAttachments(ctx context.Context, botID string, channelType channel.ChannelType, target string, attachments []channel.Attachment) error
 }
 
 // DiscussSessionConfig holds per-session configuration for discuss mode.
@@ -474,6 +486,8 @@ func (d *DiscussDriver) handleReplyWithAgent(ctx context.Context, sess *discussS
 			d.broadcastDiscussEvent(cfg.BotID, event)
 
 			switch event.Type {
+			case agentpkg.EventAttachment:
+				d.handleDiscussAttachment(agentCtx, cfg, event, log)
 			case agentpkg.EventError:
 				log.Error("discuss stream error", slog.String("error", event.Error))
 			case agentpkg.EventAgentEnd, agentpkg.EventAgentAbort:
@@ -601,6 +615,41 @@ func (d *DiscussDriver) broadcastDiscussEvent(botID string, event agentpkg.Strea
 		return
 	}
 	d.deps.Broadcaster.PublishEvent(botID, se)
+}
+
+// handleDiscussAttachment delivers inline attachments (e.g. generated images)
+// to the channel adapter so they appear in the conversation. Without this,
+// attachment events from tools like generate_image would only be broadcast to
+// the Web UI but never reach the actual chat platform (Misskey, Telegram, etc.).
+func (d *DiscussDriver) handleDiscussAttachment(ctx context.Context, cfg DiscussSessionConfig, event agentpkg.StreamEvent, log *slog.Logger) {
+	if d.deps.AttachmentSender == nil || len(event.Attachments) == 0 {
+		return
+	}
+	platform := strings.TrimSpace(cfg.CurrentPlatform)
+	target := strings.TrimSpace(cfg.ReplyTarget)
+	if platform == "" || target == "" {
+		log.Warn("discuss: cannot deliver attachment — missing platform or target",
+			slog.String("platform", platform), slog.String("target", target))
+		return
+	}
+	atts := make([]channel.Attachment, 0, len(event.Attachments))
+	for _, a := range event.Attachments {
+		url := a.URL
+		if url == "" {
+			url = a.Path // container path (e.g. /data/generated-images/xxx.png)
+		}
+		atts = append(atts, channel.Attachment{
+			Type: channel.AttachmentType(a.Type),
+			URL:  url,
+			Name: a.Name,
+			Mime: a.Mime,
+			Size: a.Size,
+		})
+	}
+	if err := d.deps.AttachmentSender.SendAttachments(ctx, cfg.BotID, channel.ChannelType(platform), target, atts); err != nil {
+		log.Warn("discuss: failed to deliver attachment to channel",
+			slog.String("platform", platform), slog.Any("error", err))
+	}
 }
 
 func agentEventToChannelEvent(e agentpkg.StreamEvent) (channel.StreamEvent, bool) {

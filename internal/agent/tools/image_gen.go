@@ -140,21 +140,11 @@ func (p *ImageGenProvider) execGenerateImage(ctx context.Context, session Sessio
 		return nil, err
 	}
 
-	// In chat mode, emit the generated image as an attachment event so the
-	// channel adapter can deliver it inline (e.g. upload to Misskey Drive).
-	// In discuss mode, the DiscussDriver does not handle attachment events from
-	// the stream emitter, so we skip it — the LLM must call the send tool
-	// explicitly to deliver the image.
-	if session.SessionType != "discuss" {
-		p.emitImageAttachment(session, result)
-	} else {
-		// Inject a hint so the LLM knows it must deliver the image via send.
-		if m, ok := result.(map[string]any); ok {
-			if path, _ := m["path"].(string); path != "" {
-				m["next_step"] = fmt.Sprintf("Image saved. Now call the `send` tool with attachments: [\"%s\"] to deliver it.", path)
-			}
-		}
-	}
+	// Emit the generated image as an attachment event so the channel adapter
+	// can deliver it inline (e.g. upload to Misskey Drive). This works for
+	// both chat mode (via stream emitter → inbound processor) and discuss
+	// mode (via stream emitter → DiscussDriver attachment handler).
+	p.emitImageAttachment(session, result)
 
 	return result, nil
 }

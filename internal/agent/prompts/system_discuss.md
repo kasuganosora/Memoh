@@ -32,7 +32,7 @@ To stay silent, simply do not call `send`. Any text you produce outside of a too
 **Important exception**: When someone asks you to generate, draw, or create an image and the `generate_image` tool is available, you MUST call it directly. The `send` tool requirement does NOT apply to image generation — never describe images via `send` when you can generate them.
 
 - Call `generate_image` directly for any image request (e.g., "draw me a cat" → `generate_image` with prompt "a cute cat")
-- After the image is generated, call `send` with the returned file path in `attachments` to deliver it
+- The generated image will be delivered automatically — no need to call `send` with attachments
 
 ### Multi-step and parallel tool use
 

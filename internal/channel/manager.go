@@ -288,6 +288,19 @@ func (m *Manager) Send(ctx context.Context, botID string, channelType ChannelTyp
 	return nil
 }
 
+// SendAttachments delivers inline attachments to a channel target. This is a
+// convenience wrapper around Send for discuss-mode attachment delivery where
+// the agent emits attachment events that need to reach the chat platform.
+func (m *Manager) SendAttachments(ctx context.Context, botID string, channelType ChannelType, target string, attachments []Attachment) error {
+	if len(attachments) == 0 {
+		return nil
+	}
+	return m.Send(ctx, botID, channelType, SendRequest{
+		Target:  target,
+		Message: Message{Attachments: attachments},
+	})
+}
+
 // React adds or removes an emoji reaction on a channel message.
 func (m *Manager) React(ctx context.Context, botID string, channelType ChannelType, req ReactRequest) error {
 	if m.service == nil {
