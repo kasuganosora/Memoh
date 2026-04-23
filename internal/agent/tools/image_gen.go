@@ -147,6 +147,13 @@ func (p *ImageGenProvider) execGenerateImage(ctx context.Context, session Sessio
 	// explicitly to deliver the image.
 	if session.SessionType != "discuss" {
 		p.emitImageAttachment(session, result)
+	} else {
+		// Inject a hint so the LLM knows it must deliver the image via send.
+		if m, ok := result.(map[string]any); ok {
+			if path, _ := m["path"].(string); path != "" {
+				m["next_step"] = fmt.Sprintf("Image saved. Now call the `send` tool with attachments: [\"%s\"] to deliver it.", path)
+			}
+		}
 	}
 
 	return result, nil

@@ -783,6 +783,7 @@ func buildLateBindingPrompt(isMentioned bool) string {
 	sb.WriteString("\n\n")
 	sb.WriteString("IMPORTANT: You MUST use the `send` tool to speak. Your text output is invisible to everyone — it is only internal monologue. ")
 	sb.WriteString("If you want to say something, you MUST call the `send` tool. Writing text without a tool call means absolute silence — no one will see it.")
+	sb.WriteString("\n\nException: For image generation requests, call the `generate_image` tool directly — do NOT describe images via `send`.")
 
 	if isMentioned {
 		sb.WriteString("\n\nYou were mentioned or replied to. You should respond by calling the `send` tool now.")
