@@ -263,6 +263,33 @@
       </div>
     </template>
 
+    <!-- Discuss Mode -->
+    <template v-if="isEditMode">
+      <Separator />
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h4 class="text-xs font-medium">
+              {{ $t('bots.channels.discussMode') }}
+            </h4>
+            <p class="text-xs text-muted-foreground mt-0.5">
+              {{ $t('bots.channels.discussModeHint') }}
+            </p>
+          </div>
+          <Switch
+            :model-value="form.discussMode"
+            @update:model-value="(val) => form.discussMode = !!val"
+          />
+        </div>
+        <p
+          v-if="form.discussMode"
+          class="text-xs text-muted-foreground rounded-md border border-border bg-muted/50 px-3 py-2"
+        >
+          {{ $t('bots.channels.discussModePrivateNote') }}
+        </p>
+      </div>
+    </template>
+
     <!-- Timeline Settings (Misskey only) -->
     <template v-if="isEditMode && platformType === 'misskey'">
       <Separator />
@@ -424,12 +451,14 @@ const form = reactive<{
   credentials: Record<string, unknown>
   disabled: boolean
   allowedTools: string[]
+  discussMode: boolean
   timelineHome: boolean
   timelineLocal: boolean
 }>({
   credentials: {},
   disabled: false,
   allowedTools: [],
+  discussMode: false,
   timelineHome: false,
   timelineLocal: false,
 })
@@ -518,6 +547,7 @@ function initForm() {
   form.disabled = props.channelItem.config?.disabled ?? false
   form.allowedTools = props.channelItem.config?.allowed_tools ?? []
   const routing = props.channelItem.config?.routing as Record<string, unknown> | undefined
+  form.discussMode = !!(routing?.discuss)
   const timeline = (routing?.timeline ?? {}) as Record<string, unknown>
   form.timelineHome = !!timeline.home
   form.timelineLocal = !!timeline.local
@@ -607,10 +637,14 @@ async function saveChannel(disabled: boolean, nextAction: 'save' | 'toggle') {
   if (!validateFeishuWebhookSecrets()) return
   action.value = nextAction
   try {
-    // Build routing object for timeline settings (Misskey).
-    const routing: Record<string, unknown> | undefined = platformType.value === 'misskey'
-      ? { timeline: { home: form.timelineHome, local: form.timelineLocal } }
-      : undefined
+    // Build routing object with discuss mode and platform-specific settings.
+    const routing: Record<string, unknown> = {}
+    if (form.discussMode) {
+      routing.discuss = true
+    }
+    if (platformType.value === 'misskey') {
+      routing.timeline = { home: form.timelineHome, local: form.timelineLocal }
+    }
     const result = await upsertChannel({
       platform: platformType.value,
       data: {

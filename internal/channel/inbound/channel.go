@@ -364,6 +364,13 @@ func (p *ChannelInboundProcessor) HandleInbound(ctx context.Context, cfg channel
 	sessionID := ""
 	sessionType := ""
 	sessionMeta := buildSessionMetadata(msg)
+
+	// Discuss mode: when the channel routing config has discuss=true and the
+	// conversation is a group chat, mark the session for discuss mode.
+	// Private (1-on-1) conversations always use normal chat behavior.
+	if !channel.IsPrivateConversationType(msg.Conversation.Type) && isDiscussRouting(cfg.Routing) {
+		sessionMeta["is_discuss"] = true
+	}
 	if p.sessionEnsurer != nil {
 		for attempt := range 3 {
 			sess, sessErr := p.sessionEnsurer.EnsureActiveSession(ctx, identity.BotID, resolved.RouteID, msg.Channel.String(), sessionMeta)
@@ -2356,8 +2363,32 @@ func buildSessionMetadata(msg channel.InboundMessage) map[string]any {
 		if v, ok := msg.Metadata["is_discuss_timeline"]; ok {
 			m["is_discuss_timeline"] = v
 		}
+		if v, ok := msg.Metadata["is_discuss"]; ok {
+			m["is_discuss"] = v
+		}
 	}
 	return m
+}
+
+// isDiscussRouting checks whether the channel routing config has discuss mode enabled.
+func isDiscussRouting(routing map[string]any) bool {
+	if routing == nil {
+		return false
+	}
+	v, ok := routing["discuss"]
+	if !ok {
+		return false
+	}
+	switch b := v.(type) {
+	case bool:
+		return b
+	case float64:
+		return b != 0
+	case string:
+		return b == "true" || b == "1"
+	default:
+		return false
+	}
 }
 
 // buildRouteMetadata extracts user/conversation information for route metadata persistence.

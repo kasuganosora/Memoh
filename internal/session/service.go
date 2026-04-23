@@ -350,9 +350,9 @@ func (s *Service) EnsureActiveSession(ctx context.Context, botID, routeID, chann
 		return sess, nil
 	}
 
-	// Timeline routes with discuss mode enabled default to discuss session type.
+	// Discuss mode: enabled by timeline routes (legacy) or generic discuss routing config.
 	sessionType := ""
-	if metadataBool(metadata, "is_discuss_timeline") {
+	if metadataBool(metadata, "is_discuss_timeline") || metadataBool(metadata, "is_discuss") {
 		sessionType = TypeDiscuss
 	}
 
