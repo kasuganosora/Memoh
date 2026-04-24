@@ -365,7 +365,6 @@ func provideChannelRouter(
 	pipeline *pipelinepkg.Pipeline,
 	eventStore *pipelinepkg.EventStore,
 	discussTrigger *pipelinepkg.DiscussTrigger,
-	channelManager *channel.Manager,
 	rc *boot.RuntimeConfig,
 ) *inbound.ChannelInboundProcessor {
 	adapter, ok := registry.Get(qq.Type)
@@ -386,8 +385,6 @@ func provideChannelRouter(
 	discussTrigger.SetChatRunner(resolver)
 	discussTrigger.SetBroadcaster(hub)
 	discussTrigger.SetStreamObserver(local.NewRouteHubBroadcaster(hub))
-	discussTrigger.SetChannelSender(channelManager)
-	discussTrigger.SetReactor(channelManager)
 	processor.SetACLService(aclService)
 	processor.SetMediaService(mediaService)
 	processor.SetStreamObserver(local.NewRouteHubBroadcaster(hub))
@@ -423,7 +420,7 @@ func provideChannelRouter(
 	return processor
 }
 
-func provideChannelManager(log *slog.Logger, registry *channel.Registry, channelStore *channel.Store, channelRouter *inbound.ChannelInboundProcessor, mediaService *media.Service) *channel.Manager {
+func provideChannelManager(log *slog.Logger, registry *channel.Registry, channelStore *channel.Store, channelRouter *inbound.ChannelInboundProcessor, mediaService *media.Service, discussTrigger *pipelinepkg.DiscussTrigger) *channel.Manager {
 	if adapter, ok := registry.Get(matrix.Type); ok {
 		if matrixAdapter, ok := adapter.(*matrix.MatrixAdapter); ok {
 			matrixAdapter.SetSyncStateSaver(channelStore.SaveMatrixSyncSinceToken)
@@ -435,6 +432,8 @@ func provideChannelManager(log *slog.Logger, registry *channel.Registry, channel
 		mgr.Use(mw)
 	}
 	channelRouter.SetReactor(mgr)
+	discussTrigger.SetChannelSender(mgr)
+	discussTrigger.SetReactor(mgr)
 	return mgr
 }
 
