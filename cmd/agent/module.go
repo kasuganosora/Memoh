@@ -8,6 +8,7 @@ import (
 
 	"github.com/memohai/memoh/internal/accounts"
 	"github.com/memohai/memoh/internal/acl"
+	audiopkg "github.com/memohai/memoh/internal/audio"
 	"github.com/memohai/memoh/internal/bind"
 	"github.com/memohai/memoh/internal/boot"
 	"github.com/memohai/memoh/internal/bots"
@@ -29,7 +30,6 @@ import (
 	"github.com/memohai/memoh/internal/schedule"
 	"github.com/memohai/memoh/internal/searchproviders"
 	"github.com/memohai/memoh/internal/settings"
-	ttspkg "github.com/memohai/memoh/internal/tts"
 )
 
 func runServe() {
@@ -63,9 +63,9 @@ func options() fx.Option {
 			identities.NewService,
 			bind.NewService,
 			event.NewHub,
-			provideTtsRegistry,
-			ttspkg.NewService,
-			provideTtsTempStore,
+			provideAudioRegistry,
+			audiopkg.NewService,
+			provideAudioTempStore,
 			emailpkg.NewDBOAuthTokenStore,
 			provideEmailRegistry,
 			emailpkg.NewService,
@@ -123,8 +123,8 @@ func options() fx.Option {
 			provideServerHandler(weixin.NewQRServerHandler),
 			provideServerHandler(provideUsersHandler),
 			provideServerHandler(handlers.NewMemoryProvidersHandler),
-			provideServerHandler(handlers.NewSpeechHandler),
-			provideServerHandler(handlers.NewBotTtsHandler),
+			provideServerHandler(handlers.NewAudioHandler),
+			provideServerHandler(handlers.NewBotAudioHandler),
 			provideServerHandler(handlers.NewEmailProvidersHandler),
 			provideServerHandler(handlers.NewEmailBindingsHandler),
 			provideServerHandler(handlers.NewEmailOutboxHandler),
@@ -143,6 +143,7 @@ func options() fx.Option {
 		fx.Invoke(
 			injectToolProviders,
 			startRegistrySync,
+			startAudioProviderBootstrap,
 			startMemoryProviderBootstrap,
 			startSearchProviderBootstrap,
 			startScheduleService,
@@ -152,7 +153,7 @@ func options() fx.Option {
 			startEmailManager,
 			startContainerReconciliation,
 			startBackgroundTaskCleanup,
-			startTtsTempStoreCleanup,
+			startAudioTempStoreCleanup,
 			startServer,
 		),
 		fx.WithLogger(func(logger *slog.Logger) fxevent.Logger {

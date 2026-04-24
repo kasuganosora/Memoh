@@ -4,38 +4,33 @@ icon: openai
 base_url: https://chatgpt.com/backend-api
 
 models:
-  - model_id: gpt-5.2
-    name: GPT-5.2
+  - model_id: gpt-5.4
+    name: GPT-5.4
     type: chat
     config:
-      compatibilities: [tool-call, reasoning]
+      context_window: 1050000
+      compatibilities: [vision, tool-call, reasoning]
+      reasoning_efforts: [none, low, medium, high, xhigh]
 
-  - model_id: gpt-5.2-codex
-    name: GPT-5.2 Codex
+  - model_id: gpt-5.4-mini
+    name: GPT-5.4 mini
     type: chat
     config:
-      compatibilities: [tool-call, reasoning]
+      context_window: 400000
+      compatibilities: [vision, tool-call, reasoning]
+      reasoning_efforts: [none, low, medium, high, xhigh]
 
-  - model_id: gpt-5.1-codex
-    name: GPT-5.1 Codex
+  - model_id: gpt-5.3-codex
+    name: GPT-5.3 Codex
     type: chat
     config:
-      compatibilities: [tool-call, reasoning]
+      context_window: 400000
+      compatibilities: [vision, tool-call, reasoning]
+      reasoning_efforts: [low, medium, high, xhigh]
 
-  - model_id: gpt-5.1-codex-max
-    name: GPT-5.1 Codex Max
+  - model_id: gpt-5.3-codex-spark
+    name: GPT-5.3 Codex Spark (Research Preview)
     type: chat
     config:
-      compatibilities: [tool-call, reasoning]
-
-  - model_id: gpt-5.1-codex-mini
-    name: GPT-5.1 Codex Mini
-    type: chat
-    config:
-      compatibilities: [tool-call, reasoning]
-
-  - model_id: gpt-5.1
-    name: GPT-5.1
-    type: chat
-    config:
-      compatibilities: [tool-call, reasoning]
+      context_window: 128000
+      compatibilities: [tool-call]

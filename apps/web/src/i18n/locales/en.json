@@ -4,6 +4,7 @@
     "cancel": "Cancel",
     "back": "Back",
     "save": "Save",
+    "create": "Create",
     "add": "Add",
     "edit": "Edit",
     "delete": "Delete",
@@ -63,6 +64,7 @@
     "webSearch": "Web Search",
     "memory": "Memory",
     "speech": "Speech",
+    "transcription": "Transcription",
     "email": "Email",
     "settings": "Settings",
     "profile": "Profile",
@@ -426,6 +428,14 @@
     "modelIdPlaceholder": "Enter model identifier (e.g. custom-voice)",
     "noModels": "No models found. Click \"Import Models\" to discover available models or \"Add Model\" to create one manually.",
     "noCapabilities": "No capabilities available for this model.",
+    "saveSuccess": "Speech configuration saved",
+    "synthesis": {
+      "models": "Synthesis Models"
+    },
+    "advanced": {
+      "title": "Advanced Settings",
+      "description": "These fields usually map to underlying vendor implementation details. Most users can keep the defaults."
+    },
     "fields": {
       "language": "Language",
       "languagePlaceholder": "Select language...",
@@ -443,6 +453,27 @@
       "placeholder": "Enter text to synthesize...",
       "generate": "Generate",
       "failed": "Synthesis failed"
+    }
+  },
+  "transcription": {
+    "title": "Transcription",
+    "emptyTitle": "No Transcription Providers",
+    "emptyDescription": "Add a transcription provider to enable speech-to-text for your bots",
+    "models": "Transcription Models",
+    "noModels": "No transcription models found. Import available models or keep the default template model.",
+    "noCapabilities": "No capabilities available for this model.",
+    "importModels": "Import Models",
+    "importSuccess": "Transcription models imported successfully",
+    "importFailed": "Failed to import transcription models",
+    "saveSuccess": "Transcription configuration saved",
+    "advanced": {
+      "title": "Advanced Settings",
+      "description": "These fields usually map to underlying vendor implementation details. Most users can keep the defaults."
+    },
+    "test": {
+      "title": "Test Transcription",
+      "run": "Transcribe",
+      "failed": "Transcription failed"
     }
   },
   "email": {
@@ -918,6 +949,8 @@
       "memoryHealthUnavailable": "Unavailable",
       "ttsModel": "TTS Model",
       "ttsModelPlaceholder": "Select TTS model",
+      "transcriptionModel": "Transcription Model",
+      "transcriptionModelPlaceholder": "Select transcription model",
       "imageModel": "Image Generation Model",
       "imageModelDescription": "Model used for the generate_image tool. Must support image-output compatibility.",
       "imageModelPlaceholder": "Select image model (optional)",
@@ -960,6 +993,8 @@
       "chatTimingIdleCompDescription": "Give the bot more credit to speak after periods of silence",
       "chatTimingIdleWindow": "Idle Window (minutes)",
       "chatTimingMinIdle": "Min Idle Before Credit (minutes)",
+      "showToolCallsInIM": "Show Tool Calls in IM",
+      "showToolCallsInIMDescription": "Surface tool execution status (running / completed / failed) as a single message in IM channels. Off by default.",
       "browserContext": "Browser Context",
       "browserContextPlaceholder": "Select browser context (disabled if empty)",
       "allowGuest": "Default ACL Effect",
@@ -1105,24 +1140,10 @@
         "wechatoa": "WeChat Official Account",
         "wecom": "WeCom",
         "dingtalk": "DingTalk",
+        "slack": "Slack",
         "web": "Web",
         "cli": "CLI",
         "local": "Local"
-      },
-      "typesShort": {
-        "feishu": "FS",
-        "discord": "DC",
-        "qq": "QQ",
-        "matrix": "MX",
-        "misskey": "MK",
-        "telegram": "TG",
-        "weixin": "WX",
-        "wechatoa": "OA",
-        "wecom": "WC",
-        "dingtalk": "DT",
-        "web": "Web",
-        "cli": "CLI",
-        "local": "LC"
       }
     },
     "memory": {
@@ -1253,7 +1274,86 @@
       "updatedAt": "Updated",
       "statusEnabled": "Enabled",
       "statusDisabled": "Disabled",
-      "unlimited": "∞"
+      "unlimited": "∞",
+      "actions": "Actions",
+      "create": "New Schedule",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleteConfirm": "Delete schedule \"{name}\"? This cannot be undone.",
+      "deleteSuccess": "Schedule deleted",
+      "deleteFailed": "Failed to delete schedule",
+      "saveSuccess": "Schedule saved",
+      "saveFailed": "Failed to save schedule",
+      "form": {
+        "name": "Name",
+        "namePlaceholder": "e.g. Morning brief",
+        "description": "Description",
+        "descriptionPlaceholder": "What this schedule does",
+        "command": "Instruction",
+        "commandPlaceholder": "Tell the bot what to do when this fires",
+        "commandHint": "This will be delivered to the bot as a message each time the schedule triggers.",
+        "pattern": "Schedule",
+        "mode": "Mode",
+        "everyMinutes": "Every N minutes (1-59)",
+        "atMinute": "At minute of each hour (0-59)",
+        "hour": "Hour",
+        "hours": "Hours",
+        "hoursHint": "Click to select one or more hours of the day.",
+        "minute": "Minute",
+        "weekdays": "Days of week",
+        "monthDays": "Days of month",
+        "month": "Month",
+        "monthDay": "Day",
+        "maxCalls": "Run limit",
+        "maxCallsUnlimited": "Unlimited",
+        "enabled": "Enabled",
+        "patternPreview": "Cron pattern",
+        "nextRuns": "Next runs ({tz})",
+        "invalidPattern": "Pattern is invalid",
+        "advancedPattern": "Cron expression",
+        "advancedHint": "Standard cron: minute hour day-of-month month day-of-week. Descriptors like @daily are also accepted."
+      },
+      "mode": {
+        "minutes": "Every N minutes",
+        "hourly": "Hourly",
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly",
+        "yearly": "Yearly",
+        "advanced": "Advanced (cron)"
+      },
+      "modeHint": {
+        "minutes": "Trigger every N minutes.",
+        "hourly": "Trigger once every hour, at a given minute.",
+        "daily": "Trigger every day at the selected hours.",
+        "weekly": "Trigger on the selected days of the week.",
+        "monthly": "Trigger on the selected days of the month.",
+        "yearly": "Trigger once a year on a specific month and day.",
+        "advanced": "Write a raw cron expression for full control."
+      },
+      "weekday": {
+        "sun": "Sun",
+        "mon": "Mon",
+        "tue": "Tue",
+        "wed": "Wed",
+        "thu": "Thu",
+        "fri": "Fri",
+        "sat": "Sat"
+      },
+      "month": {
+        "jan": "January",
+        "feb": "February",
+        "mar": "March",
+        "apr": "April",
+        "may": "May",
+        "jun": "June",
+        "jul": "July",
+        "aug": "August",
+        "sep": "September",
+        "oct": "October",
+        "nov": "November",
+        "dec": "December"
+      }
     },
     "history": {
       "title": "History",

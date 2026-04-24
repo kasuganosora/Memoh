@@ -278,13 +278,14 @@ func (s *wecomOutboundStream) Push(ctx context.Context, event channel.PreparedSt
 		channel.StreamEventPhaseStart,
 		channel.StreamEventPhaseEnd,
 		channel.StreamEventToolCallStart,
-		channel.StreamEventToolCallEnd,
 		channel.StreamEventAgentStart,
 		channel.StreamEventAgentEnd,
 		channel.StreamEventProcessingStarted,
 		channel.StreamEventProcessingCompleted,
 		channel.StreamEventProcessingFailed:
 		return nil
+	case channel.StreamEventToolCallEnd:
+		return s.sendToolCallSummary(ctx, event.ToolCall)
 	case channel.StreamEventDelta:
 		if strings.TrimSpace(event.Delta) == "" || event.Phase == channel.StreamPhaseReasoning {
 			return nil
@@ -361,6 +362,27 @@ func (s *wecomOutboundStream) flush(ctx context.Context) error {
 	}
 	s.finalSent.Store(true)
 	return nil
+}
+
+// sendToolCallSummary emits a best-effort terminal summary of a tool call.
+// WeCom lacks message-edit APIs in the one-shot send path, so only the
+// completed / failed state is surfaced — the running state is intentionally
+// suppressed to avoid duplicate messages.
+func (s *wecomOutboundStream) sendToolCallSummary(ctx context.Context, tc *channel.StreamToolCall) error {
+	if s.finalSent.Load() {
+		return nil
+	}
+	text := strings.TrimSpace(channel.RenderToolCallMessage(channel.BuildToolCallEnd(tc)))
+	if text == "" {
+		return nil
+	}
+	msg := channel.PreparedMessage{
+		Message: channel.Message{Format: channel.MessageFormatPlain, Text: text},
+	}
+	return s.adapter.Send(ctx, s.cfg, channel.PreparedOutboundMessage{
+		Target:  s.target,
+		Message: msg,
+	})
 }
 
 func (s *wecomOutboundStream) pushPreview(ctx context.Context) error {

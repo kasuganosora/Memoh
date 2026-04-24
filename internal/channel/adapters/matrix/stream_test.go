@@ -64,7 +64,7 @@ func TestMatrixStreamDoesNotSendDeltaBeforeTextPhaseEnds(t *testing.T) {
 	}
 }
 
-func TestMatrixStreamDropsBufferedTextWhenToolStarts(t *testing.T) {
+func TestMatrixStreamFlushesBufferedTextWhenToolStarts(t *testing.T) {
 	requests := 0
 	adapter := NewMatrixAdapter(nil)
 	adapter.httpClient = &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
@@ -89,11 +89,19 @@ func TestMatrixStreamDropsBufferedTextWhenToolStarts(t *testing.T) {
 	if err := stream.Push(ctx, mustPreparedMatrixEvent(t, channel.StreamEvent{Type: channel.StreamEventDelta, Delta: "I will inspect first", Phase: channel.StreamPhaseText})); err != nil {
 		t.Fatalf("push delta: %v", err)
 	}
-	if err := stream.Push(ctx, mustPreparedMatrixEvent(t, channel.StreamEvent{Type: channel.StreamEventToolCallStart})); err != nil {
+	tcStart := &channel.StreamToolCall{Name: "read", CallID: "c1", Input: map[string]any{"path": "/tmp/a"}}
+	tcEnd := &channel.StreamToolCall{Name: "read", CallID: "c1", Input: map[string]any{"path": "/tmp/a"}, Result: map[string]any{"ok": true}}
+	if err := stream.Push(ctx, mustPreparedMatrixEvent(t, channel.StreamEvent{Type: channel.StreamEventToolCallStart, ToolCall: tcStart})); err != nil {
 		t.Fatalf("push tool call start: %v", err)
 	}
-	if requests != 0 {
-		t.Fatalf("expected no request for discarded pre-tool text, got %d", requests)
+	if requests != 2 {
+		t.Fatalf("expected flush + start messages, got %d", requests)
+	}
+	if err := stream.Push(ctx, mustPreparedMatrixEvent(t, channel.StreamEvent{Type: channel.StreamEventToolCallEnd, ToolCall: tcEnd})); err != nil {
+		t.Fatalf("push tool call end: %v", err)
+	}
+	if requests != 3 {
+		t.Fatalf("expected start + end tool messages plus flush, got %d", requests)
 	}
 	if err := stream.Push(ctx, mustPreparedMatrixEvent(t, channel.StreamEvent{Type: channel.StreamEventDelta, Delta: "Final answer", Phase: channel.StreamPhaseText})); err != nil {
 		t.Fatalf("push final delta: %v", err)
@@ -101,8 +109,8 @@ func TestMatrixStreamDropsBufferedTextWhenToolStarts(t *testing.T) {
 	if err := stream.Push(ctx, mustPreparedMatrixEvent(t, channel.StreamEvent{Type: channel.StreamEventFinal, Final: &channel.StreamFinalizePayload{Message: channel.Message{Text: "Final answer"}}})); err != nil {
 		t.Fatalf("push final: %v", err)
 	}
-	if requests != 1 {
-		t.Fatalf("expected only final visible message to be sent, got %d", requests)
+	if requests != 4 {
+		t.Fatalf("expected final visible message after tool call, got %d", requests)
 	}
 }
 

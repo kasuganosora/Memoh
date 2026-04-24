@@ -23,6 +23,7 @@ import (
 	agentpkg "github.com/memohai/memoh/internal/agent"
 	"github.com/memohai/memoh/internal/agent/background"
 	agenttools "github.com/memohai/memoh/internal/agent/tools"
+	audiopkg "github.com/memohai/memoh/internal/audio"
 	"github.com/memohai/memoh/internal/bind"
 	"github.com/memohai/memoh/internal/boot"
 	"github.com/memohai/memoh/internal/bots"
@@ -35,6 +36,7 @@ import (
 	"github.com/memohai/memoh/internal/channel/adapters/matrix"
 	"github.com/memohai/memoh/internal/channel/adapters/misskey"
 	"github.com/memohai/memoh/internal/channel/adapters/qq"
+	slackadapter "github.com/memohai/memoh/internal/channel/adapters/slack"
 	"github.com/memohai/memoh/internal/channel/adapters/telegram"
 	"github.com/memohai/memoh/internal/channel/adapters/wechatoa"
 	"github.com/memohai/memoh/internal/channel/adapters/wecom"
@@ -87,10 +89,6 @@ import (
 	"github.com/memohai/memoh/internal/storage/providers/containerfs"
 	"github.com/memohai/memoh/internal/storage/providers/fallback"
 	"github.com/memohai/memoh/internal/storage/providers/localfs"
-	ttspkg "github.com/memohai/memoh/internal/tts"
-	ttsedge "github.com/memohai/memoh/internal/tts/adapter/edge"
-	geminitts "github.com/memohai/memoh/internal/tts/adapter/gemini"
-	groktts "github.com/memohai/memoh/internal/tts/adapter/grok"
 	"github.com/memohai/memoh/internal/version"
 	"github.com/memohai/memoh/internal/workspace"
 )
@@ -314,6 +312,11 @@ func provideChannelRegistry(log *slog.Logger, hub *local.RouteHub, mediaService 
 	feishuAdapter := feishu.NewFeishuAdapter(log)
 	feishuAdapter.SetAssetOpener(mediaService)
 	registry.MustRegister(feishuAdapter)
+
+	slackAdapter := slackadapter.NewSlackAdapter(log)
+	slackAdapter.SetAssetOpener(mediaService)
+	registry.MustRegister(slackAdapter)
+
 	registry.MustRegister(wecom.NewWeComAdapter(log))
 
 	dingTalkAdapter := dingtalk.NewDingTalkAdapter(log)
@@ -343,7 +346,7 @@ func provideChannelRouter(
 	policyService *policy.Service,
 	bindService *bind.Service,
 	mediaService *media.Service,
-	ttsService *ttspkg.Service,
+	audioService *audiopkg.Service,
 	settingsService *settings.Service,
 	scheduleService *schedule.Service,
 	mcpConnService *mcp.ConnectionService,
@@ -393,7 +396,9 @@ func provideChannelRouter(
 	discussAdapter := inbound.NewDiscussDispatcherAdapter(routeDispatcher)
 	processor.SetDiscussDispatcherAdapter(discussAdapter)
 	discussTrigger.SetDispatcher(discussAdapter)
-	processor.SetTtsService(ttsService, &settingsTtsModelResolver{settings: settingsService})
+	processor.SetSpeechService(audioService, &settingsSpeechModelResolver{settings: settingsService})
+	processor.SetTranscriptionService(&settingsTranscriptionAdapter{audio: audioService}, &settingsTranscriptionModelResolver{settings: settingsService})
+	processor.SetIMDisplayOptions(&settingsIMDisplayOptions{settings: settingsService})
 	cmdHandler := command.NewHandler(
 		log,
 		&command.BotMemberRoleAdapter{BotService: botService},
@@ -470,7 +475,7 @@ func provideBackgroundManager(log *slog.Logger) *background.Manager {
 	return background.New(log)
 }
 
-func provideToolProviders(log *slog.Logger, cfg config.Config, channelManager *channel.Manager, registry *channel.Registry, routeService *route.DBService, scheduleService *schedule.Service, settingsService *settings.Service, searchProviderService *searchproviders.Service, manager *workspace.Manager, mediaService *media.Service, memoryRegistry *memprovider.Registry, emailService *emailpkg.Service, emailManager *emailpkg.Manager, fedGateway *handlers.MCPFederationGateway, mcpConnService *mcp.ConnectionService, modelsService *models.Service, browserContextService *browsercontexts.Service, queries *dbsqlc.Queries, ttsService *ttspkg.Service, sessionService *sessionpkg.Service, bgManager *background.Manager) []agenttools.ToolProvider {
+func provideToolProviders(log *slog.Logger, cfg config.Config, channelManager *channel.Manager, registry *channel.Registry, routeService *route.DBService, scheduleService *schedule.Service, settingsService *settings.Service, searchProviderService *searchproviders.Service, manager *workspace.Manager, mediaService *media.Service, memoryRegistry *memprovider.Registry, emailService *emailpkg.Service, emailManager *emailpkg.Manager, fedGateway *handlers.MCPFederationGateway, mcpConnService *mcp.ConnectionService, modelsService *models.Service, browserContextService *browsercontexts.Service, queries *dbsqlc.Queries, audioService *audiopkg.Service, sessionService *sessionpkg.Service, bgManager *background.Manager) []agenttools.ToolProvider {
 	var assetResolver messaging.AssetResolver
 	if mediaService != nil {
 		assetResolver = &mediaAssetResolverAdapter{media: mediaService}
@@ -488,7 +493,8 @@ func provideToolProviders(log *slog.Logger, cfg config.Config, channelManager *c
 		agenttools.NewSpawnProvider(log, settingsService, modelsService, queries, sessionService),
 		agenttools.NewSkillProvider(log),
 		agenttools.NewBrowserProvider(log, settingsService, browserContextService, manager, cfg.BrowserGateway),
-		agenttools.NewTTSProvider(log, settingsService, ttsService, channelManager, registry),
+		agenttools.NewTTSProvider(log, settingsService, audioService, channelManager, registry),
+		agenttools.NewTranscriptionProvider(log, settingsService, audioService, mediaService),
 		agenttools.NewImageGenProvider(log, settingsService, modelsService, queries, manager, config.DefaultDataMount),
 		agenttools.NewFederationProvider(log, fedSource),
 		agenttools.NewHistoryProvider(log, sessionService, queries),
@@ -532,27 +538,23 @@ func provideUsersHandler(log *slog.Logger, accountService *accounts.Service, ide
 	return handlers.NewUsersHandler(log, accountService, identityService, botService, routeService, channelStore, channelLifecycle, channelManager, registry)
 }
 
-func provideWebHandler(channelManager *channel.Manager, channelStore *channel.Store, chatService *conversation.Service, hub *local.RouteHub, botService *bots.Service, accountService *accounts.Service, resolver *flow.Resolver, mediaService *media.Service, ttsService *ttspkg.Service, settingsService *settings.Service) *handlers.LocalChannelHandler {
+func provideWebHandler(channelManager *channel.Manager, channelStore *channel.Store, chatService *conversation.Service, hub *local.RouteHub, botService *bots.Service, accountService *accounts.Service, resolver *flow.Resolver, mediaService *media.Service, audioService *audiopkg.Service, settingsService *settings.Service) *handlers.LocalChannelHandler {
 	h := handlers.NewLocalChannelHandler(local.WebType, channelManager, channelStore, chatService, hub, botService, accountService)
 	h.SetResolver(resolver)
 	h.SetMediaService(mediaService)
-	h.SetTtsService(ttsService, &settingsTtsModelResolver{settings: settingsService})
+	h.SetSpeechService(audioService, &settingsSpeechModelResolver{settings: settingsService})
 	return h
 }
 
-func provideTtsRegistry(log *slog.Logger) *ttspkg.Registry {
-	reg := ttspkg.NewRegistry()
-	reg.Register(ttsedge.NewEdgeAdapter(log))
-	reg.Register(groktts.NewGrokAdapter(log))
-	reg.Register(geminitts.NewGeminiAdapter(log))
-	return reg
+func provideAudioRegistry() *audiopkg.Registry {
+	return audiopkg.NewRegistry()
 }
 
-func provideTtsTempStore() (*ttspkg.TempStore, error) {
-	return ttspkg.NewTempStore(os.TempDir())
+func provideAudioTempStore() (*audiopkg.TempStore, error) {
+	return audiopkg.NewTempStore(os.TempDir())
 }
 
-func startTtsTempStoreCleanup(lc fx.Lifecycle, store *ttspkg.TempStore) {
+func startAudioTempStoreCleanup(lc fx.Lifecycle, store *audiopkg.TempStore) {
 	done := make(chan struct{})
 	lc.Append(fx.Hook{
 		OnStart: func(_ context.Context) error {
@@ -608,16 +610,58 @@ func (a *sessionEnsurerAdapter) CreateNewSession(ctx context.Context, botID, rou
 	return inbound.SessionResult{ID: sess.ID, Type: sess.Type}, nil
 }
 
-type settingsTtsModelResolver struct {
+type settingsSpeechModelResolver struct {
 	settings *settings.Service
 }
 
-func (r *settingsTtsModelResolver) ResolveTtsModelID(ctx context.Context, botID string) (string, error) {
+func (r *settingsSpeechModelResolver) ResolveSpeechModelID(ctx context.Context, botID string) (string, error) {
 	s, err := r.settings.GetBot(ctx, botID)
 	if err != nil {
 		return "", err
 	}
 	return s.TtsModelID, nil
+}
+
+type settingsIMDisplayOptions struct {
+	settings *settings.Service
+}
+
+func (r *settingsIMDisplayOptions) ShowToolCallsInIM(ctx context.Context, botID string) (bool, error) {
+	s, err := r.settings.GetBot(ctx, botID)
+	if err != nil {
+		return false, err
+	}
+	return s.ShowToolCallsInIM, nil
+}
+
+type settingsTranscriptionModelResolver struct {
+	settings *settings.Service
+}
+
+func (r *settingsTranscriptionModelResolver) ResolveTranscriptionModelID(ctx context.Context, botID string) (string, error) {
+	s, err := r.settings.GetBot(ctx, botID)
+	if err != nil {
+		return "", err
+	}
+	return s.TranscriptionModelID, nil
+}
+
+type settingsTranscriptionAdapter struct {
+	audio *audiopkg.Service
+}
+
+type inboundTranscriptionResult struct {
+	text string
+}
+
+func (r inboundTranscriptionResult) GetText() string { return r.text }
+
+func (a *settingsTranscriptionAdapter) Transcribe(ctx context.Context, modelID string, audio []byte, filename string, contentType string, overrideCfg map[string]any) (inbound.TranscriptionResult, error) {
+	result, err := a.audio.Transcribe(ctx, modelID, audio, filename, contentType, overrideCfg)
+	if err != nil {
+		return nil, err
+	}
+	return inboundTranscriptionResult{text: result.Text}, nil
 }
 
 func provideEmailRegistry(log *slog.Logger, tokenStore *emailpkg.DBOAuthTokenStore) *emailpkg.Registry {
@@ -705,6 +749,17 @@ func startRegistrySync(lc fx.Lifecycle, log *slog.Logger, cfg config.Config, que
 				return nil
 			}
 			return registry.Sync(ctx, log, queries, defs)
+		},
+	})
+}
+
+func startAudioProviderBootstrap(lc fx.Lifecycle, log *slog.Logger, queries *dbsqlc.Queries, registry *audiopkg.Registry) {
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			if err := audiopkg.SyncRegistry(ctx, log, queries, registry); err != nil {
+				log.Warn("audio registry bootstrap failed", slog.Any("error", err))
+			}
+			return nil
 		},
 	})
 }

@@ -45,7 +45,6 @@ func (s *dingtalkOutboundStream) Push(ctx context.Context, event channel.Prepare
 		channel.StreamEventPhaseStart,
 		channel.StreamEventPhaseEnd,
 		channel.StreamEventToolCallStart,
-		channel.StreamEventToolCallEnd,
 		channel.StreamEventAgentStart,
 		channel.StreamEventAgentEnd,
 		channel.StreamEventProcessingStarted,
@@ -53,6 +52,18 @@ func (s *dingtalkOutboundStream) Push(ctx context.Context, event channel.Prepare
 		channel.StreamEventProcessingFailed:
 		// Non-content events: no-op.
 		return nil
+
+	case channel.StreamEventToolCallEnd:
+		text := strings.TrimSpace(channel.RenderToolCallMessage(channel.BuildToolCallEnd(event.ToolCall)))
+		if text == "" {
+			return nil
+		}
+		return s.adapter.Send(ctx, s.cfg, channel.PreparedOutboundMessage{
+			Target: s.target,
+			Message: channel.PreparedMessage{
+				Message: channel.Message{Format: channel.MessageFormatPlain, Text: text, Reply: s.reply},
+			},
+		})
 
 	case channel.StreamEventDelta:
 		if strings.TrimSpace(event.Delta) == "" || event.Phase == channel.StreamPhaseReasoning {

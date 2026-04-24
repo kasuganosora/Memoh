@@ -26,6 +26,7 @@ type matrixOutboundStream struct {
 	lastText        string
 	lastFormat      channel.MessageFormat
 	lastEditedAt    time.Time
+	toolMessages    map[string]string
 }
 
 func (s *matrixOutboundStream) Push(ctx context.Context, event channel.PreparedStreamEvent) error {
@@ -44,7 +45,6 @@ func (s *matrixOutboundStream) Push(ctx context.Context, event channel.PreparedS
 	switch event.Type {
 	case channel.StreamEventStatus,
 		channel.StreamEventPhaseStart,
-		channel.StreamEventToolCallEnd,
 		channel.StreamEventAgentStart,
 		channel.StreamEventAgentEnd,
 		channel.StreamEventProcessingStarted,
@@ -60,8 +60,18 @@ func (s *matrixOutboundStream) Push(ctx context.Context, event channel.PreparedS
 		s.mu.Unlock()
 		return s.upsertText(ctx, text, channel.MessageFormatPlain, true)
 	case channel.StreamEventToolCallStart:
+		s.mu.Lock()
+		bufText := strings.TrimSpace(s.rawBuffer.String())
+		s.mu.Unlock()
+		if bufText != "" {
+			if err := s.upsertText(ctx, bufText, channel.MessageFormatPlain, true); err != nil {
+				return err
+			}
+		}
 		s.resetMessageState()
-		return nil
+		return s.sendToolCallMessage(ctx, event.ToolCall, channel.BuildToolCallStart(event.ToolCall))
+	case channel.StreamEventToolCallEnd:
+		return s.sendToolCallMessage(ctx, event.ToolCall, channel.BuildToolCallEnd(event.ToolCall))
 	case channel.StreamEventDelta:
 		if event.Phase == channel.StreamPhaseReasoning || event.Delta == "" {
 			return nil
@@ -184,6 +194,98 @@ func (s *matrixOutboundStream) upsertText(ctx context.Context, text string, form
 	s.lastEditedAt = time.Now()
 	s.mu.Unlock()
 	return nil
+}
+
+// sendToolCallMessage posts a room event on tool_call_start and sends an
+// m.replace edit event on tool_call_end so both lifecycle states share a
+// single visible message. If no prior event is tracked (or the edit fails),
+// it falls back to creating a new event.
+func (s *matrixOutboundStream) sendToolCallMessage(
+	ctx context.Context,
+	tc *channel.StreamToolCall,
+	p channel.ToolCallPresentation,
+) error {
+	text := strings.TrimSpace(channel.RenderToolCallMessageMarkdown(p))
+	format := channel.MessageFormatMarkdown
+	if text == "" {
+		text = strings.TrimSpace(channel.RenderToolCallMessage(p))
+		format = channel.MessageFormatPlain
+	}
+	if text == "" {
+		return nil
+	}
+
+	s.mu.Lock()
+	roomID := s.roomID
+	reply := s.reply
+	s.mu.Unlock()
+
+	if roomID == "" {
+		resolved, err := s.adapter.resolveRoomTarget(ctx, s.cfg, s.target)
+		if err != nil {
+			return err
+		}
+		roomID = resolved
+		s.mu.Lock()
+		s.roomID = roomID
+		s.mu.Unlock()
+	}
+
+	callID := ""
+	if tc != nil {
+		callID = strings.TrimSpace(tc.CallID)
+	}
+	if p.Status != channel.ToolCallStatusRunning && callID != "" {
+		if eventID, ok := s.lookupToolCallMessage(callID); ok {
+			editMsg := channel.Message{Text: text, Format: format}
+			if _, err := s.adapter.sendTextEvent(ctx, s.cfg, roomID, buildMatrixMessageContent(editMsg, true, eventID)); err == nil {
+				s.forgetToolCallMessage(callID)
+				return nil
+			}
+			s.forgetToolCallMessage(callID)
+		}
+	}
+	msg := channel.Message{
+		Text:   text,
+		Format: format,
+		Reply:  reply,
+	}
+	eventID, err := s.adapter.sendTextEvent(ctx, s.cfg, roomID, buildMatrixMessageContent(msg, false, ""))
+	if err != nil {
+		return err
+	}
+	if p.Status == channel.ToolCallStatusRunning && callID != "" && eventID != "" {
+		s.storeToolCallMessage(callID, eventID)
+	}
+	return nil
+}
+
+func (s *matrixOutboundStream) lookupToolCallMessage(callID string) (string, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.toolMessages == nil {
+		return "", false
+	}
+	v, ok := s.toolMessages[callID]
+	return v, ok
+}
+
+func (s *matrixOutboundStream) storeToolCallMessage(callID, eventID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.toolMessages == nil {
+		s.toolMessages = make(map[string]string)
+	}
+	s.toolMessages[callID] = eventID
+}
+
+func (s *matrixOutboundStream) forgetToolCallMessage(callID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.toolMessages == nil {
+		return
+	}
+	delete(s.toolMessages, callID)
 }
 
 func (s *matrixOutboundStream) resetMessageState() {

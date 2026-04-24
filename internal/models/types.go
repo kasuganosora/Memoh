@@ -10,24 +10,39 @@ import (
 type ModelType string
 
 const (
-	ModelTypeChat      ModelType = "chat"
-	ModelTypeEmbedding ModelType = "embedding"
-	ModelTypeSpeech    ModelType = "speech"
+	ModelTypeChat          ModelType = "chat"
+	ModelTypeEmbedding     ModelType = "embedding"
+	ModelTypeSpeech        ModelType = "speech"
+	ModelTypeTranscription ModelType = "transcription"
 )
 
 type ClientType string
 
 const (
-	ClientTypeOpenAIResponses    ClientType = "openai-responses"
-	ClientTypeOpenAICompletions  ClientType = "openai-completions"
-	ClientTypeAnthropicMessages  ClientType = "anthropic-messages"
-	ClientTypeGoogleGenerativeAI ClientType = "google-generative-ai"
-	ClientTypeOpenAICodex        ClientType = "openai-codex"
-	ClientTypeGitHubCopilot      ClientType = "github-copilot"
-	ClientTypeEdgeSpeech         ClientType = "edge-speech"
-	ClientTypeGrokSpeech         ClientType = "grok-speech"
-	ClientTypeGeminiSpeech       ClientType = "gemini-speech"
-	ClientTypeOpenAIImages       ClientType = "openai-images"
+	ClientTypeOpenAIResponses         ClientType = "openai-responses"
+	ClientTypeOpenAICompletions       ClientType = "openai-completions"
+	ClientTypeAnthropicMessages       ClientType = "anthropic-messages"
+	ClientTypeGoogleGenerativeAI      ClientType = "google-generative-ai"
+	ClientTypeOpenAICodex             ClientType = "openai-codex"
+	ClientTypeGitHubCopilot           ClientType = "github-copilot"
+	ClientTypeEdgeSpeech              ClientType = "edge-speech"
+	ClientTypeGrokSpeech              ClientType = "grok-speech"
+	ClientTypeGeminiSpeech            ClientType = "gemini-speech"
+	ClientTypeOpenAIImages            ClientType = "openai-images"
+	ClientTypeOpenAISpeech            ClientType = "openai-speech"
+	ClientTypeOpenAITranscription     ClientType = "openai-transcription"
+	ClientTypeOpenRouterSpeech        ClientType = "openrouter-speech"
+	ClientTypeOpenRouterTranscription ClientType = "openrouter-transcription"
+	ClientTypeElevenLabsSpeech        ClientType = "elevenlabs-speech"
+	ClientTypeElevenLabsTranscription ClientType = "elevenlabs-transcription"
+	ClientTypeDeepgramSpeech          ClientType = "deepgram-speech"
+	ClientTypeDeepgramTranscription   ClientType = "deepgram-transcription"
+	ClientTypeMiniMaxSpeech           ClientType = "minimax-speech"
+	ClientTypeVolcengineSpeech        ClientType = "volcengine-speech"
+	ClientTypeAlibabaSpeech           ClientType = "alibabacloud-speech"
+	ClientTypeMicrosoftSpeech         ClientType = "microsoft-speech"
+	ClientTypeGoogleSpeech            ClientType = "google-speech"
+	ClientTypeGoogleTranscription     ClientType = "google-transcription"
 )
 
 const (
@@ -104,7 +119,7 @@ func (m *Model) Validate() error {
 	if _, err := uuid.Parse(m.ProviderID); err != nil {
 		return errors.New("provider ID must be a valid UUID")
 	}
-	if m.Type != ModelTypeChat && m.Type != ModelTypeEmbedding && m.Type != ModelTypeSpeech {
+	if m.Type != ModelTypeChat && m.Type != ModelTypeEmbedding && m.Type != ModelTypeSpeech && m.Type != ModelTypeTranscription {
 		return errors.New("invalid model type")
 	}
 	cfg := m.ParseConfig()

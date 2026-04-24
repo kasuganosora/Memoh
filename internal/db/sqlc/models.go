@@ -34,9 +34,10 @@ type Bot struct {
 	ImageModelID           pgtype.UUID        `json:"image_model_id"`
 	DiscussProbeModelID    pgtype.UUID        `json:"discuss_probe_model_id"`
 	TtsModelID             pgtype.UUID        `json:"tts_model_id"`
+	TranscriptionModelID   pgtype.UUID        `json:"transcription_model_id"`
 	BrowserContextID       pgtype.UUID        `json:"browser_context_id"`
 	PersistFullToolResults bool               `json:"persist_full_tool_results"`
-	ChatTiming             []byte             `json:"chat_timing"`
+	ShowToolCallsInIm      bool               `json:"show_tool_calls_in_im"`
 	Metadata               []byte             `json:"metadata"`
 	CreatedAt              pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`

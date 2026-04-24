@@ -72,8 +72,7 @@ func TestSpawnAndNotify(t *testing.T) {
 	task := mgr.Get(taskID)
 	if task == nil {
 		t.Fatal("task not found after completion")
-	}
-	if task.Status != TaskCompleted {
+	} else if task.Status != TaskCompleted {
 		t.Errorf("expected task status completed, got %s", task.Status)
 	}
 }
@@ -130,8 +129,7 @@ func TestKillTask(t *testing.T) {
 	task := mgr.Get(taskID)
 	if task == nil {
 		t.Fatal("task not found")
-	}
-	if task.Status != TaskKilled {
+	} else if task.Status != TaskKilled {
 		t.Errorf("expected status killed, got %s", task.Status)
 	}
 

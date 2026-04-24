@@ -1,9 +1,19 @@
 <template>
-  <div class="p-4">
+  <SettingsShell width="wide">
     <section class="flex items-center gap-3">
-      <Volume2
-        class="size-5"
-      />
+      <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
+        <ProviderIcon
+          v-if="curProvider?.icon"
+          :icon="curProvider.icon"
+          size="1.5em"
+        />
+        <span
+          v-else
+          class="text-xs font-medium text-muted-foreground"
+        >
+          {{ getInitials(curProvider?.name) }}
+        </span>
+      </span>
       <div class="min-w-0">
         <h2 class="text-sm font-semibold truncate">
           {{ curProvider?.name }}
@@ -13,23 +23,6 @@
         </p>
       </div>
       <div class="ml-auto flex items-center gap-2">
-        <ConfirmPopover
-          :message="$t('speech.deleteConfirm')"
-          :loading="deleteLoading"
-          @confirm="handleDeleteProvider"
-        >
-          <template #trigger>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              class="size-8"
-              :aria-label="$t('common.delete')"
-            >
-              <Trash2 class="size-4" />
-            </Button>
-          </template>
-        </ConfirmPopover>
         <span class="text-xs text-muted-foreground">
           {{ $t('common.enable') }}
         </span>
@@ -42,81 +35,141 @@
     </section>
     <Separator class="mt-4 mb-6" />
 
-    <!-- Provider Config (API Key / Base URL) -->
-    <section
-      v-if="needsCredentials"
-      class="mb-6 space-y-3"
+    <form
+      @submit.prevent="handleSaveProvider"
     >
-      <h3 class="text-xs font-medium">
-        {{ $t('provider.apiKey') }}
-      </h3>
-      <div class="space-y-2">
-        <div class="space-y-1">
-          <Label
-            class="text-xs"
-            for="speech-provider-api-key"
-          >
-            {{ $t('provider.apiKey') }}
-          </Label>
+      <div class="grid gap-4 md:grid-cols-2">
+        <section class="space-y-2 md:col-span-2">
+          <Label for="speech-provider-name">{{ $t('common.name') }}</Label>
           <Input
-            id="speech-provider-api-key"
-            v-model="configForm.api_key"
-            type="password"
-            :placeholder="maskedApiKey || $t('provider.apiKeyPlaceholder')"
-            :aria-label="$t('provider.apiKey')"
-          />
-        </div>
-        <div class="space-y-1">
-          <Label
-            class="text-xs"
-            for="speech-provider-base-url"
-          >
-            {{ $t('provider.url') }}
-          </Label>
-          <Input
-            id="speech-provider-base-url"
-            v-model="configForm.base_url"
+            id="speech-provider-name"
+            v-model="providerName"
             type="text"
-            :placeholder="$t('provider.urlPlaceholder')"
-            :aria-label="$t('provider.url')"
+            :placeholder="$t('common.namePlaceholder')"
           />
-        </div>
-        <div class="flex justify-end">
-          <LoadingButton
-            type="button"
-            size="sm"
-            :disabled="!configHasChanges"
-            :loading="configSaving"
-            @click="handleSaveConfig"
-          >
-            {{ $t('provider.saveChanges') }}
-          </LoadingButton>
-        </div>
-      </div>
-    </section>
+        </section>
 
-    <!-- Models -->
+        <section
+          v-for="field in orderedProviderFields"
+          :key="field.key"
+          class="space-y-2"
+          :class="isWideField(field) ? 'md:col-span-2' : ''"
+        >
+          <Label :for="field.type === 'bool' || field.type === 'enum' ? undefined : `speech-provider-${field.key}`">
+            {{ field.title || field.key }}
+          </Label>
+          <p
+            v-if="field.description"
+            class="text-xs text-muted-foreground"
+          >
+            {{ field.description }}
+          </p>
+          <div
+            v-if="field.type === 'secret'"
+            class="relative"
+          >
+            <Input
+              :id="`speech-provider-${field.key}`"
+              v-model="providerConfig[field.key] as string"
+              :type="visibleSecrets[field.key] ? 'text' : 'password'"
+              :placeholder="field.example ? String(field.example) : ''"
+            />
+            <button
+              type="button"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              @click="visibleSecrets[field.key] = !visibleSecrets[field.key]"
+            >
+              <component
+                :is="visibleSecrets[field.key] ? EyeOff : Eye"
+                class="size-3.5"
+              />
+            </button>
+          </div>
+          <Switch
+            v-else-if="field.type === 'bool'"
+            :model-value="!!providerConfig[field.key]"
+            @update:model-value="(val) => providerConfig[field.key] = !!val"
+          />
+          <Input
+            v-else-if="field.type === 'number'"
+            :id="`speech-provider-${field.key}`"
+            v-model.number="providerConfig[field.key] as number"
+            type="number"
+            :placeholder="field.example ? String(field.example) : ''"
+          />
+          <Select
+            v-else-if="field.type === 'enum' && field.enum"
+            :model-value="String(providerConfig[field.key] ?? '')"
+            @update:model-value="(val) => providerConfig[field.key] = val"
+          >
+            <SelectTrigger>
+              <SelectValue :placeholder="field.title || field.key" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="opt in field.enum"
+                :key="opt"
+                :value="opt"
+              >
+                {{ opt }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <Input
+            v-else
+            :id="`speech-provider-${field.key}`"
+            v-model="providerConfig[field.key] as string"
+            type="text"
+            :placeholder="field.example ? String(field.example) : ''"
+          />
+        </section>
+      </div>
+
+      <div class="flex justify-end mt-4">
+        <LoadingButton
+          type="submit"
+          :loading="saveLoading"
+        >
+          {{ $t('provider.saveChanges') }}
+        </LoadingButton>
+      </div>
+    </form>
+
+    <Separator class="mt-6 mb-6" />
+
     <section>
       <div class="flex justify-between items-center mb-4">
         <h3 class="text-xs font-medium">
-          {{ $t('speech.models') }}
+          {{ $t('speech.synthesis.models') }}
         </h3>
+        <div
+          v-if="curProviderId"
+          class="flex items-center gap-2"
+        >
+          <LoadingButton
+            type="button"
+            variant="outline"
+            size="sm"
+            :loading="importLoading"
+            @click="handleImportModels"
+          >
+            {{ $t('speech.importModels') }}
+          </LoadingButton>
+          <CreateModel
+            :id="curProviderId"
+            default-type="speech"
+            hide-type
+            :type-options="speechTypeOptions"
+            :invalidate-keys="['speech-provider-models', 'speech-models']"
+          />
+        </div>
       </div>
 
       <div
         v-if="providerModels.length === 0"
-        class="text-xs text-muted-foreground py-4 text-center space-y-2"
+        class="text-xs text-muted-foreground py-4 text-center"
       >
-        <p>{{ $t('speech.noModels') }}</p>
-        <Button
-          v-if="currentMeta?.models?.length"
-          variant="outline"
-          size="sm"
-          :disabled="importLoading"
-          @click="handleImportModels"
-        >
-          {{ $t('speech.importModels') }}
-        </Button>
+        {{ $t('speech.noModels') }}
       </div>
 
       <div
@@ -150,188 +203,176 @@
             :model-id="model.id ?? ''"
             :model-name="model.model_id ?? ''"
             :config="model.config || {}"
-            :capabilities="getModelCapabilities(model.model_id ?? '')"
-            @save="(cfg) => handleSaveModelConfig(model.id ?? '', cfg)"
-            @test="(text, cfg) => handleTestModel(model.id ?? '', text, cfg)"
+            :schema="getModelSchema(model.model_id ?? '')"
+            :on-test="(text, cfg) => handleTestModel(model.id ?? '', text as string, cfg)"
+            @save="(cfg) => handleSaveModel(model.id ?? '', cfg)"
           />
         </div>
       </div>
     </section>
-  </div>
+  </SettingsShell>
 </template>
 
 <script setup lang="ts">
 import {
-  Separator,
-  Switch,
-  Button,
   Input,
   Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Separator,
+  Switch,
 } from '@memohai/ui'
 import ModelConfigEditor from './model-config-editor.vue'
-import ConfirmPopover from '@/components/confirm-popover/index.vue'
-import LoadingButton from '@/components/loading-button/index.vue'
-import { Volume2, ChevronUp, ChevronDown, Trash2 } from 'lucide-vue-next'
-import { computed, inject, ref, watch } from 'vue'
+import { ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-vue-next'
+import { computed, inject, reactive, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { useI18n } from 'vue-i18n'
 import { useQuery, useQueryCache } from '@pinia/colada'
-import { getSpeechProvidersMeta, getSpeechModels, getProvidersById, putProvidersById, putModelsById, postModels, deleteProvidersById, deleteModelsById } from '@memohai/sdk'
-import type { TtsSpeechProviderResponse, TtsProviderMetaResponse, TtsModelInfo } from '@memohai/sdk'
+import { getSpeechProvidersById, getSpeechProvidersByIdModels, getSpeechProvidersMeta, postSpeechProvidersByIdImportModels, putProvidersById } from '@memohai/sdk'
+import type { TtsSpeechModelResponse, TtsSpeechProviderResponse } from '@memohai/sdk'
+import LoadingButton from '@/components/loading-button/index.vue'
+import ProviderIcon from '@/components/provider-icon/index.vue'
+import CreateModel from '@/components/create-model/index.vue'
+import SettingsShell from '@/components/settings-shell/index.vue'
 
-const CREDENTIAL_REQUIRED_TYPES = new Set(['grok-speech', 'gemini-speech'])
+interface SpeechFieldSchema {
+  key: string
+  type: string
+  title?: string
+  description?: string
+  required?: boolean
+  advanced?: boolean
+  enum?: string[]
+  example?: unknown
+  order?: number
+}
+
+interface SpeechConfigSchema {
+  fields?: SpeechFieldSchema[]
+}
+
+interface SpeechModelMeta {
+  id: string
+  name: string
+  description?: string
+  config_schema?: SpeechConfigSchema
+  capabilities?: {
+    config_schema?: SpeechConfigSchema
+  }
+}
+
+interface SpeechProviderMeta {
+  provider: string
+  display_name: string
+  description?: string
+  config_schema?: SpeechConfigSchema
+  default_model?: string
+  models?: SpeechModelMeta[]
+  default_synthesis_model?: string
+  synthesis_models?: SpeechModelMeta[]
+}
+
+function getInitials(name: string | undefined) {
+  const label = name?.trim() ?? ''
+  return label ? label.slice(0, 2).toUpperCase() : '?'
+}
 
 const { t } = useI18n()
 const curProvider = inject('curTtsProvider', ref<TtsSpeechProviderResponse>())
 const curProviderId = computed(() => curProvider.value?.id)
+const providerName = ref('')
+const providerConfig = reactive<Record<string, unknown>>({})
+const visibleSecrets = reactive<Record<string, boolean>>({})
+const expandedModelId = ref('')
 const enableLoading = ref(false)
+const saveLoading = ref(false)
+const importLoading = ref(false)
+const queryCache = useQueryCache()
+const speechTypeOptions = [
+  { value: 'speech', label: 'Speech' },
+]
 
-const needsCredentials = computed(() => CREDENTIAL_REQUIRED_TYPES.has(curProvider.value?.client_type ?? ''))
-
-// Provider config state
-const configForm = ref({ api_key: '', base_url: '' })
-const storedBaseUrl = ref('')
-const maskedApiKey = ref('')
-const configSaving = ref(false)
-
-const configHasChanges = computed(() => {
-  const apiKeyChanged = configForm.value.api_key.trim() !== ''
-  const baseUrlChanged = configForm.value.base_url.trim() !== '' && configForm.value.base_url.trim() !== storedBaseUrl.value
-  return apiKeyChanged || baseUrlChanged
-})
-
-async function loadProviderConfig() {
-  if (!curProviderId.value || !needsCredentials.value) return
-  try {
-    const { data } = await getProvidersById({ path: { id: curProviderId.value }, throwOnError: true })
-    const cfg = (data as Record<string, unknown>)?.config as Record<string, unknown> | undefined
-    if (cfg) {
-      maskedApiKey.value = (cfg.api_key as string) || ''
-      storedBaseUrl.value = (cfg.base_url as string) || ''
-      configForm.value.base_url = storedBaseUrl.value
-    }
-  } catch {
-    // ignore
-  }
-}
-
-watch(curProviderId, (id) => {
-  configForm.value = { api_key: '', base_url: '' }
-  maskedApiKey.value = ''
-  storedBaseUrl.value = ''
-  if (id) loadProviderConfig()
-}, { immediate: true })
-
-async function handleSaveConfig() {
-  if (!curProviderId.value) return
-  configSaving.value = true
-  try {
-    const config: Record<string, unknown> = {}
-    if (configForm.value.base_url.trim()) {
-      config.base_url = configForm.value.base_url.trim()
-    }
-    if (configForm.value.api_key.trim()) {
-      config.api_key = configForm.value.api_key.trim()
-    }
-    await putProvidersById({
+const { data: providerDetail } = useQuery({
+  key: () => ['speech-provider-detail', curProviderId.value],
+  query: async () => {
+    if (!curProviderId.value) return null
+    const { data } = await getSpeechProvidersById({
       path: { id: curProviderId.value },
-      body: { config },
       throwOnError: true,
     })
-    // Reset api_key field after save (it's been sent)
-    configForm.value.api_key = ''
-    await loadProviderConfig()
-    queryCache.invalidateQueries({ key: ['speech-providers'] })
-  } catch {
-    toast.error(t('common.saveFailed'))
-  } finally {
-    configSaving.value = false
-  }
-}
+    return data ?? null
+  },
+})
 
 const { data: metaList } = useQuery({
   key: () => ['speech-providers-meta'],
   query: async () => {
     const { data } = await getSpeechProvidersMeta({ throwOnError: true })
-    return data
+    return (data ?? []) as SpeechProviderMeta[]
   },
 })
 
-// client_type -> adapter type mapping (e.g. "grok-speech" -> "grok")
-function clientTypeToAdapterType(clientType: string): string {
-  return clientType.replace(/-speech$/, '')
-}
-
-const currentMeta = computed<TtsProviderMetaResponse | null>(() => {
+const currentMeta = computed(() => {
   if (!metaList.value || !curProvider.value?.client_type) return null
-  const adapterType = clientTypeToAdapterType(curProvider.value.client_type)
-  return (metaList.value as TtsProviderMetaResponse[]).find((m) => m.provider === adapterType) ?? null
+  return (metaList.value as SpeechProviderMeta[]).find(m => m.provider === curProvider.value?.client_type) ?? null
 })
 
-function getModelCapabilities(modelId: string) {
-  const meta = currentMeta.value
-  if (!meta?.models) return null
-  return meta.models.find((m: TtsModelInfo) => m.id === modelId)?.capabilities ?? null
+const orderedProviderFields = computed(() => {
+  const fields = currentMeta.value?.config_schema?.fields ?? []
+  return [...fields].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+})
+
+function isWideField(field: SpeechFieldSchema) {
+  if (field.type === 'secret') return true
+  const key = field.key.toLowerCase()
+  if (key.includes('url') || key.includes('endpoint') || key.includes('key') || key.includes('token') || key.includes('path') || key.includes('uri')) return true
+  if ((field.description ?? '').length > 80) return true
+  return false
 }
 
-const { data: allSpeechModels } = useQuery({
-  key: () => ['speech-models'],
+const { data: providerSpeechModels } = useQuery({
+  key: () => ['speech-provider-models', curProviderId.value],
   query: async () => {
-    const { data } = await getSpeechModels({ throwOnError: true })
-    return data
+    if (!curProviderId.value) return []
+    const { data } = await getSpeechProvidersByIdModels({
+      path: { id: curProviderId.value },
+      throwOnError: true,
+    })
+    return data ?? []
   },
 })
 
-const providerModels = computed(() => {
-  if (!allSpeechModels.value || !curProviderId.value) return []
-  return allSpeechModels.value.filter((m) => m.provider_id === curProviderId.value)
-})
+const providerModels = computed(() => ((providerSpeechModels.value as TtsSpeechModelResponse[] | undefined) ?? []))
 
-const expandedModelId = ref('')
+watch(() => providerDetail.value, (provider) => {
+  providerName.value = provider?.name ?? curProvider.value?.name ?? ''
+  Object.keys(providerConfig).forEach((key) => delete providerConfig[key])
+  Object.assign(providerConfig, { ...(provider?.config ?? {}) })
+}, { immediate: true, deep: true })
+
+function getModelMeta(modelID: string): SpeechModelMeta | null {
+  const models = currentMeta.value?.synthesis_models ?? currentMeta.value?.models ?? []
+  const exact = models.find(m => m.id === modelID)
+  if (exact) return exact
+  const defaultModel = currentMeta.value?.default_synthesis_model ?? currentMeta.value?.default_model
+  if (defaultModel) return models.find(m => m.id === defaultModel) ?? null
+  return models[0] ?? null
+}
+
+function getModelSchema(modelID: string): SpeechConfigSchema | null {
+  const meta = getModelMeta(modelID)
+  return meta?.config_schema ?? meta?.capabilities?.config_schema ?? null
+}
+
 function toggleModel(id: string) {
   expandedModelId.value = expandedModelId.value === id ? '' : id
 }
 
-const importLoading = ref(false)
-async function handleImportModels() {
-  if (!curProviderId.value || !currentMeta.value?.models) return
-  importLoading.value = true
-  try {
-    let created = 0
-    for (const m of currentMeta.value.models) {
-      try {
-        await postModels({
-          body: {
-            model_id: m.id,
-            name: m.name,
-            provider_id: curProviderId.value,
-            type: 'speech',
-          },
-          throwOnError: true,
-        })
-        created++
-      } catch {
-        // Model may already exist, skip
-      }
-    }
-    if (created > 0) {
-      toast.success(t('speech.importSuccess'))
-    } else {
-      toast.info(t('speech.noModels'))
-    }
-    queryCache.invalidateQueries({ key: ['speech-models'] })
-  } catch {
-    toast.error(t('common.saveFailed'))
-  } finally {
-    importLoading.value = false
-  }
-}
-
-const queryCache = useQueryCache()
-
 async function handleToggleEnable(value: boolean) {
   if (!curProviderId.value || !curProvider.value) return
-
   const prev = curProvider.value.enable ?? false
   curProvider.value = { ...curProvider.value, enable: value }
 
@@ -339,10 +380,16 @@ async function handleToggleEnable(value: boolean) {
   try {
     await putProvidersById({
       path: { id: curProviderId.value },
-      body: { enable: value },
+      body: {
+        name: providerName.value.trim() || curProvider.value.name,
+        client_type: curProvider.value.client_type,
+        enable: value,
+        config: sanitizeConfig(providerConfig),
+      },
       throwOnError: true,
     })
     queryCache.invalidateQueries({ key: ['speech-providers'] })
+    queryCache.invalidateQueries({ key: ['speech-provider-detail', curProviderId.value] })
   } catch {
     curProvider.value = { ...curProvider.value, enable: prev }
     toast.error(t('common.saveFailed'))
@@ -351,52 +398,75 @@ async function handleToggleEnable(value: boolean) {
   }
 }
 
-const deleteLoading = ref(false)
-async function handleDeleteProvider() {
-  if (!curProviderId.value) return
-  deleteLoading.value = true
+async function handleSaveProvider() {
+  if (!curProviderId.value || !curProvider.value) return
+  saveLoading.value = true
   try {
-    // Delete associated speech models first
-    for (const model of providerModels.value) {
-      if (model.id) {
-        try {
-          await deleteModelsById({ path: { id: model.id }, throwOnError: true })
-        } catch {
-          // Model may already be gone, continue
-        }
-      }
-    }
-    await deleteProvidersById({ path: { id: curProviderId.value }, throwOnError: true })
-    queryCache.invalidateQueries({ key: ['speech-providers'] })
-    queryCache.invalidateQueries({ key: ['speech-models'] })
-    curProvider.value = undefined
-  } catch {
-    toast.error(t('common.saveFailed'))
-  } finally {
-    deleteLoading.value = false
-  }
-}
-
-async function handleSaveModelConfig(modelId: string, config: Record<string, unknown>) {
-  if (!modelId) return
-  const model = providerModels.value.find((m) => m.id === modelId)
-  if (!model) return
-  try {
-    await putModelsById({
-      path: { id: modelId },
+    await putProvidersById({
+      path: { id: curProviderId.value },
       body: {
-        model_id: model.model_id ?? '',
-        name: model.name ?? '',
-        provider_id: model.provider_id ?? '',
-        type: model.type ?? 'speech',
-        config,
+        name: providerName.value.trim() || curProvider.value.name,
+        client_type: curProvider.value.client_type,
+        enable: curProvider.value.enable,
+        config: sanitizeConfig(providerConfig),
       },
       throwOnError: true,
     })
-    queryCache.invalidateQueries({ key: ['speech-models'] })
-    toast.success(t('speech.importSuccess'))
+    toast.success(t('speech.saveSuccess'))
+    queryCache.invalidateQueries({ key: ['speech-providers'] })
+    queryCache.invalidateQueries({ key: ['speech-provider-detail', curProviderId.value] })
   } catch {
     toast.error(t('common.saveFailed'))
+  } finally {
+    saveLoading.value = false
+  }
+}
+
+async function handleSaveModel(modelId: string, config: Record<string, unknown>) {
+  const model = providerModels.value.find(item => item.id === modelId)
+  if (!model) return
+  try {
+    const apiBase = import.meta.env.VITE_API_URL?.trim() || '/api'
+    const token = localStorage.getItem('token')
+    const resp = await fetch(`${apiBase}/speech-models/${modelId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        name: model.name ?? model.model_id,
+        config,
+      }),
+    })
+    if (!resp.ok) throw new Error(await resp.text())
+    toast.success(t('speech.saveSuccess'))
+    queryCache.invalidateQueries({ key: ['speech-provider-models', curProviderId.value] })
+    queryCache.invalidateQueries({ key: ['speech-models'] })
+  } catch {
+    toast.error(t('common.saveFailed'))
+  }
+}
+
+async function handleImportModels() {
+  if (!curProviderId.value) return
+  importLoading.value = true
+  try {
+    const { data } = await postSpeechProvidersByIdImportModels({
+      path: { id: curProviderId.value },
+      throwOnError: true,
+    })
+    toast.success(t('speech.importSuccess', {
+      created: data?.created ?? 0,
+      skipped: data?.skipped ?? 0,
+    }))
+    queryCache.invalidateQueries({ key: ['speech-provider-models', curProviderId.value] })
+    queryCache.invalidateQueries({ key: ['speech-models'] })
+    queryCache.invalidateQueries({ key: ['speech-providers-meta'] })
+  } catch {
+    toast.error(t('speech.importFailed'))
+  } finally {
+    importLoading.value = false
   }
 }
 
@@ -422,5 +492,14 @@ async function handleTestModel(modelId: string, text: string, config: Record<str
     throw new Error(msg)
   }
   return resp.blob()
+}
+
+function sanitizeConfig(input: Record<string, unknown>) {
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(input)) {
+    if (value === '' || value == null) continue
+    result[key] = value
+  }
+  return result
 }
 </script>

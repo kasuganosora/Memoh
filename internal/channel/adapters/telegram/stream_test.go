@@ -553,6 +553,149 @@ func TestDraftMode_PhaseEndTextIsNoOp(t *testing.T) {
 	}
 }
 
+// TestToolCallFlow_ThreeMessagesPerCall verifies that a single tool call
+// combined with pre-existing streamed text produces three distinct messages:
+// (1) flush of buffered pre-text, (2) running state for the tool call,
+// (3) completed / failed state for the tool call. The streaming state must be
+// reset between the flush and the start, then tool_call_end edits the running
+// message in place so one tool call produces exactly one tool-call message.
+func TestToolCallFlow_FlushPreTextAndEditRunning(t *testing.T) {
+	adapter := NewTelegramAdapter(nil)
+	s := &telegramOutboundStream{
+		adapter:      adapter,
+		cfg:          channel.ChannelConfig{ID: "test", Credentials: map[string]any{"bot_token": "fake"}},
+		target:       "123",
+		streamChatID: 42,
+		streamMsgID:  7,
+	}
+	s.buf.WriteString("pre-tool text")
+	ctx := context.Background()
+
+	origGetBot := getOrCreateBotForTest
+	origSendText := sendTextForTest
+	origEdit := testEditFunc
+	getOrCreateBotForTest = func(_ *TelegramAdapter, _, _ string) (*tgbotapi.BotAPI, error) {
+		return &tgbotapi.BotAPI{Token: "fake"}, nil
+	}
+	var sentTexts []string
+	var msgIDCounter int
+	sendTextForTest = func(_ *tgbotapi.BotAPI, _ string, text string, _ int, _ string) (int64, int, error) {
+		sentTexts = append(sentTexts, text)
+		msgIDCounter++
+		return 42, msgIDCounter, nil
+	}
+	var editTexts []string
+	testEditFunc = func(_ *tgbotapi.BotAPI, _ int64, _ int, text string, _ string) error {
+		editTexts = append(editTexts, text)
+		return nil
+	}
+	defer func() {
+		getOrCreateBotForTest = origGetBot
+		sendTextForTest = origSendText
+		testEditFunc = origEdit
+	}()
+
+	tcStart := &channel.StreamToolCall{Name: "read", CallID: "call_1", Input: map[string]any{"path": "/tmp/a"}}
+	tcEnd := &channel.StreamToolCall{Name: "read", CallID: "call_1", Input: map[string]any{"path": "/tmp/a"}, Result: map[string]any{"ok": true}}
+
+	if err := s.Push(ctx, mustPreparedTelegramEvent(t, channel.StreamEvent{Type: channel.StreamEventToolCallStart, ToolCall: tcStart})); err != nil {
+		t.Fatalf("push start: %v", err)
+	}
+
+	s.mu.Lock()
+	streamMsgAfterStart := s.streamMsgID
+	bufAfterStart := s.buf.String()
+	s.mu.Unlock()
+	if streamMsgAfterStart != 0 {
+		t.Fatalf("streamMsgID should be reset after tool_call_start, got %d", streamMsgAfterStart)
+	}
+	if bufAfterStart != "" {
+		t.Fatalf("buf should be reset after tool_call_start, got %q", bufAfterStart)
+	}
+
+	if err := s.Push(ctx, mustPreparedTelegramEvent(t, channel.StreamEvent{Type: channel.StreamEventToolCallEnd, ToolCall: tcEnd})); err != nil {
+		t.Fatalf("push end: %v", err)
+	}
+
+	// Edits: 1 for pre-text flush, 1 for running → completed.
+	if len(editTexts) != 2 {
+		t.Fatalf("expected exactly 2 edits (pre-text flush + running→completed), got %d: %v", len(editTexts), editTexts)
+	}
+	if !strings.Contains(editTexts[0], "pre-tool text") {
+		t.Fatalf("first edit should be the pre-text flush: %q", editTexts[0])
+	}
+	if !strings.Contains(editTexts[1], "completed") {
+		t.Fatalf("second edit should flip the tool call to completed: %q", editTexts[1])
+	}
+	if len(sentTexts) != 1 {
+		t.Fatalf("expected exactly 1 send (running), got %d: %v", len(sentTexts), sentTexts)
+	}
+	if !strings.Contains(sentTexts[0], "running") {
+		t.Fatalf("only send should be the running state: %q", sentTexts[0])
+	}
+}
+
+// TestToolCallFlow_NoPreTextEditsRunningInPlace verifies that when no text
+// stream is active, tool_call_start sends the running message and
+// tool_call_end edits it in place — no pre-text flush, one send, one edit.
+func TestToolCallFlow_NoPreTextEditsRunningInPlace(t *testing.T) {
+	adapter := NewTelegramAdapter(nil)
+	s := &telegramOutboundStream{
+		adapter:      adapter,
+		cfg:          channel.ChannelConfig{ID: "test", Credentials: map[string]any{"bot_token": "fake"}},
+		target:       "123",
+		streamChatID: 42,
+	}
+	ctx := context.Background()
+
+	origGetBot := getOrCreateBotForTest
+	origSendText := sendTextForTest
+	origEdit := testEditFunc
+	getOrCreateBotForTest = func(_ *TelegramAdapter, _, _ string) (*tgbotapi.BotAPI, error) {
+		return &tgbotapi.BotAPI{Token: "fake"}, nil
+	}
+	var sentTexts []string
+	var msgIDCounter int
+	sendTextForTest = func(_ *tgbotapi.BotAPI, _ string, text string, _ int, _ string) (int64, int, error) {
+		sentTexts = append(sentTexts, text)
+		msgIDCounter++
+		return 42, msgIDCounter, nil
+	}
+	var editTexts []string
+	testEditFunc = func(_ *tgbotapi.BotAPI, _ int64, _ int, text string, _ string) error {
+		editTexts = append(editTexts, text)
+		return nil
+	}
+	defer func() {
+		getOrCreateBotForTest = origGetBot
+		sendTextForTest = origSendText
+		testEditFunc = origEdit
+	}()
+
+	tcStart := &channel.StreamToolCall{Name: "read", CallID: "call_1", Input: map[string]any{"path": "/tmp/a"}}
+	tcEnd := &channel.StreamToolCall{Name: "read", CallID: "call_1", Result: map[string]any{"ok": true}}
+
+	if err := s.Push(ctx, mustPreparedTelegramEvent(t, channel.StreamEvent{Type: channel.StreamEventToolCallStart, ToolCall: tcStart})); err != nil {
+		t.Fatalf("push start: %v", err)
+	}
+	if err := s.Push(ctx, mustPreparedTelegramEvent(t, channel.StreamEvent{Type: channel.StreamEventToolCallEnd, ToolCall: tcEnd})); err != nil {
+		t.Fatalf("push end: %v", err)
+	}
+
+	if len(sentTexts) != 1 {
+		t.Fatalf("expected exactly 1 send (running), got %d: %v", len(sentTexts), sentTexts)
+	}
+	if !strings.Contains(sentTexts[0], "running") {
+		t.Fatalf("only send should be the running state: %q", sentTexts[0])
+	}
+	if len(editTexts) != 1 {
+		t.Fatalf("expected exactly 1 edit (running→completed), got %d: %v", len(editTexts), editTexts)
+	}
+	if !strings.Contains(editTexts[0], "completed") {
+		t.Fatalf("edit should flip the tool call to completed: %q", editTexts[0])
+	}
+}
+
 func TestDraftMode_ToolCallStartSendsPermanentMessage(t *testing.T) {
 	adapter := NewTelegramAdapter(nil)
 	s := &telegramOutboundStream{

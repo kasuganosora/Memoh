@@ -4,6 +4,7 @@
     "cancel": "取消",
     "back": "返回",
     "save": "保存",
+    "create": "创建",
     "add": "添加",
     "edit": "编辑",
     "delete": "删除",
@@ -64,6 +65,7 @@
     "webSearch": "搜索",
     "memory": "记忆",
     "speech": "语音",
+    "transcription": "转写",
     "email": "邮件",
     "profile": "用户",
     "home": "首页",
@@ -422,6 +424,14 @@
     "modelIdPlaceholder": "输入模型标识符（如 custom-voice）",
     "noModels": "暂无模型，点击\"导入模型\"发现可用模型，或点击\"新建模型\"手动创建。",
     "noCapabilities": "该模型暂无可用能力信息。",
+    "saveSuccess": "语音配置已保存",
+    "synthesis": {
+      "models": "语音合成模型"
+    },
+    "advanced": {
+      "title": "高级设置",
+      "description": "这些字段通常对应底层服务商实现细节。大多数情况下保留默认值即可。"
+    },
     "fields": {
       "language": "语言",
       "languagePlaceholder": "选择语言...",
@@ -439,6 +449,27 @@
       "placeholder": "输入要合成的文本...",
       "generate": "生成",
       "failed": "合成失败"
+    }
+  },
+  "transcription": {
+    "title": "语音转写",
+    "emptyTitle": "暂无转写提供方",
+    "emptyDescription": "添加转写提供方以为 Bot 启用语音转文字功能",
+    "models": "语音识别模型",
+    "noModels": "暂无语音识别模型，可导入可用模型，或保留默认模板模型。",
+    "importModels": "导入模型",
+    "importSuccess": "识别模型导入成功",
+    "importFailed": "识别模型导入失败",
+    "saveSuccess": "转写配置已保存",
+    "noCapabilities": "该模型暂无可用能力信息。",
+    "advanced": {
+      "title": "高级设置",
+      "description": "这些字段通常对应底层服务商实现细节。大多数情况下保留默认值即可。"
+    },
+    "test": {
+      "title": "测试识别",
+      "run": "开始识别",
+      "failed": "识别失败"
     }
   },
   "email": {
@@ -914,6 +945,8 @@
       "memoryHealthUnavailable": "暂不可用",
       "ttsModel": "语音合成模型",
       "ttsModelPlaceholder": "选择语音合成模型",
+      "transcriptionModel": "转写模型",
+      "transcriptionModelPlaceholder": "选择语音转写模型",
       "imageModel": "图片生成模型",
       "imageModelDescription": "用于 generate_image 工具的模型，必须支持 image-output 兼容性。",
       "imageModelPlaceholder": "选择图片模型（可选）",
@@ -956,6 +989,8 @@
       "chatTimingIdleCompDescription": "在长时间沉默后给予机器人更多发言机会",
       "chatTimingIdleWindow": "空闲窗口（分钟）",
       "chatTimingMinIdle": "最低空闲时长（分钟）",
+      "showToolCallsInIM": "在 IM 中显示工具调用",
+      "showToolCallsInIMDescription": "在 IM 频道中以单条消息持续展示工具执行的状态（进行中 / 已完成 / 失败）。默认关闭。",
       "browserContext": "浏览器上下文",
       "browserContextPlaceholder": "选择浏览器上下文（未配置时不启用）",
       "allowGuest": "ACL 默认行为",
@@ -1101,23 +1136,9 @@
         "wechatoa": "微信服务号",
         "wecom": "企业微信",
         "dingtalk": "钉钉",
+        "slack": "Slack",
         "web": "Web",
         "cli": "本地 CLI",
-        "local": "本地"
-      },
-      "typesShort": {
-        "feishu": "飞",
-        "discord": "DC",
-        "qq": "QQ",
-        "matrix": "MX",
-        "misskey": "MK",
-        "telegram": "TG",
-        "weixin": "WX",
-        "wechatoa": "OA",
-        "wecom": "企微",
-        "dingtalk": "钉",
-        "web": "Web",
-        "cli": "CLI",
         "local": "本地"
       }
     },
@@ -1249,7 +1270,86 @@
       "updatedAt": "更新时间",
       "statusEnabled": "已启用",
       "statusDisabled": "已禁用",
-      "unlimited": "无限制"
+      "unlimited": "无限制",
+      "actions": "操作",
+      "create": "新建任务",
+      "edit": "编辑",
+      "delete": "删除",
+      "deleteConfirm": "确定删除任务 \"{name}\" 吗？此操作无法撤销。",
+      "deleteSuccess": "已删除",
+      "deleteFailed": "删除失败",
+      "saveSuccess": "已保存",
+      "saveFailed": "保存失败",
+      "form": {
+        "name": "名称",
+        "namePlaceholder": "例如：每日早报",
+        "description": "描述",
+        "descriptionPlaceholder": "这个任务做什么",
+        "command": "指令",
+        "commandPlaceholder": "每次触发时让 Bot 做什么",
+        "commandHint": "任务触发时，这段内容会作为消息发送给 Bot。",
+        "pattern": "调度规则",
+        "mode": "模式",
+        "everyMinutes": "每 N 分钟 (1-59)",
+        "atMinute": "每小时的第 M 分钟 (0-59)",
+        "hour": "小时",
+        "hours": "小时",
+        "hoursHint": "点击选择一个或多个小时。",
+        "minute": "分钟",
+        "weekdays": "星期",
+        "monthDays": "每月日期",
+        "month": "月份",
+        "monthDay": "日期",
+        "maxCalls": "运行次数限制",
+        "maxCallsUnlimited": "不限制",
+        "enabled": "启用",
+        "patternPreview": "Cron 表达式",
+        "nextRuns": "接下来的触发时间（{tz}）",
+        "invalidPattern": "表达式无效",
+        "advancedPattern": "Cron 表达式",
+        "advancedHint": "标准 cron 格式：分 时 日 月 星期。也支持 @daily 等描述符。"
+      },
+      "mode": {
+        "minutes": "每 N 分钟",
+        "hourly": "每小时",
+        "daily": "每天",
+        "weekly": "每周",
+        "monthly": "每月",
+        "yearly": "每年",
+        "advanced": "高级（Cron）"
+      },
+      "modeHint": {
+        "minutes": "每 N 分钟触发一次。",
+        "hourly": "每小时在指定分钟触发。",
+        "daily": "每天在选定的小时触发。",
+        "weekly": "在选定的星期几触发。",
+        "monthly": "在每月选定的日期触发。",
+        "yearly": "每年在指定月份和日期触发。",
+        "advanced": "直接编写 cron 表达式以获得完全控制。"
+      },
+      "weekday": {
+        "sun": "日",
+        "mon": "一",
+        "tue": "二",
+        "wed": "三",
+        "thu": "四",
+        "fri": "五",
+        "sat": "六"
+      },
+      "month": {
+        "jan": "一月",
+        "feb": "二月",
+        "mar": "三月",
+        "apr": "四月",
+        "may": "五月",
+        "jun": "六月",
+        "jul": "七月",
+        "aug": "八月",
+        "sep": "九月",
+        "oct": "十月",
+        "nov": "十一月",
+        "dec": "十二月"
+      }
     },
     "history": {
       "title": "对话历史",

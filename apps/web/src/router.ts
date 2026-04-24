@@ -90,6 +90,14 @@ const routes = [
         },
       },
       {
+        name: 'transcription',
+        path: 'transcription',
+        component: () => import('@/pages/transcription/index.vue'),
+        meta: {
+          breadcrumb: i18nRef('sidebar.transcription'),
+        },
+      },
+      {
         name: 'email',
         path: 'email',
         component: () => import('@/pages/email/index.vue'),

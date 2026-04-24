@@ -1,0 +1,262 @@
+package pipeline
+
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/memohai/memoh/internal/conversation"
+	messagepkg "github.com/memohai/memoh/internal/message"
+)
+
+func TestDecodeTurnResponseEntryUsesVisibleText(t *testing.T) {
+	t.Parallel()
+
+	content, err := json.Marshal([]map[string]any{
+		{"type": "reasoning", "text": "thinking"},
+		{"type": "text", "text": "任务完成"},
+	})
+	if err != nil {
+		t.Fatalf("marshal content: %v", err)
+	}
+
+	modelMessage, err := json.Marshal(conversation.ModelMessage{
+		Role:    "assistant",
+		Content: content,
+	})
+	if err != nil {
+		t.Fatalf("marshal model message: %v", err)
+	}
+
+	entry, ok := DecodeTurnResponseEntry(messagepkg.Message{
+		Role:      "assistant",
+		Content:   modelMessage,
+		CreatedAt: time.Unix(1710000000, 0).UTC(),
+	})
+	if !ok {
+		t.Fatal("expected turn response entry")
+	}
+	if entry.Content != "任务完成" {
+		t.Fatalf("content = %q, want %q", entry.Content, "任务完成")
+	}
+	// Reasoning must never leak into TRs to avoid re-injection into prompts.
+	if strings.Contains(entry.Content, "thinking") {
+		t.Fatalf("reasoning leaked into TR: %q", entry.Content)
+	}
+}
+
+func TestDecodeTurnResponseEntryPreservesToolCallOnlyPayload(t *testing.T) {
+	t.Parallel()
+
+	content, err := json.Marshal([]map[string]any{
+		{"type": "reasoning", "text": "thinking"},
+		{
+			"type":       "tool-call",
+			"toolName":   "read",
+			"toolCallId": "call-1",
+			"input":      map[string]any{"path": "/tmp/a.txt"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal content: %v", err)
+	}
+
+	modelMessage, err := json.Marshal(conversation.ModelMessage{
+		Role:    "assistant",
+		Content: content,
+	})
+	if err != nil {
+		t.Fatalf("marshal model message: %v", err)
+	}
+
+	entry, ok := DecodeTurnResponseEntry(messagepkg.Message{
+		Role:      "assistant",
+		Content:   modelMessage,
+		CreatedAt: time.Unix(1710000000, 0).UTC(),
+	})
+	if !ok {
+		t.Fatal("expected tool-call-only payload to be preserved as TR")
+	}
+	if !strings.Contains(entry.Content, `<tool_call id="call-1" name="read">`) {
+		t.Fatalf("missing tool_call tag: %q", entry.Content)
+	}
+	if !strings.Contains(entry.Content, `"path":"/tmp/a.txt"`) {
+		t.Fatalf("tool input missing: %q", entry.Content)
+	}
+	if strings.Contains(entry.Content, "thinking") {
+		t.Fatalf("reasoning leaked: %q", entry.Content)
+	}
+}
+
+func TestDecodeTurnResponseEntryRendersTextAndToolCall(t *testing.T) {
+	t.Parallel()
+
+	content, err := json.Marshal([]map[string]any{
+		{"type": "text", "text": "Let me check."},
+		{
+			"type":       "tool-call",
+			"toolName":   "web_search",
+			"toolCallId": "call-42",
+			"input":      map[string]any{"query": "today news"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal content: %v", err)
+	}
+	modelMessage, err := json.Marshal(conversation.ModelMessage{
+		Role:    "assistant",
+		Content: content,
+	})
+	if err != nil {
+		t.Fatalf("marshal model message: %v", err)
+	}
+
+	entry, ok := DecodeTurnResponseEntry(messagepkg.Message{
+		Role:    "assistant",
+		Content: modelMessage,
+	})
+	if !ok {
+		t.Fatal("expected entry")
+	}
+	if !strings.Contains(entry.Content, "Let me check.") {
+		t.Fatalf("missing text portion: %q", entry.Content)
+	}
+	if !strings.Contains(entry.Content, `<tool_call id="call-42" name="web_search">`) {
+		t.Fatalf("missing tool_call tag: %q", entry.Content)
+	}
+}
+
+func TestDecodeTurnResponseEntryToolRoleWithPartsResult(t *testing.T) {
+	t.Parallel()
+
+	content, err := json.Marshal([]map[string]any{
+		{
+			"type":       "tool-result",
+			"toolCallId": "call-1",
+			"toolName":   "web_search",
+			"output": map[string]any{
+				"count":   3,
+				"summary": "ok",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal content: %v", err)
+	}
+
+	modelMessage, err := json.Marshal(conversation.ModelMessage{
+		Role:    "tool",
+		Content: content,
+	})
+	if err != nil {
+		t.Fatalf("marshal model message: %v", err)
+	}
+
+	entry, ok := DecodeTurnResponseEntry(messagepkg.Message{
+		Role:    "tool",
+		Content: modelMessage,
+	})
+	if !ok {
+		t.Fatal("expected tool role entry")
+	}
+	if !strings.Contains(entry.Content, `<tool_result id="call-1" name="web_search">`) {
+		t.Fatalf("missing tool_result tag: %q", entry.Content)
+	}
+	if !strings.Contains(entry.Content, `"count":3`) || !strings.Contains(entry.Content, `"summary":"ok"`) {
+		t.Fatalf("structured tool output not preserved: %q", entry.Content)
+	}
+}
+
+func TestDecodeTurnResponseEntryToolRoleLegacyEnvelope(t *testing.T) {
+	t.Parallel()
+
+	// Old OpenAI-style: role=tool + ToolCallID on the envelope, Content is
+	// a JSON string carrying the result directly.
+	resultBody := json.RawMessage(`{"status":"ok"}`)
+	modelMessage, err := json.Marshal(conversation.ModelMessage{
+		Role:       "tool",
+		ToolCallID: "call-99",
+		Name:       "ping",
+		Content:    resultBody,
+	})
+	if err != nil {
+		t.Fatalf("marshal model message: %v", err)
+	}
+
+	entry, ok := DecodeTurnResponseEntry(messagepkg.Message{
+		Role:    "tool",
+		Content: modelMessage,
+	})
+	if !ok {
+		t.Fatal("expected entry for legacy tool envelope")
+	}
+	if !strings.Contains(entry.Content, `<tool_result id="call-99" name="ping">`) {
+		t.Fatalf("missing tool_result tag: %q", entry.Content)
+	}
+	if !strings.Contains(entry.Content, `"status":"ok"`) {
+		t.Fatalf("legacy tool body missing: %q", entry.Content)
+	}
+}
+
+func TestDecodeTurnResponseEntrySkipsEmpty(t *testing.T) {
+	t.Parallel()
+
+	// Only reasoning → nothing to expose to future prompts → skip.
+	content, err := json.Marshal([]map[string]any{
+		{"type": "reasoning", "text": "thinking out loud"},
+	})
+	if err != nil {
+		t.Fatalf("marshal content: %v", err)
+	}
+	modelMessage, err := json.Marshal(conversation.ModelMessage{
+		Role:    "assistant",
+		Content: content,
+	})
+	if err != nil {
+		t.Fatalf("marshal model message: %v", err)
+	}
+	if _, ok := DecodeTurnResponseEntry(messagepkg.Message{
+		Role:    "assistant",
+		Content: modelMessage,
+	}); ok {
+		t.Fatal("expected reasoning-only message to be skipped")
+	}
+}
+
+func TestDecodeTurnResponseEntryLegacyToolCallsField(t *testing.T) {
+	t.Parallel()
+
+	// Older OpenAI envelope: Content is empty string, ToolCalls carries
+	// the function-call structure.
+	modelMessage, err := json.Marshal(conversation.ModelMessage{
+		Role:    "assistant",
+		Content: json.RawMessage(`""`),
+		ToolCalls: []conversation.ToolCall{
+			{
+				ID:   "call-legacy",
+				Type: "function",
+				Function: conversation.ToolCallFunction{
+					Name:      "send",
+					Arguments: `{"text":"hi"}`,
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal model message: %v", err)
+	}
+	entry, ok := DecodeTurnResponseEntry(messagepkg.Message{
+		Role:    "assistant",
+		Content: modelMessage,
+	})
+	if !ok {
+		t.Fatal("expected legacy tool-calls envelope to decode")
+	}
+	if !strings.Contains(entry.Content, `<tool_call id="call-legacy" name="send">`) {
+		t.Fatalf("missing tool_call tag: %q", entry.Content)
+	}
+	if !strings.Contains(entry.Content, `"text":"hi"`) {
+		t.Fatalf("arguments missing: %q", entry.Content)
+	}
+}

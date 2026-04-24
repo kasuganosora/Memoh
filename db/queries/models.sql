@@ -16,9 +16,30 @@ SELECT * FROM providers WHERE id = sqlc.arg(id);
 -- name: GetProviderByName :one
 SELECT * FROM providers WHERE name = sqlc.arg(name);
 
+-- name: GetProviderByClientType :one
+SELECT * FROM providers WHERE client_type = sqlc.arg(client_type);
+
 -- name: ListProviders :many
 SELECT * FROM providers
-WHERE client_type NOT IN ('edge-speech', 'grok-speech', 'gemini-speech')
+WHERE client_type NOT IN (
+  'edge-speech',
+  'grok-speech',
+  'gemini-speech',
+  'openai-speech',
+  'openai-transcription',
+  'openrouter-speech',
+  'openrouter-transcription',
+  'elevenlabs-speech',
+  'elevenlabs-transcription',
+  'deepgram-speech',
+  'deepgram-transcription',
+  'minimax-speech',
+  'volcengine-speech',
+  'alibabacloud-speech',
+  'microsoft-speech',
+  'google-speech',
+  'google-transcription'
+)
 ORDER BY created_at DESC;
 
 -- name: UpdateProvider :one
@@ -38,8 +59,27 @@ RETURNING *;
 DELETE FROM providers WHERE id = sqlc.arg(id);
 
 -- name: CountProviders :one
-SELECT COUNT(*) FROM providers
-WHERE client_type NOT IN ('edge-speech', 'grok-speech', 'gemini-speech');
+SELECT COUNT(*)
+FROM providers
+WHERE client_type NOT IN (
+  'edge-speech',
+  'grok-speech',
+  'gemini-speech',
+  'openai-speech',
+  'openai-transcription',
+  'openrouter-speech',
+  'openrouter-transcription',
+  'elevenlabs-speech',
+  'elevenlabs-transcription',
+  'deepgram-speech',
+  'deepgram-transcription',
+  'minimax-speech',
+  'volcengine-speech',
+  'alibabacloud-speech',
+  'microsoft-speech',
+  'google-speech',
+  'google-transcription'
+);
 
 -- name: CreateModel :one
 INSERT INTO models (model_id, name, provider_id, type, config)
@@ -65,7 +105,7 @@ ORDER BY created_at DESC;
 
 -- name: ListModels :many
 SELECT * FROM models
-WHERE type != 'speech'
+WHERE type NOT IN ('speech', 'transcription')
 ORDER BY created_at DESC;
 
 -- name: ListModelsByType :many
@@ -76,7 +116,7 @@ ORDER BY created_at DESC;
 -- name: ListModelsByProviderID :many
 SELECT * FROM models
 WHERE provider_id = sqlc.arg(provider_id)
-  AND type != 'speech'
+  AND type NOT IN ('speech', 'transcription')
 ORDER BY created_at DESC;
 
 -- name: ListModelsByProviderIDAndType :many
@@ -110,9 +150,20 @@ DELETE FROM models WHERE id = sqlc.arg(id);
 -- name: DeleteModelByModelID :exec
 DELETE FROM models WHERE model_id = sqlc.arg(model_id);
 
+-- name: DeleteModelByProviderIDAndModelID :exec
+DELETE FROM models
+WHERE provider_id = sqlc.arg(provider_id)
+  AND model_id = sqlc.arg(model_id);
+
+-- name: DeleteModelByProviderAndType :exec
+DELETE FROM models
+WHERE provider_id = sqlc.arg(provider_id)
+  AND model_id = sqlc.arg(model_id)
+  AND type = sqlc.arg(type);
+
 -- name: CountModels :one
 SELECT COUNT(*) FROM models
-WHERE type != 'speech';
+WHERE type NOT IN ('speech', 'transcription');
 
 -- name: CountModelsByType :one
 SELECT COUNT(*) FROM models WHERE type = sqlc.arg(type);
@@ -124,11 +175,6 @@ VALUES (sqlc.arg(name), sqlc.arg(client_type), sqlc.arg(icon), false, sqlc.arg(c
 ON CONFLICT (name) DO UPDATE SET
   icon = EXCLUDED.icon,
   client_type = EXCLUDED.client_type,
-  config = CASE
-    WHEN providers.config->>'api_key' IS NOT NULL AND providers.config->>'api_key' != ''
-    THEN jsonb_set(EXCLUDED.config, '{api_key}', providers.config->'api_key')
-    ELSE EXCLUDED.config
-  END,
   updated_at = now()
 RETURNING *;
 
@@ -147,7 +193,7 @@ SELECT m.*
 FROM models m
 JOIN providers p ON m.provider_id = p.id
 WHERE p.enable = true
-  AND m.type != 'speech'
+  AND m.type NOT IN ('speech', 'transcription')
 ORDER BY m.created_at DESC;
 
 -- name: ListEnabledModelsByType :many
@@ -193,7 +239,30 @@ WHERE m.id = sqlc.arg(id)
 
 -- name: ListSpeechProviders :many
 SELECT * FROM providers
-WHERE client_type IN ('edge-speech', 'grok-speech', 'gemini-speech')
+WHERE client_type IN (
+  'edge-speech',
+  'grok-speech',
+  'gemini-speech',
+  'openai-speech',
+  'openrouter-speech',
+  'elevenlabs-speech',
+  'deepgram-speech',
+  'minimax-speech',
+  'volcengine-speech',
+  'alibabacloud-speech',
+  'microsoft-speech'
+)
+ORDER BY created_at DESC;
+
+-- name: ListTranscriptionProviders :many
+SELECT * FROM providers
+WHERE client_type IN (
+  'openai-transcription',
+  'openrouter-transcription',
+  'elevenlabs-transcription',
+  'deepgram-transcription',
+  'google-transcription'
+)
 ORDER BY created_at DESC;
 
 -- name: ListSpeechModels :many
@@ -215,3 +284,26 @@ SELECT * FROM models
 WHERE provider_id = sqlc.arg(provider_id)
   AND model_id = sqlc.arg(model_id)
 LIMIT 1;
+
+-- name: GetTranscriptionModelWithProvider :one
+SELECT
+  m.*,
+  p.client_type AS provider_type
+FROM models m
+JOIN providers p ON p.id = m.provider_id
+WHERE m.id = sqlc.arg(id)
+  AND m.type = 'transcription';
+
+-- name: ListTranscriptionModels :many
+SELECT m.*,
+  p.client_type AS provider_type
+FROM models m
+JOIN providers p ON p.id = m.provider_id
+WHERE m.type = 'transcription'
+ORDER BY m.created_at DESC;
+
+-- name: ListTranscriptionModelsByProviderID :many
+SELECT * FROM models
+WHERE provider_id = sqlc.arg(provider_id)
+  AND type = 'transcription'
+ORDER BY created_at DESC;

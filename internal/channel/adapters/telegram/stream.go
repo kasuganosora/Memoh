@@ -39,6 +39,15 @@ type telegramOutboundStream struct {
 	streamMsgID   int
 	lastEdited    string
 	lastEditedAt  time.Time
+	toolMessages  map[string]telegramToolCallMessage
+}
+
+// telegramToolCallMessage tracks the message posted for a tool call's
+// "running" state so the matching tool_call_end event can edit the same
+// message in-place to show the "completed" / "failed" state.
+type telegramToolCallMessage struct {
+	chatID int64
+	msgID  int
 }
 
 func (s *telegramOutboundStream) getBot(_ context.Context) (bot *tgbotapi.BotAPI, err error) {
@@ -306,7 +315,7 @@ func (s *telegramOutboundStream) deliverFinalText(ctx context.Context, text, par
 	return s.editStreamMessageFinal(ctx, text)
 }
 
-func (s *telegramOutboundStream) pushToolCallStart(ctx context.Context) error {
+func (s *telegramOutboundStream) pushToolCallStart(ctx context.Context, tc *channel.StreamToolCall) error {
 	s.mu.Lock()
 	bufText := strings.TrimSpace(s.buf.String())
 	hasMsg := s.streamMsgID != 0
@@ -327,7 +336,118 @@ func (s *telegramOutboundStream) pushToolCallStart(ctx context.Context) error {
 		_ = s.editStreamMessageFinal(ctx, bufText)
 	}
 	s.resetStreamState()
+	return s.sendToolCallMessage(ctx, tc, channel.BuildToolCallStart(tc))
+}
+
+func (s *telegramOutboundStream) pushToolCallEnd(ctx context.Context, tc *channel.StreamToolCall) error {
+	s.resetStreamState()
+	return s.sendToolCallMessage(ctx, tc, channel.BuildToolCallEnd(tc))
+}
+
+// renderToolCallPresentation renders a tool-call presentation to IM-ready
+// text and parseMode. It prefers Markdown→HTML; falls back to plain text when
+// Markdown conversion yields an empty parseMode.
+func renderToolCallPresentation(p channel.ToolCallPresentation) (string, string) {
+	rendered := strings.TrimSpace(channel.RenderToolCallMessageMarkdown(p))
+	if rendered == "" {
+		return "", ""
+	}
+	text, parseMode := formatTelegramOutput(rendered, channel.MessageFormatMarkdown)
+	if parseMode == "" {
+		text = strings.TrimSpace(channel.RenderToolCallMessage(p))
+	}
+	return text, parseMode
+}
+
+// sendToolCallMessage renders the tool-call presentation. For tool_call_start
+// it posts a new message and records the callID→message mapping. For
+// tool_call_end it edits the previously-posted message to flip the status to
+// completed/failed. If no prior message is tracked (or editing fails), it
+// falls back to sending a fresh message.
+func (s *telegramOutboundStream) sendToolCallMessage(
+	ctx context.Context,
+	tc *channel.StreamToolCall,
+	p channel.ToolCallPresentation,
+) error {
+	text, parseMode := renderToolCallPresentation(p)
+	if text == "" {
+		return nil
+	}
+	callID := ""
+	if tc != nil {
+		callID = strings.TrimSpace(tc.CallID)
+	}
+	if p.Status != channel.ToolCallStatusRunning && callID != "" {
+		if existing, ok := s.lookupToolCallMessage(callID); ok {
+			if err := s.adapter.waitStreamLimit(ctx); err != nil {
+				return err
+			}
+			bot, err := s.getBot(ctx)
+			if err != nil {
+				return err
+			}
+			editErr := error(nil)
+			if testEditFunc != nil {
+				editErr = testEditFunc(bot, existing.chatID, existing.msgID, text, parseMode)
+			} else {
+				editErr = editTelegramMessageText(bot, existing.chatID, existing.msgID, text, parseMode)
+			}
+			if editErr == nil {
+				s.forgetToolCallMessage(callID)
+				return nil
+			}
+			if s.adapter != nil && s.adapter.logger != nil {
+				s.adapter.logger.Warn("telegram: tool-call end edit failed, falling back to new message",
+					slog.String("call_id", callID),
+					slog.Any("error", editErr),
+				)
+			}
+			s.forgetToolCallMessage(callID)
+		}
+	}
+	if err := s.adapter.waitStreamLimit(ctx); err != nil {
+		return err
+	}
+	bot, replyTo, err := s.getBotAndReply(ctx)
+	if err != nil {
+		return err
+	}
+	chatID, msgID, sendErr := sendTelegramTextReturnMessage(bot, s.target, text, replyTo, parseMode)
+	if sendErr != nil {
+		return sendErr
+	}
+	if p.Status == channel.ToolCallStatusRunning && callID != "" {
+		s.storeToolCallMessage(callID, telegramToolCallMessage{chatID: chatID, msgID: msgID})
+	}
 	return nil
+}
+
+func (s *telegramOutboundStream) lookupToolCallMessage(callID string) (telegramToolCallMessage, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.toolMessages == nil {
+		return telegramToolCallMessage{}, false
+	}
+	m, ok := s.toolMessages[callID]
+	return m, ok
+}
+
+func (s *telegramOutboundStream) storeToolCallMessage(callID string, m telegramToolCallMessage) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.toolMessages == nil {
+		s.toolMessages = make(map[string]telegramToolCallMessage)
+	}
+	s.toolMessages[callID] = m
+}
+
+func (s *telegramOutboundStream) forgetToolCallMessage(callID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.toolMessages == nil {
+		return
+	}
+	delete(s.toolMessages, callID)
 }
 
 func (s *telegramOutboundStream) pushAttachment(ctx context.Context, event channel.PreparedStreamEvent) error {
@@ -489,10 +609,9 @@ func (s *telegramOutboundStream) Push(ctx context.Context, event channel.Prepare
 	}
 	switch event.Type {
 	case channel.StreamEventToolCallStart:
-		return s.pushToolCallStart(ctx)
+		return s.pushToolCallStart(ctx, event.ToolCall)
 	case channel.StreamEventToolCallEnd:
-		s.resetStreamState()
-		return nil
+		return s.pushToolCallEnd(ctx, event.ToolCall)
 	case channel.StreamEventAttachment:
 		return s.pushAttachment(ctx, event)
 	case channel.StreamEventPhaseEnd:

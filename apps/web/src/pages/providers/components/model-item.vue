@@ -1,8 +1,11 @@
 <template>
-  <Item variant="outline">
-    <ItemContent>
-      <ItemTitle class="flex items-center gap-2">
-        {{ model.name || model.model_id }}
+  <Item
+    variant="outline"
+    class="h-full flex-col items-stretch"
+  >
+    <ItemContent class="w-full">
+      <ItemTitle class="flex items-center gap-2 min-w-0">
+        <span class="truncate">{{ model.name || model.model_id }}</span>
         <Badge
           v-if="model.type"
           variant="outline"
@@ -30,16 +33,8 @@
           class="size-3.5"
         />
       </ItemTitle>
-      <ItemDescription class="gap-2 flex flex-wrap items-center mt-3">
+      <ItemDescription class="gap-2 flex flex-wrap items-center mt-3 min-h-6">
         <ModelCapabilities :compatibilities="model.config?.compatibilities || []" />
-        <Badge
-          v-for="effort in reasoningEfforts"
-          :key="effort"
-          variant="secondary"
-          class="text-xs"
-        >
-          {{ effort }}
-        </Badge>
         <ContextWindowBadge :context-window="model.config?.context_window" />
         <span
           v-if="testResult && testResult.status !== 'ok' && testResult.message"
@@ -49,7 +44,7 @@
         </span>
       </ItemDescription>
     </ItemContent>
-    <ItemActions>
+    <ItemActions class="mt-auto w-full justify-end">
       <Button
         type="button"
         variant="outline"
@@ -109,10 +104,6 @@ import { postModelsByIdTest } from '@memohai/sdk'
 import type { ModelsGetResponse, ModelsTestResponse } from '@memohai/sdk'
 import { ref, computed } from 'vue'
 
-type ModelConfigWithReasoning = {
-  reasoning_efforts?: string[]
-}
-
 const props = defineProps<{
   model: ModelsGetResponse
   deleteLoading: boolean
@@ -125,7 +116,6 @@ defineEmits<{
 
 const testLoading = ref(false)
 const testResult = ref<ModelsTestResponse | null>(null)
-const reasoningEfforts = computed(() => ((props.model.config as ModelConfigWithReasoning | undefined)?.reasoning_efforts ?? []))
 
 const typeIcon = computed(() => {
   return props.model.type === 'embedding' ? Binary : MessageSquare

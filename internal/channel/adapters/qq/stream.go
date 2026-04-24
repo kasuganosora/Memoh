@@ -62,13 +62,23 @@ func (s *qqOutboundStream) Push(ctx context.Context, event channel.PreparedStrea
 		channel.StreamEventPhaseStart,
 		channel.StreamEventPhaseEnd,
 		channel.StreamEventToolCallStart,
-		channel.StreamEventToolCallEnd,
 		channel.StreamEventAgentStart,
 		channel.StreamEventAgentEnd,
 		channel.StreamEventProcessingStarted,
 		channel.StreamEventProcessingCompleted,
 		channel.StreamEventProcessingFailed:
 		return nil
+	case channel.StreamEventToolCallEnd:
+		text := strings.TrimSpace(channel.RenderToolCallMessage(channel.BuildToolCallEnd(event.ToolCall)))
+		if text == "" {
+			return nil
+		}
+		return s.send(ctx, channel.PreparedOutboundMessage{
+			Target: s.target,
+			Message: channel.PreparedMessage{
+				Message: channel.Message{Format: channel.MessageFormatPlain, Text: text, Reply: s.reply},
+			},
+		})
 	case channel.StreamEventDelta:
 		if event.Phase == channel.StreamPhaseReasoning || event.Delta == "" {
 			return nil

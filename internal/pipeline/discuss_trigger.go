@@ -334,7 +334,6 @@ func (d *DiscussTrigger) resolveProbeConfig(ctx context.Context, sess *discussSe
 func (d *DiscussTrigger) handleReplyWithAgent(ctx context.Context, sess *discussSession, rc RenderedContext, log *slog.Logger) {
 	cfg := sess.config
 	sess.lastAgentCallAt = time.Now()
-	entryMs := time.Now().UnixMilli()
 	isMentioned := wasRecentlyMentioned(rc, sess.lastProcessedMs)
 
 	// Mark route active in the dispatcher for inject/queue support.
@@ -369,7 +368,11 @@ func (d *DiscussTrigger) handleReplyWithAgent(ctx context.Context, sess *discuss
 			if sess.interrupt != nil {
 				sess.interrupt.Unbind(true)
 			}
-			sess.lastProcessedMs = entryMs
+			// Advance cursor to the latest RC segment consumed, not wall-clock.
+			consumedMs := latestRCReceivedAtMs(rc)
+			if consumedMs > sess.lastProcessedMs {
+				sess.lastProcessedMs = consumedMs
+			}
 			return
 		}
 
@@ -435,7 +438,13 @@ func (d *DiscussTrigger) handleReplyWithAgent(ctx context.Context, sess *discuss
 			}
 		}
 
-		sess.lastProcessedMs = entryMs
+		// Advance cursor to the latest RC segment consumed, not wall-clock.
+		// Messages arriving DURING LLM generation will have ReceivedAtMs >
+		// this cursor and correctly trigger another round.
+		consumedMs := latestRCReceivedAtMs(rc)
+		if consumedMs > sess.lastProcessedMs {
+			sess.lastProcessedMs = consumedMs
+		}
 		return
 	}
 }

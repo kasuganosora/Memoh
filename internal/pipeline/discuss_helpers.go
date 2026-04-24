@@ -71,6 +71,18 @@ func computeMsgIntervals(rc RenderedContext, afterMs int64) []time.Duration {
 	return intervals
 }
 
+// latestRCReceivedAtMs returns the maximum ReceivedAtMs across all segments
+// in the given RC, or 0 if the RC is empty.
+func latestRCReceivedAtMs(rc RenderedContext) int64 {
+	var latest int64
+	for _, seg := range rc {
+		if seg.ReceivedAtMs > latest {
+			latest = seg.ReceivedAtMs
+		}
+	}
+	return latest
+}
+
 // buildLateBindingPrompt constructs the late-binding system prompt injected
 // as the final user message in discuss mode.
 func buildLateBindingPrompt(isMentioned bool) string {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strings"
 	"sync/atomic"
@@ -38,6 +39,7 @@ type feishuOutboundStream struct {
 	lastPatched   string
 	patchInterval time.Duration
 	closed        atomic.Bool
+	toolMessages  map[string]string
 }
 
 func (s *feishuOutboundStream) Push(ctx context.Context, event channel.PreparedStreamEvent) error {
@@ -79,13 +81,13 @@ func (s *feishuOutboundStream) Push(ctx context.Context, event channel.PreparedS
 		s.lastPatched = ""
 		s.lastPatchedAt = time.Time{}
 		s.textBuffer.Reset()
-		return nil
+		return s.renderToolCallCard(ctx, event.ToolCall, channel.BuildToolCallStart(event.ToolCall))
 	case channel.StreamEventToolCallEnd:
 		s.cardMessageID = ""
 		s.lastPatched = ""
 		s.lastPatchedAt = time.Time{}
 		s.textBuffer.Reset()
-		return nil
+		return s.renderToolCallCard(ctx, event.ToolCall, channel.BuildToolCallEnd(event.ToolCall))
 	case channel.StreamEventAttachment:
 		if len(event.Attachments) == 0 {
 			return nil
@@ -365,6 +367,155 @@ func processFeishuCardMarkdown(s string) string {
 		return m
 	})
 	return s
+}
+
+// renderToolCallCard posts a card for tool_call_start and patches the same
+// card on tool_call_end, producing a single message whose status flips from
+// "running" to "completed"/"failed". If no prior card is tracked (or patching
+// fails), it falls back to creating a new card.
+func (s *feishuOutboundStream) renderToolCallCard(
+	ctx context.Context,
+	tc *channel.StreamToolCall,
+	p channel.ToolCallPresentation,
+) error {
+	text := strings.TrimSpace(channel.RenderToolCallMessageMarkdown(p))
+	if text == "" {
+		return nil
+	}
+	if s.client == nil {
+		return errors.New("feishu client not configured")
+	}
+	callID := ""
+	if tc != nil {
+		callID = strings.TrimSpace(tc.CallID)
+	}
+	if p.Status != channel.ToolCallStatusRunning && callID != "" {
+		if existing, ok := s.lookupToolCallMessage(callID); ok {
+			patchErr := s.patchToolCallCard(ctx, existing, text)
+			if patchErr == nil {
+				s.forgetToolCallMessage(callID)
+				return nil
+			}
+			if s.adapter != nil && s.adapter.logger != nil {
+				s.adapter.logger.Warn("feishu: tool-call end patch failed, falling back to new card",
+					slog.String("call_id", callID),
+					slog.Any("error", patchErr),
+				)
+			}
+			s.forgetToolCallMessage(callID)
+		}
+	}
+	msgID, err := s.sendToolCallCard(ctx, text)
+	if err != nil {
+		return err
+	}
+	if p.Status == channel.ToolCallStatusRunning && callID != "" && msgID != "" {
+		s.storeToolCallMessage(callID, msgID)
+	}
+	return nil
+}
+
+func (s *feishuOutboundStream) patchToolCallCard(ctx context.Context, messageID, text string) error {
+	content, err := buildFeishuCardContent(text)
+	if err != nil {
+		return err
+	}
+	patchReq := larkim.NewPatchMessageReqBuilder().
+		MessageId(messageID).
+		Body(larkim.NewPatchMessageReqBodyBuilder().
+			Content(content).
+			Build()).
+		Build()
+	patchResp, err := s.client.Im.Message.Patch(ctx, patchReq)
+	if err != nil {
+		return err
+	}
+	if patchResp == nil || !patchResp.Success() {
+		code, msg := 0, ""
+		if patchResp != nil {
+			code, msg = patchResp.Code, patchResp.Msg
+		}
+		return fmt.Errorf("feishu tool card patch failed: %s (code: %d)", msg, code)
+	}
+	return nil
+}
+
+func (s *feishuOutboundStream) lookupToolCallMessage(callID string) (string, bool) {
+	if s.toolMessages == nil {
+		return "", false
+	}
+	m, ok := s.toolMessages[callID]
+	return m, ok
+}
+
+func (s *feishuOutboundStream) storeToolCallMessage(callID, messageID string) {
+	if s.toolMessages == nil {
+		s.toolMessages = make(map[string]string)
+	}
+	s.toolMessages[callID] = messageID
+}
+
+func (s *feishuOutboundStream) forgetToolCallMessage(callID string) {
+	if s.toolMessages == nil {
+		return
+	}
+	delete(s.toolMessages, callID)
+}
+
+func (s *feishuOutboundStream) sendToolCallCard(ctx context.Context, text string) (string, error) {
+	content, err := buildFeishuCardContent(text)
+	if err != nil {
+		return "", err
+	}
+	if s.reply != nil && strings.TrimSpace(s.reply.MessageID) != "" {
+		replyReq := larkim.NewReplyMessageReqBuilder().
+			MessageId(strings.TrimSpace(s.reply.MessageID)).
+			Body(larkim.NewReplyMessageReqBodyBuilder().
+				Content(content).
+				MsgType(larkim.MsgTypeInteractive).
+				Uuid(uuid.NewString()).
+				Build()).
+			Build()
+		replyResp, err := s.client.Im.Message.Reply(ctx, replyReq)
+		if err != nil {
+			return "", err
+		}
+		if replyResp == nil || !replyResp.Success() {
+			code, msg := 0, ""
+			if replyResp != nil {
+				code, msg = replyResp.Code, replyResp.Msg
+			}
+			return "", fmt.Errorf("feishu tool card reply failed: %s (code: %d)", msg, code)
+		}
+		if replyResp.Data == nil || replyResp.Data.MessageId == nil {
+			return "", nil
+		}
+		return strings.TrimSpace(*replyResp.Data.MessageId), nil
+	}
+	createReq := larkim.NewCreateMessageReqBuilder().
+		ReceiveIdType(s.receiveType).
+		Body(larkim.NewCreateMessageReqBodyBuilder().
+			ReceiveId(s.receiveID).
+			MsgType(larkim.MsgTypeInteractive).
+			Content(content).
+			Uuid(uuid.NewString()).
+			Build()).
+		Build()
+	createResp, err := s.client.Im.Message.Create(ctx, createReq)
+	if err != nil {
+		return "", err
+	}
+	if createResp == nil || !createResp.Success() {
+		code, msg := 0, ""
+		if createResp != nil {
+			code, msg = createResp.Code, createResp.Msg
+		}
+		return "", fmt.Errorf("feishu tool card create failed: %s (code: %d)", msg, code)
+	}
+	if createResp.Data == nil || createResp.Data.MessageId == nil {
+		return "", nil
+	}
+	return strings.TrimSpace(*createResp.Data.MessageId), nil
 }
 
 func normalizeFeishuStreamText(text string) string {

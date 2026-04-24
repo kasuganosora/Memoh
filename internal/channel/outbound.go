@@ -640,8 +640,12 @@ func (s *managerOutboundStream) Push(ctx context.Context, event StreamEvent) err
 	}
 
 	if event.Type == StreamEventDelta && event.Delta != "" && event.Phase != StreamPhaseReasoning {
-		event.Delta = FilterReasoningArray(event.Delta)
-		event.Delta = FilterThinkingTags(event.Delta)
+		if filtered := FilterReasoningArray(event.Delta); filtered != "" {
+			event.Delta = filtered
+		}
+		if filtered := FilterThinkingTags(event.Delta); filtered != "" {
+			event.Delta = filtered
+		}
 		return s.pushDelta(ctx, event)
 	}
 

@@ -37,15 +37,6 @@ func NewService(log *slog.Logger, queries *sqlc.Queries, aclService *acl.Service
 	}
 }
 
-// GetBotChatTiming returns the chat_timing JSONB for a bot.
-func (s *Service) GetBotChatTiming(ctx context.Context, botID string) (json.RawMessage, error) {
-	settings, err := s.GetBot(ctx, botID)
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(settings.ChatTiming)
-}
-
 func (s *Service) GetBot(ctx context.Context, botID string) (Settings, error) {
 	pgID, err := db.ParseUUID(botID)
 	if err != nil {
@@ -110,6 +101,12 @@ func (s *Service) UpsertBot(ctx context.Context, botID string, req UpsertRequest
 	}
 	if req.PersistFullToolResults != nil {
 		current.PersistFullToolResults = *req.PersistFullToolResults
+	}
+	if req.ShowToolCallsInIM != nil {
+		current.ShowToolCallsInIM = *req.ShowToolCallsInIM
+	}
+	if req.ChatTiming != nil {
+		current.ChatTiming = *req.ChatTiming
 	}
 	timezoneValue := pgtype.Text{}
 	if req.Timezone != nil {
@@ -185,6 +182,14 @@ func (s *Service) UpsertBot(ctx context.Context, botID string, req UpsertRequest
 		}
 		ttsModelUUID = modelID
 	}
+	transcriptionModelUUID := pgtype.UUID{}
+	if value := strings.TrimSpace(req.TranscriptionModelID); value != "" {
+		modelID, err := db.ParseUUID(value)
+		if err != nil {
+			return Settings{}, err
+		}
+		transcriptionModelUUID = modelID
+	}
 	browserContextUUID := pgtype.UUID{}
 	if value := strings.TrimSpace(req.BrowserContextID); value != "" {
 		ctxID, err := db.ParseUUID(value)
@@ -192,12 +197,6 @@ func (s *Service) UpsertBot(ctx context.Context, botID string, req UpsertRequest
 			return Settings{}, err
 		}
 		browserContextUUID = ctxID
-	}
-
-	// Chat timing: serialize request value.
-	var chatTimingBytes []byte
-	if req.ChatTiming != nil {
-		chatTimingBytes, _ = json.Marshal(req.ChatTiming)
 	}
 
 	updated, err := s.queries.UpsertBotSettings(ctx, sqlc.UpsertBotSettingsParams{
@@ -220,13 +219,20 @@ func (s *Service) UpsertBot(ctx context.Context, botID string, req UpsertRequest
 		SearchProviderID:       searchProviderUUID,
 		MemoryProviderID:       memoryProviderUUID,
 		TtsModelID:             ttsModelUUID,
+		TranscriptionModelID:   transcriptionModelUUID,
 		BrowserContextID:       browserContextUUID,
 		PersistFullToolResults: current.PersistFullToolResults,
-		ChatTiming:             chatTimingBytes,
+		ShowToolCallsInIm:      current.ShowToolCallsInIM,
+		ChatTiming:             marshalChatTiming(current.ChatTiming),
 	})
 	if err != nil {
 		return Settings{}, err
 	}
+	createdByUserID := ""
+	if botRow.OwnerUserID.Valid {
+		createdByUserID = uuid.UUID(botRow.OwnerUserID.Bytes).String()
+	}
+	_ = createdByUserID
 	if err := s.setDefaultEffect(ctx, botID, current.AclDefaultEffect); err != nil {
 		return Settings{}, err
 	}
@@ -310,8 +316,10 @@ func normalizeBotSettingsReadRow(row sqlc.GetSettingsByBotIDRow) Settings {
 		row.SearchProviderID,
 		row.MemoryProviderID,
 		row.TtsModelID,
+		row.TranscriptionModelID,
 		row.BrowserContextID,
 		row.PersistFullToolResults,
+		row.ShowToolCallsInIm,
 		row.ChatTiming,
 	)
 }
@@ -335,8 +343,10 @@ func normalizeBotSettingsWriteRow(row sqlc.UpsertBotSettingsRow) Settings {
 		row.SearchProviderID,
 		row.MemoryProviderID,
 		row.TtsModelID,
+		row.TranscriptionModelID,
 		row.BrowserContextID,
 		row.PersistFullToolResults,
+		row.ShowToolCallsInIm,
 		row.ChatTiming,
 	)
 }
@@ -359,9 +369,11 @@ func normalizeBotSettingsFields(
 	searchProviderID pgtype.UUID,
 	memoryProviderID pgtype.UUID,
 	ttsModelID pgtype.UUID,
+	transcriptionModelID pgtype.UUID,
 	browserContextID pgtype.UUID,
 	persistFullToolResults bool,
-	chatTiming []byte,
+	showToolCallsInIM bool,
+	chatTimingRaw []byte,
 ) Settings {
 	settings := normalizeBotSetting(language, "", reasoningEnabled, reasoningEffort, heartbeatEnabled, heartbeatInterval, compactionEnabled, compactionThreshold, compactionRatio)
 	if timezone.Valid {
@@ -391,14 +403,35 @@ func normalizeBotSettingsFields(
 	if ttsModelID.Valid {
 		settings.TtsModelID = uuid.UUID(ttsModelID.Bytes).String()
 	}
+	if transcriptionModelID.Valid {
+		settings.TranscriptionModelID = uuid.UUID(transcriptionModelID.Bytes).String()
+	}
 	if browserContextID.Valid {
 		settings.BrowserContextID = uuid.UUID(browserContextID.Bytes).String()
 	}
 	settings.PersistFullToolResults = persistFullToolResults
-	if len(chatTiming) > 0 {
-		_ = json.Unmarshal(chatTiming, &settings.ChatTiming)
-	}
+	settings.ShowToolCallsInIM = showToolCallsInIM
+	settings.ChatTiming = unmarshalChatTiming(chatTimingRaw)
 	return settings
+}
+
+func marshalChatTiming(cfg ChatTimingConfig) []byte {
+	data, err := json.Marshal(cfg)
+	if err != nil {
+		return []byte("{}")
+	}
+	return data
+}
+
+func unmarshalChatTiming(raw []byte) ChatTimingConfig {
+	if len(raw) == 0 {
+		return ChatTimingConfig{}
+	}
+	var cfg ChatTimingConfig
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		return ChatTimingConfig{}
+	}
+	return cfg
 }
 
 func (s *Service) getDefaultEffect(ctx context.Context, botID string) (string, error) {
@@ -456,4 +489,14 @@ func normalizeOptionalTimezone(raw string) (pgtype.Text, error) {
 		return pgtype.Text{}, fmt.Errorf("invalid timezone: %w", err)
 	}
 	return pgtype.Text{String: loc.String(), Valid: true}, nil
+}
+
+// GetBotChatTiming returns the raw JSON chat_timing configuration for a bot.
+func (s *Service) GetBotChatTiming(ctx context.Context, botID string) (json.RawMessage, error) {
+	bot, err := s.GetBot(ctx, botID)
+	if err != nil {
+		return nil, err
+	}
+	data := marshalChatTiming(bot.ChatTiming)
+	return json.RawMessage(data), nil
 }

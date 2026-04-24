@@ -4,6 +4,7 @@ Channels are the gateways that connect your Memoh Bots to the outside world. By 
 
 Memoh currently supports the following channels:
 
+- **[Slack](./slack)**: Workspace messaging with Socket Mode, threads, files, and reactions.
 - **[Telegram](./telegram)**: Feature-rich integration with streaming and attachment support.
 - **[Feishu (Lark)](./feishu)**: Enterprise-ready integration for business workflows.
 - **[Discord](./discord)**: Community-focused integration for servers and direct messages.

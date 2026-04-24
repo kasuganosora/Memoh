@@ -14,10 +14,10 @@
           </p>
           <div class="flex items-center gap-2 mt-0.5">
             <Badge
-              v-if="serverVersion"
+              v-if="normalizedServerVersion"
               variant="secondary"
             >
-              {{ $t('settings.versionTag', { version: serverVersion }) }}
+              {{ $t('settings.versionTag', { version: normalizedServerVersion }) }}
             </Badge>
             <Badge
               v-if="commitHash"
@@ -147,6 +147,8 @@ const { t } = useI18n()
 
 const capabilitiesStore = useCapabilitiesStore()
 const { serverVersion, commitHash } = storeToRefs(capabilitiesStore)
+const normalizeVersion = (version?: string | null) => (version ?? '').replace(/^v/i, '')
+const normalizedServerVersion = computed(() => normalizeVersion(serverVersion.value))
 
 const settingsStore = useSettingsStore()
 const isDark = computed(() => settingsStore.theme === 'dark')
@@ -168,8 +170,8 @@ async function checkForUpdates() {
     const data = await res.json()
 
     const tagName: string = data.tag_name ?? ''
-    const latestVersion = tagName.replace(/^v/, '')
-    const currentVersion = (serverVersion.value ?? '').replace(/^v/, '')
+    const latestVersion = normalizeVersion(tagName)
+    const currentVersion = normalizeVersion(serverVersion.value)
 
     checkResult.value = {
       isUpToDate: latestVersion === currentVersion,

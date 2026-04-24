@@ -187,6 +187,17 @@
       />
     </div>
 
+    <!-- Transcription Model -->
+    <div class="space-y-2">
+      <Label>{{ $t('bots.settings.transcriptionModel') }}</Label>
+      <TtsModelSelect
+        v-model="form.transcription_model_id"
+        :models="transcriptionModels"
+        :providers="ttsProviders"
+        :placeholder="$t('bots.settings.transcriptionModelPlaceholder')"
+      />
+    </div>
+
     <!-- Image Generation Model -->
     <div class="space-y-2">
       <Label>{{ $t('bots.settings.imageModel') }}</Label>
@@ -272,6 +283,20 @@
       </Popover>
     </div>
 
+    <!-- Show Tool Calls in IM -->
+    <div class="flex items-center justify-between">
+      <div class="space-y-1">
+        <Label>{{ $t('bots.settings.showToolCallsInIM') }}</Label>
+        <p class="text-xs text-muted-foreground">
+          {{ $t('bots.settings.showToolCallsInIMDescription') }}
+        </p>
+      </div>
+      <Switch
+        :model-value="form.show_tool_calls_in_im"
+        @update:model-value="(val) => form.show_tool_calls_in_im = !!val"
+      />
+    </div>
+
     <!-- Save -->
     <div class="flex justify-end">
       <Button
@@ -328,6 +353,7 @@ import {
   Popover,
   PopoverTrigger,
   PopoverContent,
+  Switch,
 } from '@memohai/ui'
 import { Lightbulb, ChevronDown } from 'lucide-vue-next'
 import { reactive, computed, ref, watch } from 'vue'
@@ -344,7 +370,7 @@ import MemoryProviderSelect from './memory-provider-select.vue'
 import TtsModelSelect from './tts-model-select.vue'
 import BrowserContextSelect from './browser-context-select.vue'
 import { useQuery, useMutation, useQueryCache } from '@pinia/colada'
-import { getBotsById, putBotsById, getBotsByBotIdSettings, putBotsByBotIdSettings, deleteBotsById, getModels, getProviders, getSearchProviders, getMemoryProviders, getSpeechProviders, getSpeechModels, getBrowserContexts, getBotsByBotIdMemoryStatus, postBotsByBotIdMemoryRebuild } from '@memohai/sdk'
+import { getBotsById, putBotsById, getBotsByBotIdSettings, putBotsByBotIdSettings, deleteBotsById, getModels, getProviders, getSearchProviders, getMemoryProviders, getSpeechProviders, getSpeechModels, getTranscriptionProviders, getTranscriptionModels, getBrowserContexts, getBotsByBotIdMemoryStatus, postBotsByBotIdMemoryRebuild } from '@memohai/sdk'
 import type { SettingsSettings } from '@memohai/sdk'
 import type { Ref } from 'vue'
 import { resolveApiErrorMessage } from '@/utils/api-error'
@@ -428,6 +454,22 @@ const { data: ttsModelData } = useQuery({
   },
 })
 
+const { data: transcriptionModelData } = useQuery({
+  key: ['transcription-models'],
+  query: async () => {
+    const { data } = await getTranscriptionModels({ throwOnError: true })
+    return data
+  },
+})
+
+const { data: transcriptionProviderData } = useQuery({
+  key: ['transcription-providers'],
+  query: async () => {
+    const { data } = await getTranscriptionProviders({ throwOnError: true })
+    return data
+  },
+})
+
 const { data: browserContextData } = useQuery({
   key: ['all-browser-contexts'],
   query: async () => {
@@ -482,7 +524,10 @@ const searchProviders = computed(() => (searchProviderData.value ?? []).filter((
 const memoryProviders = computed(() => memoryProviderData.value ?? [])
 const ttsProviders = computed(() => (ttsProviderData.value ?? []).filter((p) => p.enable !== false))
 const enabledTtsProviderIds = computed(() => new Set(ttsProviders.value.map((p) => p.id)))
+const transcriptionProviders = computed(() => (transcriptionProviderData.value ?? []).filter((p: Record<string, unknown>) => p.enable !== false))
+const enabledTranscriptionProviderIds = computed(() => new Set(transcriptionProviders.value.map((p: Record<string, unknown>) => p.id as string)))
 const ttsModels = computed(() => (ttsModelData.value ?? []).filter((m: Record<string, unknown>) => enabledTtsProviderIds.value.has(m.provider_id as string)))
+const transcriptionModels = computed(() => (transcriptionModelData.value ?? []).filter((m: Record<string, unknown>) => enabledTranscriptionProviderIds.value.has(m.provider_id as string)))
 const browserContexts = computed(() => browserContextData.value ?? [])
 
 // ---- Form ----
@@ -493,11 +538,13 @@ const form = reactive({
   search_provider_id: '',
   memory_provider_id: '',
   tts_model_id: '',
+  transcription_model_id: '',
   browser_context_id: '',
   timezone: '',
   language: '',
   reasoning_enabled: false,
   reasoning_effort: 'medium',
+  show_tool_calls_in_im: false,
 })
 
 const selectedMemoryProvider = computed(() =>
@@ -632,11 +679,13 @@ watch(settings, (val) => {
     form.search_provider_id = val.search_provider_id ?? ''
     form.memory_provider_id = val.memory_provider_id ?? ''
     form.tts_model_id = val.tts_model_id ?? ''
+    form.transcription_model_id = val.transcription_model_id ?? ''
     form.browser_context_id = val.browser_context_id ?? ''
     form.language = val.language ?? ''
     form.timezone = val.timezone ?? ''
     form.reasoning_enabled = val.reasoning_enabled ?? false
     form.reasoning_effort = val.reasoning_effort || 'medium'
+    form.show_tool_calls_in_im = val.show_tool_calls_in_im ?? false
   }
 }, { immediate: true })
 
@@ -654,11 +703,13 @@ const hasSettingsChanges = computed(() => {
     || form.search_provider_id !== (s.search_provider_id ?? '')
     || form.memory_provider_id !== (s.memory_provider_id ?? '')
     || form.tts_model_id !== (s.tts_model_id ?? '')
+    || form.transcription_model_id !== (s.transcription_model_id ?? '')
     || form.browser_context_id !== (s.browser_context_id ?? '')
     || form.language !== (s.language ?? '')
     || form.timezone !== (s.timezone ?? '')
     || form.reasoning_enabled !== (s.reasoning_enabled ?? false)
     || form.reasoning_effort !== (s.reasoning_effort || 'medium')
+    || form.show_tool_calls_in_im !== (s.show_tool_calls_in_im ?? false)
   )
 })
 

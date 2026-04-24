@@ -26,6 +26,7 @@ Configure your bot's connections from the **Platforms** tab in the Bot Detail pa
 | WeCom (WeWork) | [WeCom Configuration](/channels/wecom) | Enterprise workspace integration |
 | WeChat | [WeChat Configuration](/channels/weixin) | Personal QR login flow |
 | WeChat Official Account | [WeChat Official Account Configuration](/channels/wechatoa) | Official account webhook flow |
+| Slack |  [Slack Configuration](/channels/slack) | Replies, no streaming |
 
 Two WeChat adapters exist on purpose:
 

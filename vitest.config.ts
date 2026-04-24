@@ -8,6 +8,7 @@ export default defineConfig({
     globals: true,
     include: [
       'packages/**/*.test.ts',
+      'apps/**/*.test.ts',
     ],
     env: process.env,
     testTimeout: Infinity,

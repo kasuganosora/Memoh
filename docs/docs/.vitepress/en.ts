@@ -175,6 +175,10 @@ export const en = [
         text: 'WeChat Official Account',
         link: '/channels/wechatoa.md'
       },
+      {
+        text: 'Slack',
+        link: '/channels/slack.md'
+      }
     ]
   },
 ]

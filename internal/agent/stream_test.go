@@ -46,7 +46,12 @@ func (*agentToolPlaceholderProvider) DoStream(_ context.Context, _ sdk.GenerateP
 	return &sdk.StreamResult{Stream: ch}, nil
 }
 
-func TestAgentStreamEmitsEarlyToolPlaceholderBeforeFullInput(t *testing.T) {
+// TestAgentStreamEmitsToolCallStartOnceWithInput asserts that each tool call
+// produces exactly one EventToolCallStart with the fully-assembled Input, even
+// though the underlying SDK emits a preliminary ToolInputStartPart (no input)
+// followed by a StreamToolCallPart (with input). Emitting two start events per
+// call caused duplicate "running" messages in IM adapters.
+func TestAgentStreamEmitsToolCallStartOnceWithInput(t *testing.T) {
 	t.Parallel()
 
 	a := New(Deps{})
@@ -64,26 +69,20 @@ func TestAgentStreamEmitsEarlyToolPlaceholderBeforeFullInput(t *testing.T) {
 		events = append(events, event)
 	}
 
-	if len(events) != 4 {
-		t.Fatalf("expected 4 events, got %d: %#v", len(events), events)
+	if len(events) != 3 {
+		t.Fatalf("expected 3 events, got %d: %#v", len(events), events)
 	}
 	if events[0].Type != EventAgentStart {
 		t.Fatalf("expected first event %q, got %#v", EventAgentStart, events[0])
 	}
 	if events[1].Type != EventToolCallStart || events[1].ToolCallID != "call-1" || events[1].ToolName != "write" {
-		t.Fatalf("unexpected placeholder tool event: %#v", events[1])
-	}
-	if events[1].Input != nil {
-		t.Fatalf("expected placeholder tool event to have nil input, got %#v", events[1].Input)
-	}
-	if events[2].Type != EventToolCallStart || events[2].ToolCallID != "call-1" {
-		t.Fatalf("unexpected full tool event: %#v", events[2])
+		t.Fatalf("unexpected tool call start event: %#v", events[1])
 	}
 	expectedInput := map[string]any{"path": "/tmp/long.txt"}
-	if !reflect.DeepEqual(events[2].Input, expectedInput) {
-		t.Fatalf("expected full tool event input %#v, got %#v", expectedInput, events[2].Input)
+	if !reflect.DeepEqual(events[1].Input, expectedInput) {
+		t.Fatalf("expected tool call start input %#v, got %#v", expectedInput, events[1].Input)
 	}
-	if events[3].Type != EventAgentEnd {
-		t.Fatalf("expected terminal event %q, got %#v", EventAgentEnd, events[3])
+	if events[2].Type != EventAgentEnd {
+		t.Fatalf("expected terminal event %q, got %#v", EventAgentEnd, events[2])
 	}
 }

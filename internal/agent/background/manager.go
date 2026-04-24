@@ -488,17 +488,25 @@ func (m *Manager) RunningTasksSummary(botID, sessionID string) string {
 	defer m.mu.Unlock()
 	var lines []string
 	for _, t := range m.tasks {
-		if t.BotID == botID && t.SessionID == sessionID && t.Status == TaskRunning {
-			desc := t.Description
-			if desc == "" {
-				desc = truncate(t.Command, 80)
-			}
-			lines = append(lines, fmt.Sprintf("- [%s] %s (started %s ago, output: %s)",
-				t.ID, desc,
-				time.Since(t.StartedAt).Round(time.Second),
-				t.OutputFile,
-			))
+		t.mu.Lock()
+		matches := t.BotID == botID && t.SessionID == sessionID && t.Status == TaskRunning
+		id := t.ID
+		desc := t.Description
+		command := t.Command
+		startedAt := t.StartedAt
+		outputFile := t.OutputFile
+		t.mu.Unlock()
+		if !matches {
+			continue
 		}
+		if desc == "" {
+			desc = truncate(command, 80)
+		}
+		lines = append(lines, fmt.Sprintf("- [%s] %s (started %s ago, output: %s)",
+			id, desc,
+			time.Since(startedAt).Round(time.Second),
+			outputFile,
+		))
 	}
 	if len(lines) == 0 {
 		return ""
