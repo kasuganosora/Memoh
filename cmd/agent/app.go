@@ -195,17 +195,16 @@ func provideEventStore(log *slog.Logger, queries *dbsqlc.Queries) *pipelinepkg.E
 	return pipelinepkg.NewEventStore(log, queries)
 }
 
-func provideDiscussDriver(log *slog.Logger, pipeline *pipelinepkg.Pipeline, eventStore *pipelinepkg.EventStore, agent *agentpkg.Agent, msgService *message.DBService, chatTimingService *chattiming.Service, settingsService *settings.Service, defaultProvider *membuiltin.BuiltinProvider, channelManager *channel.Manager) *pipelinepkg.DiscussDriver {
-	return pipelinepkg.NewDiscussDriver(pipelinepkg.DiscussDriverDeps{
-		Pipeline:          pipeline,
-		EventStore:        eventStore,
-		Agent:             agent,
-		MessageService:    msgService,
-		Logger:            log,
-		AttachmentSender:  channelManager,
-		ChatTimingService: chatTimingService,
-		SettingsService:   settingsService,
-		MemoryFormation:   defaultProvider,
+func provideDiscussTrigger(log *slog.Logger, pipeline *pipelinepkg.Pipeline, eventStore *pipelinepkg.EventStore, chatTimingService *chattiming.Service, settingsService *settings.Service, defaultProvider *membuiltin.BuiltinProvider) *pipelinepkg.DiscussTrigger {
+	return pipelinepkg.NewDiscussTrigger(pipelinepkg.DiscussTriggerDeps{
+		Pipeline:                 pipeline,
+		EventStore:               eventStore,
+		Logger:                   log,
+		ChatTimingService:        chatTimingService,
+		SettingsService:          settingsService,
+		MemoryFormation:          defaultProvider,
+		StreamChunkParser:        inbound.MapStreamChunkToChannelEvents,
+		AssistantOutputExtractor: flow.ExtractAssistantOutputs,
 	})
 }
 
@@ -362,7 +361,8 @@ func provideChannelRouter(
 	manager *workspace.Manager,
 	pipeline *pipelinepkg.Pipeline,
 	eventStore *pipelinepkg.EventStore,
-	discussDriver *pipelinepkg.DiscussDriver,
+	discussTrigger *pipelinepkg.DiscussTrigger,
+	channelManager *channel.Manager,
 	rc *boot.RuntimeConfig,
 ) *inbound.ChannelInboundProcessor {
 	adapter, ok := registry.Get(qq.Type)
@@ -378,13 +378,21 @@ func provideChannelRouter(
 
 	processor := inbound.NewChannelInboundProcessor(log, registry, routeService, msgService, resolver, identityService, policyService, bindService, rc.JwtSecret, 5*time.Minute)
 	processor.SetSessionEnsurer(&sessionEnsurerAdapter{svc: sessionService})
-	processor.SetPipeline(pipeline, eventStore, discussDriver)
-	discussDriver.SetResolver(resolver)
-	discussDriver.SetBroadcaster(hub)
+	processor.SetPipeline(pipeline, eventStore, discussTrigger)
+	discussTrigger.SetResolver(resolver)
+	discussTrigger.SetChatRunner(resolver)
+	discussTrigger.SetBroadcaster(hub)
+	discussTrigger.SetStreamObserver(local.NewRouteHubBroadcaster(hub))
+	discussTrigger.SetChannelSender(channelManager)
+	discussTrigger.SetReactor(channelManager)
 	processor.SetACLService(aclService)
 	processor.SetMediaService(mediaService)
 	processor.SetStreamObserver(local.NewRouteHubBroadcaster(hub))
-	processor.SetDispatcher(inbound.NewRouteDispatcher(log))
+	routeDispatcher := inbound.NewRouteDispatcher(log)
+	processor.SetDispatcher(routeDispatcher)
+	discussAdapter := inbound.NewDiscussDispatcherAdapter(routeDispatcher)
+	processor.SetDiscussDispatcherAdapter(discussAdapter)
+	discussTrigger.SetDispatcher(discussAdapter)
 	processor.SetTtsService(ttsService, &settingsTtsModelResolver{settings: settingsService})
 	cmdHandler := command.NewHandler(
 		log,

@@ -143,7 +143,7 @@ func (p *ImageGenProvider) execGenerateImage(ctx context.Context, session Sessio
 	// Emit the generated image as an attachment event so the channel adapter
 	// can deliver it inline (e.g. upload to Misskey Drive). This works for
 	// both chat mode (via stream emitter → inbound processor) and discuss
-	// mode (via stream emitter → DiscussDriver attachment handler).
+	// mode (via stream emitter → DiscussTrigger attachment handler).
 	p.emitImageAttachment(session, result)
 
 	return result, nil

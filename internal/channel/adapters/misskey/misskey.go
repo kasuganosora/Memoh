@@ -19,8 +19,10 @@ import (
 
 const (
 	misskeyMaxNoteLength        = 3000
-	misskeyReconnectDelay       = 5 * time.Second
+	misskeyReconnectDelayMin    = 5 * time.Second // initial reconnect delay (exponential backoff)
+	misskeyReconnectDelayMax    = 5 * time.Minute // maximum reconnect delay
 	misskeyPingInterval         = 30 * time.Second
+	misskeyReadTimeout          = 90 * time.Second // 3× ping interval; detects half-open connections
 	misskeyWriteTimeout         = 10 * time.Second
 	misskeyReadBufferSize       = 1 << 16
 	misskeyWriteBufferSize      = 1 << 16
@@ -203,6 +205,7 @@ func (a *MisskeyAdapter) Connect(ctx context.Context, cfg channel.ChannelConfig,
 }
 
 func (a *MisskeyAdapter) runStreamLoop(ctx context.Context, cfg channel.ChannelConfig, mkCfg Config, me *meResponse, handler channel.InboundHandler) {
+	delay := misskeyReconnectDelayMin
 	for {
 		select {
 		case <-ctx.Done():
@@ -211,13 +214,22 @@ func (a *MisskeyAdapter) runStreamLoop(ctx context.Context, cfg channel.ChannelC
 		}
 		if err := a.runStream(ctx, cfg, mkCfg, me, handler); err != nil {
 			if a.logger != nil {
-				a.logger.Warn("stream disconnected", slog.String("config_id", cfg.ID), slog.Any("error", err))
+				a.logger.Warn("stream disconnected", slog.String("config_id", cfg.ID), slog.Any("error", err),
+					slog.Duration("reconnect_delay", delay))
 			}
+		} else {
+			// Clean disconnect (context cancelled) — no backoff needed.
+			delay = misskeyReconnectDelayMin
 		}
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(misskeyReconnectDelay):
+		case <-time.After(delay):
+		}
+		// Exponential backoff: double the delay up to the maximum.
+		delay *= 2
+		if delay > misskeyReconnectDelayMax {
+			delay = misskeyReconnectDelayMax
 		}
 	}
 }
@@ -304,6 +316,15 @@ func (a *MisskeyAdapter) runStream(ctx context.Context, cfg channel.ChannelConfi
 		defer close(cleanupDone)
 	}
 
+	// Set initial read deadline and install a pong handler that extends it.
+	// If no data (including pong replies) arrives within misskeyReadTimeout,
+	// ReadMessage returns an error and the connection is recycled.
+	_ = conn.SetReadDeadline(time.Now().Add(misskeyReadTimeout))
+	conn.SetPongHandler(func(string) error {
+		_ = conn.SetReadDeadline(time.Now().Add(misskeyReadTimeout))
+		return nil
+	})
+
 	// Start ping ticker.
 	pingDone := make(chan struct{})
 	go func() {
@@ -332,6 +353,8 @@ func (a *MisskeyAdapter) runStream(ctx context.Context, cfg channel.ChannelConfi
 		if readErr != nil {
 			return fmt.Errorf("misskey ws read: %w", readErr)
 		}
+		// Extend read deadline on every successful read.
+		_ = conn.SetReadDeadline(time.Now().Add(misskeyReadTimeout))
 		a.handleStreamMessage(ctx, cfg, me, handler, msgBytes, dedup, &dedupMu, tlCfg)
 	}
 }
@@ -699,12 +722,12 @@ func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source stri
 		ReceivedAt: receivedAt,
 		Source:     "misskey",
 		Metadata: map[string]any{
-			"is_timeline":        true,
-			"is_mentioned":       false,
+			"is_timeline":         true,
+			"is_mentioned":        false,
 			"is_discuss_timeline": discuss,
-			"timeline_source":    source,
-			"visibility":         note.Visibility,
-			"note_id":            note.ID,
+			"timeline_source":     source,
+			"visibility":          note.Visibility,
+			"note_id":             note.ID,
 		},
 	}
 }

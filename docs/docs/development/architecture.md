@@ -51,7 +51,7 @@ Conversation Flow Resolver OR Pipeline
   │
   └─ Pipeline DCP (internal/pipeline/)
        Discuss mode: multi-user group chat
-       driver.go orchestrates timing
+       discuss_trigger.go orchestrates timing
   ▼
 Agent (internal/agent/agent.go)
   │  Assembles prompt (system + history + tools)
@@ -87,11 +87,11 @@ RenderedContext (RC) — []RenderedSegment with flags:
   ▼ context.go: ComposeContext()
 []ContextMessage — final prompt input for LLM
   │
-  ▼ driver.go: DiscussDriver
+  ▼ discuss_trigger.go: DiscussTrigger
 Agent.Stream() or Generate()
 ```
 
-**DiscussDriver timing flow:**
+**DiscussTrigger timing flow:**
 ```
 Message arrives → Debounce (quiet period)
   → Check talk_value threshold

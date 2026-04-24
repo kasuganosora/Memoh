@@ -278,6 +278,17 @@ func (r *Resolver) buildMessagesFromPipeline(ctx context.Context, req conversati
 		messages = trimPipelineMessagesByTokens(r.logger, messages, contextTokenBudget)
 	}
 
+	// Collect image refs from the RC for later inlining by the resolver.
+	// These are stored on the request so resolve() can inline them when
+	// the model supports vision input.
+	var imageRefs []pipelinepkg.ImageAttachmentRef
+	for _, seg := range rc {
+		imageRefs = append(imageRefs, seg.ImageRefs...)
+	}
+	if len(imageRefs) > 0 {
+		r.pipelineImageRefs.Store(sessionID, imageRefs)
+	}
+
 	return messages
 }
 

@@ -99,6 +99,7 @@ type ChannelInboundProcessor struct {
 	identity         *IdentityResolver
 	policy           PolicyService
 	dispatcher       *RouteDispatcher
+	discussAdapter   *DiscussDispatcherAdapter
 	acl              chatACL
 	observer         channel.StreamObserver
 	ttsService       ttsSynthesizer
@@ -106,7 +107,7 @@ type ChannelInboundProcessor struct {
 	sessionEnsurer   SessionEnsurer
 	pipeline         *pipelinepkg.Pipeline
 	eventStore       *pipelinepkg.EventStore
-	discussDriver    *pipelinepkg.DiscussDriver
+	discussTrigger   *pipelinepkg.DiscussTrigger
 
 	// activeStreams maps "botID:routeID" to a context.CancelFunc for the
 	// currently running agent stream. Used by /stop to abort generation
@@ -216,13 +217,13 @@ func (p *ChannelInboundProcessor) SetCommandHandler(handler *command.Handler) {
 }
 
 // SetPipeline configures the DCP pipeline, event store, and discuss driver.
-func (p *ChannelInboundProcessor) SetPipeline(pipeline *pipelinepkg.Pipeline, store *pipelinepkg.EventStore, driver *pipelinepkg.DiscussDriver) {
+func (p *ChannelInboundProcessor) SetPipeline(pipeline *pipelinepkg.Pipeline, store *pipelinepkg.EventStore, driver *pipelinepkg.DiscussTrigger) {
 	if p == nil {
 		return
 	}
 	p.pipeline = pipeline
 	p.eventStore = store
-	p.discussDriver = driver
+	p.discussTrigger = driver
 }
 
 // SetDispatcher configures the per-route message dispatcher for inject/queue/parallel modes.
@@ -231,6 +232,15 @@ func (p *ChannelInboundProcessor) SetDispatcher(dispatcher *RouteDispatcher) {
 		return
 	}
 	p.dispatcher = dispatcher
+}
+
+// SetDiscussDispatcherAdapter configures the discuss-mode dispatcher adapter
+// that enables inject/queue for discuss sessions.
+func (p *ChannelInboundProcessor) SetDiscussDispatcherAdapter(adapter *DiscussDispatcherAdapter) {
+	if p == nil {
+		return
+	}
+	p.discussAdapter = adapter
 }
 
 // HandleInbound processes an inbound channel message through identity resolution and chat gateway.
@@ -452,8 +462,9 @@ func (p *ChannelInboundProcessor) HandleInbound(ctx context.Context, cfg channel
 
 	// Discuss mode: dispatch to the discuss driver and return.
 	// The discuss driver autonomously decides whether to call the LLM.
-	if sessionType == sessionpkg.TypeDiscuss && p.discussDriver != nil && latestRC != nil {
-		p.discussDriver.NotifyRC(ctx, sessionID, latestRC, pipelinepkg.DiscussSessionConfig{
+	if sessionType == sessionpkg.TypeDiscuss && p.discussTrigger != nil && latestRC != nil {
+		routeID := strings.TrimSpace(resolved.RouteID)
+		discussCfg := pipelinepkg.DiscussSessionConfig{
 			BotID:             identity.BotID,
 			SessionID:         sessionID,
 			ChannelIdentityID: identity.ChannelIdentityID,
@@ -461,7 +472,54 @@ func (p *ChannelInboundProcessor) HandleInbound(ctx context.Context, cfg channel
 			CurrentPlatform:   msg.Channel.String(),
 			ConversationType:  strings.TrimSpace(msg.Conversation.Type),
 			ConversationName:  strings.TrimSpace(msg.Conversation.Name),
-		})
+			RouteID:           routeID,
+		}
+
+		// When the discuss route has an active agent stream, inject the new
+		// message so the LLM sees it between tool rounds (same as normal mode).
+		if p.discussAdapter != nil && routeID != "" && p.discussAdapter.IsActive(routeID) {
+			headerifiedText := flow.FormatUserHeader(flow.UserMessageHeaderInput{
+				MessageID:         strings.TrimSpace(msg.Message.ID),
+				ChannelIdentityID: strings.TrimSpace(identity.ChannelIdentityID),
+				DisplayName:       strings.TrimSpace(identity.DisplayName),
+				Channel:           msg.Channel.String(),
+				ConversationType:  strings.TrimSpace(msg.Conversation.Type),
+				ConversationName:  strings.TrimSpace(msg.Conversation.Name),
+				Target:            strings.TrimSpace(msg.ReplyTarget),
+				AttachmentPaths:   collectAttachmentPaths(attachments),
+				Time:              time.Now().UTC(),
+			}, text)
+
+			injected := p.discussAdapter.Inject(routeID, InjectMessage{
+				Text:            text,
+				Attachments:     attachments,
+				HeaderifiedText: headerifiedText,
+			})
+			if injected {
+				if p.logger != nil {
+					p.logger.Info("discuss: message injected into active agent stream",
+						slog.String("route_id", routeID),
+						slog.String("session_id", sessionID))
+				}
+			} else {
+				// Inject channel full — queue the notification for replay after
+				// the current agent call completes.
+				p.discussAdapter.EnqueueNotification(routeID, pipelinepkg.DiscussQueuedNotification{
+					SessionID: sessionID,
+					RC:        latestRC,
+					Config:    discussCfg,
+				})
+				if p.logger != nil {
+					p.logger.Info("discuss: inject channel full, notification queued",
+						slog.String("route_id", routeID),
+						slog.String("session_id", sessionID))
+				}
+			}
+		} else {
+			// No active agent stream — notify the discuss driver normally.
+			p.discussTrigger.NotifyRC(ctx, sessionID, latestRC, discussCfg)
+		}
+
 		p.persistPassiveMessage(ctx, identity, msg, text, attachments, resolved.RouteID, sessionID, eventID)
 		return nil
 	}
@@ -781,7 +839,7 @@ startStream:
 				chunkCh = nil
 				continue
 			}
-			events, messages, parseErr := mapStreamChunkToChannelEvents(chunk)
+			events, messages, parseErr := MapStreamChunkToChannelEvents(chunk)
 			if parseErr != nil {
 				if p.logger != nil {
 					p.logger.Warn(
@@ -1250,7 +1308,10 @@ type agentStreamEnvelope struct {
 	Speeches    json.RawMessage `json:"speeches"`
 }
 
-func mapStreamChunkToChannelEvents(chunk conversation.StreamChunk) ([]channel.StreamEvent, []conversation.ModelMessage, error) {
+// MapStreamChunkToChannelEvents parses a raw agent stream chunk (JSON) into
+// channel-level StreamEvents and any final ModelMessages. Exported so that
+// the discuss-mode driver can reuse the same parsing logic.
+func MapStreamChunkToChannelEvents(chunk conversation.StreamChunk) ([]channel.StreamEvent, []conversation.ModelMessage, error) {
 	if len(chunk) == 0 {
 		return nil, nil, nil
 	}

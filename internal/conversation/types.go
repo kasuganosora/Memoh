@@ -235,9 +235,15 @@ type ChatRequest struct {
 	ReplyTarget             string `json:"-"`
 	ConversationType        string `json:"-"`
 	ConversationName        string `json:"-"`
+	SessionType             string `json:"-"` // "chat" or "discuss"; empty defaults to "chat"
 	UserMessagePersisted    bool   `json:"-"`
 	EventID                 string `json:"-"`
 	RawQuery                string `json:"-"`
+
+	// DiscussLateBindingPrompt is an ephemeral user message appended to the
+	// context in discuss mode. It carries timing instructions and the current
+	// timestamp. Not persisted.
+	DiscussLateBindingPrompt string `json:"-"`
 
 	// OutboundAssetCollector returns asset refs accumulated during outbound streaming.
 	// Set by the inbound channel processor; called by the resolver at persist time.

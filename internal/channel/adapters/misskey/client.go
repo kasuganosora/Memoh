@@ -144,8 +144,12 @@ type driveFileResponse struct {
 	URL  string `json:"url"`
 }
 
+// maxDriveUploadSize is the maximum file size allowed for Misskey Drive uploads (20 MB).
+const maxDriveUploadSize = 20 << 20
+
 // uploadToDrive uploads a file to the Misskey Drive via multipart form-data.
-func uploadToDrive(ctx context.Context, cfg Config, reader io.Reader, filename, contentType string) (*driveFileResponse, error) {
+// Files larger than 20 MB are rejected to prevent memory exhaustion and quota issues.
+func uploadToDrive(ctx context.Context, cfg Config, reader io.Reader, filename, _ string) (*driveFileResponse, error) {
 	url := cfg.apiURL() + "/drive/files/create"
 
 	var body bytes.Buffer
@@ -161,8 +165,14 @@ func uploadToDrive(ctx context.Context, cfg Config, reader io.Reader, filename, 
 	if err != nil {
 		return nil, fmt.Errorf("misskey drive upload form: %w", err)
 	}
-	if _, err := io.Copy(part, reader); err != nil {
+	// Limit upload size to prevent memory exhaustion from abnormally large files.
+	limited := io.LimitReader(reader, maxDriveUploadSize+1)
+	n, err := io.Copy(part, limited)
+	if err != nil {
 		return nil, fmt.Errorf("misskey drive upload copy: %w", err)
+	}
+	if n > maxDriveUploadSize {
+		return nil, fmt.Errorf("misskey drive upload: file exceeds %d byte limit", maxDriveUploadSize)
 	}
 
 	if err := writer.Close(); err != nil {

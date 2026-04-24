@@ -535,6 +535,21 @@ func (m *Manager) newReplySender(cfg ChannelConfig, channelType ChannelType) Str
 	}
 }
 
+// GetReplySender resolves the effective channel config for the given bot and
+// channel type, then returns a StreamReplySender that can open outbound streams.
+// This is used by the discuss-mode driver to deliver agent replies to the chat
+// platform without going through the inbound processor.
+func (m *Manager) GetReplySender(botID string, channelType ChannelType) (StreamReplySender, error) {
+	if m.service == nil {
+		return nil, errors.New("channel store not configured")
+	}
+	cfg, err := m.service.ResolveEffectiveConfig(context.Background(), botID, channelType)
+	if err != nil {
+		return nil, fmt.Errorf("resolve channel config: %w", err)
+	}
+	return m.newReplySender(cfg, channelType), nil
+}
+
 type managerReplySender struct {
 	manager      *Manager
 	sender       Sender

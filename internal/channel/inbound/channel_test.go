@@ -1727,7 +1727,7 @@ func TestMapStreamChunkToChannelEvents(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			events, _, err := mapStreamChunkToChannelEvents(conversation.StreamChunk([]byte(tt.chunk)))
+			events, _, err := MapStreamChunkToChannelEvents(conversation.StreamChunk([]byte(tt.chunk)))
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -1772,7 +1772,7 @@ func TestMapStreamChunkToChannelEvents_ToolCallFields(t *testing.T) {
 	t.Parallel()
 
 	chunk := `{"type":"tool_call_end","toolName":"calc","toolCallId":"c1","input":{"x":1},"result":{"sum":2}}`
-	events, _, err := mapStreamChunkToChannelEvents(conversation.StreamChunk([]byte(chunk)))
+	events, _, err := MapStreamChunkToChannelEvents(conversation.StreamChunk([]byte(chunk)))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1796,7 +1796,7 @@ func TestMapStreamChunkToChannelEvents_FinalMessages(t *testing.T) {
 	t.Parallel()
 
 	chunk := `{"type":"agent_end","messages":[{"role":"assistant","content":"done"}]}`
-	events, messages, err := mapStreamChunkToChannelEvents(conversation.StreamChunk([]byte(chunk)))
+	events, messages, err := MapStreamChunkToChannelEvents(conversation.StreamChunk([]byte(chunk)))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

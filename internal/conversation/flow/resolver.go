@@ -91,6 +91,7 @@ type Resolver struct {
 	bgManager         *background.Manager
 	outboundFn        func(ctx context.Context, botID, channelType, target, text string) error
 	bgNotifDeferred   sync.Map // key: "botID:sessionID" → wake arrived while a session turn was active
+	pipelineImageRefs sync.Map // key: sessionID → []pipelinepkg.ImageAttachmentRef (transient, consumed per resolve call)
 	sessionTurnMu     sync.Mutex
 	sessionTurnRefs   map[string]int // key: "botID:sessionID" → active turn refcount
 	timeout           time.Duration
@@ -252,7 +253,9 @@ type resolvedContext struct {
 }
 
 func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (resolvedContext, error) {
-	if strings.TrimSpace(req.Query) == "" && len(req.Attachments) == 0 {
+	isDiscuss := req.SessionType == "discuss"
+	// Discuss mode gets its context from the pipeline RC; no explicit query is needed.
+	if !isDiscuss && strings.TrimSpace(req.Query) == "" && len(req.Attachments) == 0 {
 		return resolvedContext{}, errors.New("query or attachments is required")
 	}
 	if strings.TrimSpace(req.BotID) == "" {
@@ -262,6 +265,10 @@ func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (r
 		return resolvedContext{}, errors.New("chat id is required")
 	}
 
+	sessionType := req.SessionType
+	if sessionType == "" {
+		sessionType = "chat"
+	}
 	runCfg, chatModel, provider, err := r.buildBaseRunConfig(ctx, baseRunConfigParams{
 		BotID:             req.BotID,
 		ChatID:            req.ChatID,
@@ -272,6 +279,7 @@ func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (r
 		ReplyTarget:       req.ReplyTarget,
 		ConversationType:  req.ConversationType,
 		SessionToken:      req.ChatToken,
+		SessionType:       sessionType,
 		Model:             req.Model,
 		Provider:          req.Provider,
 		ReasoningEffort:   req.ReasoningEffort,
@@ -402,7 +410,37 @@ func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (r
 	if !usePipeline {
 		runCfg.Query = headerifiedQuery
 	}
+	// Discuss mode: inject the late-binding prompt as the final user message
+	// so the agent receives timing/instruction context.
+	if isDiscuss && req.DiscussLateBindingPrompt != "" {
+		runCfg.Messages = append(runCfg.Messages, sdk.UserMessage(req.DiscussLateBindingPrompt))
+	}
 	runCfg.InlineImages = extractNativeImageParts(mergedAttachments)
+
+	// Inline pipeline-sourced images (from RC segments) when the model supports vision.
+	if usePipeline && runCfg.SupportsImageInput {
+		sessionID := strings.TrimSpace(req.SessionID)
+		if val, ok := r.pipelineImageRefs.LoadAndDelete(sessionID); ok {
+			if refs, ok := val.([]pipelinepkg.ImageAttachmentRef); ok && len(refs) > 0 {
+				imageParts := r.InlineImageAttachments(ctx, req.BotID, refs)
+				if len(imageParts) > 0 {
+					// Append image parts to the last user message in the SDK messages.
+					for i := len(runCfg.Messages) - 1; i >= 0; i-- {
+						if runCfg.Messages[i].Role == sdk.MessageRoleUser {
+							extra := make([]sdk.MessagePart, 0, len(imageParts))
+							for _, p := range imageParts {
+								if strings.TrimSpace(p.Image) != "" {
+									extra = append(extra, p)
+								}
+							}
+							runCfg.Messages[i].Content = append(runCfg.Messages[i].Content, extra...)
+							break
+						}
+					}
+				}
+			}
+		}
+	}
 
 	var injectedRecords *[]conversation.InjectedMessageRecord
 	if req.InjectCh != nil {

@@ -62,6 +62,11 @@ type outboundDedupEntry struct {
 	sentAt time.Time
 }
 
+// outboundRateLimitEntry tracks per-bot per-channel send timestamps for rate limiting.
+type outboundRateLimitEntry struct {
+	timestamps []time.Time
+}
+
 // Manager coordinates channel adapters, connection lifecycle, and message dispatch.
 // Connection lifecycle lives in connection.go, inbound dispatch in inbound.go,
 // and outbound pipeline in outbound.go.
@@ -88,6 +93,12 @@ type Manager struct {
 	// within a short time window. Key: sha256(channelType+target+text).
 	outboundDedupMu sync.Mutex
 	outboundDedup   map[string]outboundDedupEntry
+
+	// outboundRateLimit enforces a per-bot per-channel send rate limit to
+	// prevent discuss-mode feedback loops from causing API spam.
+	// Key: botID + ":" + channelType.
+	outboundRateMu    sync.Mutex
+	outboundRateLimit map[string]*outboundRateLimitEntry
 }
 
 // ManagerOption configures a Manager during construction.
@@ -132,17 +143,18 @@ func NewManager(log *slog.Logger, registry *Registry, service ManagerStore, proc
 		registry = NewRegistry()
 	}
 	m := &Manager{
-		registry:        registry,
-		service:         service,
-		processor:       processor,
-		refreshInterval: 5 * time.Minute,
-		connections:     map[string]*connectionEntry{},
-		connectionMeta:  map[string]ConnectionStatus{},
-		logger:          log.With(slog.String("component", "channel")),
-		middlewares:     []Middleware{},
-		inboundQueue:    make(chan inboundTask, 256),
-		inboundWorkers:  4,
-		outboundDedup:   map[string]outboundDedupEntry{},
+		registry:          registry,
+		service:           service,
+		processor:         processor,
+		refreshInterval:   5 * time.Minute,
+		connections:       map[string]*connectionEntry{},
+		connectionMeta:    map[string]ConnectionStatus{},
+		logger:            log.With(slog.String("component", "channel")),
+		middlewares:       []Middleware{},
+		inboundQueue:      make(chan inboundTask, 256),
+		inboundWorkers:    4,
+		outboundDedup:     map[string]outboundDedupEntry{},
+		outboundRateLimit: map[string]*outboundRateLimitEntry{},
 	}
 	for _, opt := range opts {
 		opt(m)
@@ -278,6 +290,17 @@ func (m *Manager) Send(ctx context.Context, botID string, channelType ChannelTyp
 	}
 	if req.Message.IsEmpty() {
 		return errors.New("message is required")
+	}
+
+	// Outbound rate limit: reject if the bot has exceeded the per-channel send rate.
+	if m.checkOutboundRateLimit(botID, channelType) {
+		if m.logger != nil {
+			m.logger.Warn("outbound rate limit: suppressed message",
+				slog.String("channel", channelType.String()),
+				slog.String("bot_id", botID),
+				slog.String("target", target))
+		}
+		return fmt.Errorf("outbound rate limit exceeded for %s/%s", botID, channelType)
 	}
 
 	// Outbound dedup: reject identical messages to the same target within a short window.
@@ -447,4 +470,45 @@ func (m *Manager) evictOutboundDedupLocked(now time.Time) {
 			delete(m.outboundDedup, key)
 		}
 	}
+}
+
+const (
+	// outboundRateLimitWindow is the sliding window for rate limiting.
+	outboundRateLimitWindow = 1 * time.Minute
+	// outboundRateLimitMax is the maximum number of messages per bot per channel
+	// within the rate limit window.
+	outboundRateLimitMax = 10
+)
+
+// checkOutboundRateLimit returns true if the bot has exceeded the per-channel
+// send rate limit. If not exceeded, it records the current send timestamp.
+func (m *Manager) checkOutboundRateLimit(botID string, channelType ChannelType) bool {
+	key := botID + ":" + channelType.String()
+	now := time.Now()
+
+	m.outboundRateMu.Lock()
+	defer m.outboundRateMu.Unlock()
+
+	entry, ok := m.outboundRateLimit[key]
+	if !ok {
+		entry = &outboundRateLimitEntry{}
+		m.outboundRateLimit[key] = entry
+	}
+
+	// Evict timestamps outside the sliding window.
+	cutoff := now.Add(-outboundRateLimitWindow)
+	valid := entry.timestamps[:0]
+	for _, ts := range entry.timestamps {
+		if ts.After(cutoff) {
+			valid = append(valid, ts)
+		}
+	}
+	entry.timestamps = valid
+
+	if len(entry.timestamps) >= outboundRateLimitMax {
+		return true // rate limit exceeded
+	}
+
+	entry.timestamps = append(entry.timestamps, now)
+	return false
 }
