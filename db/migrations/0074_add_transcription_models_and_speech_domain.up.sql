@@ -1,4 +1,4 @@
--- 0069_add_transcription_models_and_speech_domain
+-- 0074_add_transcription_models_and_speech_domain
 -- Expand the speech domain to support transcription models and shared speech providers.
 
 ALTER TABLE providers
@@ -13,6 +13,9 @@ ALTER TABLE providers
     'openai-codex',
     'github-copilot',
     'edge-speech',
+    'grok-speech',
+    'gemini-speech',
+    'openai-images',
     'openai-speech',
     'openrouter-speech',
     'elevenlabs-speech',

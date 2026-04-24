@@ -1,4 +1,4 @@
--- 0070_add_bot_transcription_model
+-- 0075_add_bot_transcription_model
 -- Remove bots.transcription_model_id.
 
 ALTER TABLE bots

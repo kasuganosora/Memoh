@@ -1,4 +1,4 @@
--- 0072_add_show_tool_calls_in_im (down)
+-- 0077_add_show_tool_calls_in_im (down)
 -- NOTE: After rolling back this migration, re-run `sqlc generate` to update the
 -- generated Go code in internal/db/sqlc/.
 

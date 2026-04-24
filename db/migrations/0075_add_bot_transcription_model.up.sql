@@ -1,4 +1,4 @@
--- 0070_add_bot_transcription_model
+-- 0075_add_bot_transcription_model
 -- Add bots.transcription_model_id for bot-level speech-to-text defaults.
 
 ALTER TABLE bots

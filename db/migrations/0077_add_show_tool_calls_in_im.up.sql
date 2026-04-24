@@ -1,4 +1,4 @@
--- 0072_add_show_tool_calls_in_im
+-- 0077_add_show_tool_calls_in_im
 -- Add show_tool_calls_in_im column to bots table to control whether tool call
 -- status messages are surfaced in IM channels.
 

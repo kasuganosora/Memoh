@@ -1,4 +1,4 @@
--- 0068_expand_speech_provider_client_types
+-- 0073_expand_speech_provider_client_types
 -- Allow all Twilight speech provider client_type values in unified providers table.
 
 ALTER TABLE IF EXISTS providers DROP CONSTRAINT IF EXISTS providers_client_type_check;
@@ -13,6 +13,9 @@ ALTER TABLE IF EXISTS providers
       'openai-codex',
       'github-copilot',
       'edge-speech',
+      'grok-speech',
+      'gemini-speech',
+      'openai-images',
       'openai-speech',
       'openrouter-speech',
       'elevenlabs-speech',

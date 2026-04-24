@@ -1,4 +1,4 @@
--- 0069_add_transcription_models_and_speech_domain
+-- 0074_add_transcription_models_and_speech_domain
 -- Revert transcription model type and speech-domain expansion.
 
 DELETE FROM models WHERE type = 'transcription';
@@ -22,6 +22,9 @@ ALTER TABLE providers
     'openai-codex',
     'github-copilot',
     'edge-speech',
+    'grok-speech',
+    'gemini-speech',
+    'openai-images',
     'openai-speech',
     'openrouter-speech',
     'elevenlabs-speech',

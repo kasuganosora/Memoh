@@ -1,14 +1,5 @@
--- 0071_split_transcription_providers
--- Remove dedicated transcription provider client types.
-
-DELETE FROM providers
-WHERE client_type IN (
-  'openai-transcription',
-  'openrouter-transcription',
-  'elevenlabs-transcription',
-  'deepgram-transcription',
-  'google-transcription'
-);
+-- 0076_split_transcription_providers
+-- Add dedicated transcription provider client types.
 
 ALTER TABLE providers DROP CONSTRAINT IF EXISTS providers_client_type_check;
 
@@ -21,13 +12,21 @@ ADD CONSTRAINT providers_client_type_check CHECK (client_type IN (
   'openai-codex',
   'github-copilot',
   'edge-speech',
+  'grok-speech',
+  'gemini-speech',
+  'openai-images',
   'openai-speech',
+  'openai-transcription',
   'openrouter-speech',
+  'openrouter-transcription',
   'elevenlabs-speech',
+  'elevenlabs-transcription',
   'deepgram-speech',
+  'deepgram-transcription',
   'minimax-speech',
   'volcengine-speech',
   'alibabacloud-speech',
   'microsoft-speech',
-  'google-speech'
+  'google-speech',
+  'google-transcription'
 ));
