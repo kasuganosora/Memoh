@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	sdk "github.com/memohai/twilight-ai/sdk"
@@ -83,6 +84,11 @@ type SessionContext struct {
 	Skills             map[string]SkillDetail
 	TimezoneLocation   *time.Location
 	Emitter            StreamEmitter
+
+	// SendCount tracks the number of send tool calls in the current agent turn.
+	// Shared via pointer so that the counter survives value copies of SessionContext.
+	// Nil means no limit is enforced.
+	SendCount *atomic.Int32
 }
 
 // IsSameConversation reports whether the given platform+target pair refers to

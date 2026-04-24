@@ -115,6 +115,7 @@ type discussSession struct {
 	stopCh          chan struct{}
 	cancel          context.CancelFunc
 	lastProcessedMs int64
+	lastAgentCallAt time.Time // tracks when the last agent call started for cooldown
 
 	// Smart timing state (nil when feature disabled).
 	chatTimingCfg    *chattiming.Config
@@ -320,6 +321,19 @@ func (d *DiscussDriver) handleReply(ctx context.Context, sess *discussSession, r
 	isMentioned := wasRecentlyMentioned(rc, sess.lastProcessedMs)
 	newMsgCount := countNewMessages(rc, sess.lastProcessedMs)
 
+	// Minimum cooldown between agent calls to prevent rapid repeated invocations.
+	// Mentions bypass the cooldown to ensure responsive behavior.
+	const minAgentCooldown = 15 * time.Second
+	if !isMentioned && !sess.lastAgentCallAt.IsZero() {
+		elapsed := time.Since(sess.lastAgentCallAt)
+		if elapsed < minAgentCooldown {
+			log.Debug("discuss: agent cooldown active, skipping",
+				slog.Duration("elapsed", elapsed),
+				slog.Duration("cooldown", minAgentCooldown))
+			return
+		}
+	}
+
 	// Smart timing: talk_value threshold check.
 	if sess.chatTimingCfg != nil && sess.chatTimingCfg.Enabled && !isMentioned {
 		threshold := sess.chatTimingCfg.TriggerThreshold()
@@ -405,6 +419,9 @@ func (d *DiscussDriver) handleReply(ctx context.Context, sess *discussSession, r
 
 func (d *DiscussDriver) handleReplyWithAgent(ctx context.Context, sess *discussSession, rc RenderedContext, log *slog.Logger, agent discussStreamer) {
 	cfg := sess.config
+
+	// Record the agent call time for cooldown enforcement.
+	sess.lastAgentCallAt = time.Now()
 
 	isMentioned := wasRecentlyMentioned(rc, sess.lastProcessedMs)
 
@@ -508,27 +525,35 @@ func (d *DiscussDriver) handleReplyWithAgent(ctx context.Context, sess *discussS
 		}
 
 		if wasInterrupted && sess.interrupt != nil && sess.interrupt.CanRetry() {
-			log.Info("chat timing: agent interrupted, waiting for quiet period before retry")
+			// If the interrupted round already produced output (the agent called
+			// send before being interrupted), do NOT retry — the message was
+			// already delivered and retrying would cause duplicates.
+			if len(finalMessages) > 0 {
+				log.Info("chat timing: agent interrupted but already produced output, skipping retry")
+				// Fall through to normal completion below.
+			} else {
+				log.Info("chat timing: agent interrupted, waiting for quiet period before retry")
 
-			// Debounce: wait for message quiet period.
-			if sess.debounce != nil {
-				sess.debounce.Reset()
-				_ = sess.debounce.Wait(ctx)
-			}
-
-			// Drain any new RCs that arrived during the interrupted agent call.
-			drained := true
-			for drained {
-				drained = false
-				select {
-				case newRC := <-sess.rcCh:
-					rc = newRC // Use updated context for retry.
-					drained = true
-				default:
+				// Debounce: wait for message quiet period.
+				if sess.debounce != nil {
+					sess.debounce.Reset()
+					_ = sess.debounce.Wait(ctx)
 				}
-			}
 
-			continue // Retry with fresh Bind().
+				// Drain any new RCs that arrived during the interrupted agent call.
+				drained := true
+				for drained {
+					drained = false
+					select {
+					case newRC := <-sess.rcCh:
+						rc = newRC // Use updated context for retry.
+						drained = true
+					default:
+					}
+				}
+
+				continue // Retry with fresh Bind().
+			}
 		}
 
 		// Normal completion or non-retriable abort — store results.
@@ -859,8 +884,8 @@ func buildLateBindingPrompt(isMentioned bool) string {
 	sb.WriteString("Current time: ")
 	sb.WriteString(now)
 	sb.WriteString("\n\n")
-	sb.WriteString("IMPORTANT: You MUST use the `send` tool to speak. Your text output is invisible to everyone — it is only internal monologue. ")
-	sb.WriteString("If you want to say something, you MUST call the `send` tool. Writing text without a tool call means absolute silence — no one will see it.")
+	sb.WriteString("Reminder: Your text output is internal monologue — invisible to everyone. To speak, call the `send` tool. ")
+	sb.WriteString("Call `send` at most ONCE per turn. Do NOT send multiple messages with similar content.")
 	sb.WriteString("\n\nException: For image generation requests, call the `generate_image` tool directly — do NOT describe images via `send`.")
 
 	if isMentioned {

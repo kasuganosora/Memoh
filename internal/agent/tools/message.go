@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 
@@ -82,7 +83,23 @@ func (p *MessageProvider) Tools(_ context.Context, session SessionContext) ([]sd
 	return tools, nil
 }
 
+// maxSendsPerTurn is the maximum number of send tool calls allowed per agent
+// turn in discuss mode. This prevents the LLM from spamming the channel with
+// many send calls in a single response.
+const maxSendsPerTurn int32 = 3
+
 func (p *MessageProvider) execSend(ctx context.Context, session SessionContext, args map[string]any) (any, error) {
+	// Per-turn send limit: prevent the LLM from calling send excessively in a single turn.
+	if session.SendCount != nil {
+		count := session.SendCount.Add(1)
+		if count > maxSendsPerTurn {
+			return map[string]any{
+				"ok":    false,
+				"error": fmt.Sprintf("send limit reached: maximum %d sends per turn", maxSendsPerTurn),
+			}, nil
+		}
+	}
+
 	result, err := p.exec.Send(ctx, toMessagingSession(session), args)
 	if err != nil {
 		return nil, err

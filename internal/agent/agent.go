@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	sdk "github.com/memohai/twilight-ai/sdk"
@@ -662,6 +663,11 @@ func (a *Agent) assembleTools(ctx context.Context, cfg RunConfig, emitter tools.
 		Skills:             skillsMap,
 		TimezoneLocation:   cfg.Identity.TimezoneLocation,
 		Emitter:            emitter,
+	}
+	// In discuss mode, enforce a per-turn send limit to prevent the LLM from
+	// spamming the channel with many send calls in a single agent response.
+	if cfg.SessionType == "discuss" {
+		session.SendCount = new(atomic.Int32)
 	}
 
 	var allTools []sdk.Tool

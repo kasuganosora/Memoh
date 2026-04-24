@@ -2,6 +2,8 @@ package channel
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -55,6 +57,11 @@ type ConnectionStatus struct {
 	UpdatedAt   time.Time   `json:"updated_at"`
 }
 
+// outboundDedupEntry tracks a recently sent message for dedup.
+type outboundDedupEntry struct {
+	sentAt time.Time
+}
+
 // Manager coordinates channel adapters, connection lifecycle, and message dispatch.
 // Connection lifecycle lives in connection.go, inbound dispatch in inbound.go,
 // and outbound pipeline in outbound.go.
@@ -76,6 +83,11 @@ type Manager struct {
 	refreshMu      sync.Mutex
 	connections    map[string]*connectionEntry
 	connectionMeta map[string]ConnectionStatus
+
+	// outboundDedup prevents sending identical messages to the same target
+	// within a short time window. Key: sha256(channelType+target+text).
+	outboundDedupMu sync.Mutex
+	outboundDedup   map[string]outboundDedupEntry
 }
 
 // ManagerOption configures a Manager during construction.
@@ -130,6 +142,7 @@ func NewManager(log *slog.Logger, registry *Registry, service ManagerStore, proc
 		middlewares:     []Middleware{},
 		inboundQueue:    make(chan inboundTask, 256),
 		inboundWorkers:  4,
+		outboundDedup:   map[string]outboundDedupEntry{},
 	}
 	for _, opt := range opts {
 		opt(m)
@@ -266,6 +279,18 @@ func (m *Manager) Send(ctx context.Context, botID string, channelType ChannelTyp
 	if req.Message.IsEmpty() {
 		return errors.New("message is required")
 	}
+
+	// Outbound dedup: reject identical messages to the same target within a short window.
+	if dup := m.checkOutboundDedup(channelType, target, req.Message); dup {
+		if m.logger != nil {
+			m.logger.Warn("outbound dedup: suppressed duplicate message",
+				slog.String("channel", channelType.String()),
+				slog.String("bot_id", botID),
+				slog.String("target", target))
+		}
+		return nil // silently suppress duplicate
+	}
+
 	if m.logger != nil {
 		m.logger.Info("send outbound", slog.String("channel", channelType.String()), slog.String("bot_id", botID))
 	}
@@ -373,4 +398,53 @@ func (m *Manager) ConnectionStatusesByBot(botID string) []ConnectionStatus {
 		return items[i].ChannelType < items[j].ChannelType
 	})
 	return items
+}
+
+const outboundDedupTTL = 30 * time.Second
+
+// checkOutboundDedup returns true if an identical message was recently sent to
+// the same target. If not a duplicate, it records the message for future checks.
+func (m *Manager) checkOutboundDedup(channelType ChannelType, target string, msg Message) bool {
+	text := msg.PlainText()
+	if text == "" && len(msg.Attachments) == 0 {
+		return false // nothing to dedup
+	}
+
+	h := sha256.New()
+	h.Write([]byte(channelType.String()))
+	h.Write([]byte{0})
+	h.Write([]byte(target))
+	h.Write([]byte{0})
+	h.Write([]byte(text))
+	for _, a := range msg.Attachments {
+		h.Write([]byte{0})
+		h.Write([]byte(a.URL))
+		h.Write([]byte(a.ContentHash))
+	}
+	key := hex.EncodeToString(h.Sum(nil))
+
+	now := time.Now()
+
+	m.outboundDedupMu.Lock()
+	defer m.outboundDedupMu.Unlock()
+
+	// Lazy eviction of stale entries.
+	m.evictOutboundDedupLocked(now)
+
+	if entry, ok := m.outboundDedup[key]; ok {
+		if now.Sub(entry.sentAt) < outboundDedupTTL {
+			return true // duplicate
+		}
+	}
+	m.outboundDedup[key] = outboundDedupEntry{sentAt: now}
+	return false
+}
+
+// evictOutboundDedupLocked removes expired entries. Must be called with outboundDedupMu held.
+func (m *Manager) evictOutboundDedupLocked(now time.Time) {
+	for key, entry := range m.outboundDedup {
+		if now.Sub(entry.sentAt) >= outboundDedupTTL {
+			delete(m.outboundDedup, key)
+		}
+	}
 }
