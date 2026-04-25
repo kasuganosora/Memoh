@@ -8,26 +8,26 @@ import (
 
 // Profile represents a learned user personality profile.
 type Profile struct {
-	UserID     string     `json:"user_id"`
-	BotID      string     `json:"bot_id"`
-	Traits     []Trait    `json:"traits"`
-	Facts      []Fact     `json:"facts"`
-	UpdatedAt  time.Time  `json:"updated_at"`
+	UserID    string    `json:"user_id"`
+	BotID     string    `json:"bot_id"`
+	Traits    []Trait   `json:"traits"`
+	Facts     []Fact    `json:"facts"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // Trait describes a personality characteristic.
 type Trait struct {
-	Name     string `json:"name"`     // e.g. "communication_style"
-	Value    string `json:"value"`    // e.g. "casual_direct"
-	Evidence string `json:"evidence"` // supporting evidence
+	Name     string  `json:"name"`     // e.g. "communication_style"
+	Value    string  `json:"value"`    // e.g. "casual_direct"
+	Evidence string  `json:"evidence"` // supporting evidence
 	Strength float64 `json:"strength"` // 0.0-1.0 confidence
 }
 
 // Fact is a discrete piece of information about a user.
 type Fact struct {
-	Category string `json:"category"` // e.g. "preference", "knowledge", "habit"
-	Content  string `json:"content"`
-	Source   string `json:"source"`    // which message or memory it came from
+	Category string  `json:"category"` // e.g. "preference", "knowledge", "habit"
+	Content  string  `json:"content"`
+	Source   string  `json:"source"`   // which message or memory it came from
 	Strength float64 `json:"strength"` // confidence
 }
 

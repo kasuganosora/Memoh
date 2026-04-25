@@ -22,9 +22,9 @@ type Learner struct {
 	llm      LLMService
 	exprRepo ExpressionRepository
 	jargRepo JargonRepository
-	pending  int32       // atomic — accumulated message count
-	buffer   []Message   // guarded by mu
-	mu       sync.Mutex  // prevents concurrent learning runs
+	pending  int32      // atomic — accumulated message count
+	buffer   []Message  // guarded by mu
+	mu       sync.Mutex // prevents concurrent learning runs
 	logger   *slog.Logger
 }
 
@@ -65,7 +65,11 @@ func (l *Learner) Accumulate(ctx context.Context, messages []Message) {
 	l.mu.Unlock()
 
 	// Atomic increment — no lock needed for counting
-	newPending := atomic.AddInt32(&l.pending, int32(len(messages)))
+	msgCount := len(messages)
+	if msgCount > 1<<31-1 {
+		msgCount = 1<<31 - 1 // max int32
+	}
+	newPending := atomic.AddInt32(&l.pending, int32(msgCount))
 
 	if newPending >= minMessagesToLearn && l.mu.TryLock() {
 		go func() {

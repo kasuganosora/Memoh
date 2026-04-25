@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -46,10 +47,10 @@ Rules:
 // polishes it into natural conversational language before delivery.
 type MessageProvider struct {
 	exec               *messaging.Executor
-	textGen            TextGenerator                    // LLM caller for replyer re-generation
-	replyerConfigCheck ReplyerConfigProvider            // per-request config lookup
-	replyerPrompt      string                           // system prompt for replyer LLM
-	exprSelector       *expression.Selector             // optional: injects learned style into replyer
+	textGen            TextGenerator         // LLM caller for replyer re-generation
+	replyerConfigCheck ReplyerConfigProvider // per-request config lookup
+	replyerPrompt      string                // system prompt for replyer LLM
+	exprSelector       *expression.Selector  // optional: injects learned style into replyer
 	logger             *slog.Logger
 }
 
@@ -343,7 +344,7 @@ func (p *MessageProvider) execReply(ctx context.Context, session SessionContext,
 // generateReply calls the replyer LLM to turn reasoning into conversational text.
 func (p *MessageProvider) generateReply(ctx context.Context, session SessionContext, reasoning string) (string, error) {
 	if p.textGen == nil {
-		return "", fmt.Errorf("replyer text generator not available")
+		return "", errors.New("replyer text generator not available")
 	}
 
 	// Prefer the injected prompt (from embedded prompts/), fall back to built-in constant.

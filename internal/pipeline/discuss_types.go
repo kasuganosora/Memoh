@@ -99,8 +99,8 @@ type DiscussTriggerDeps struct {
 	ChatTimingService        *chattiming.Service
 	SettingsService          settingsLoader
 	MemoryFormation          memoryFormationRunner
-	ExpressionAccumulator    ExpressionAccumulator    // optional: expression/jargon learning
-	ExpressionSelector       *expression.Selector     // optional: expression style selection for replyer
+	ExpressionAccumulator    ExpressionAccumulator // optional: expression/jargon learning
+	ExpressionSelector       *expression.Selector  // optional: expression style selection for replyer
 }
 
 // memoryFormationRunner runs the Extract -> Decide -> Apply pipeline on messages.

@@ -24,9 +24,9 @@ var (
 	scheduleTmpl        string
 	heartbeatTmpl       string
 
-	ReplyerPrompt        string
-	MemoryExtractPrompt  string
-	MemoryUpdatePrompt   string
+	ReplyerPrompt       string
+	MemoryExtractPrompt string
+	MemoryUpdatePrompt  string
 
 	includes map[string]string
 )

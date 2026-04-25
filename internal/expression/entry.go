@@ -10,8 +10,8 @@ type ExpressionEntry struct {
 	ID         string
 	BotID      string
 	SessionID  string
-	Situation  string    // e.g. "对某件事表示惊叹"
-	Style      string    // e.g. "我嘞个xxxx"
+	Situation  string // e.g. "对某件事表示惊叹"
+	Style      string // e.g. "我嘞个xxxx"
 	Count      int
 	Checked    bool
 	Rejected   bool

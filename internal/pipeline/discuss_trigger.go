@@ -654,7 +654,7 @@ func (d *DiscussTrigger) extractPassiveMemory(_ context.Context, sess *discussSe
 
 	// Expression/jargon learning — accumulate messages for offline extraction.
 	if d.deps.ExpressionAccumulator != nil {
-		d.deps.ExpressionAccumulator(d.parentCtx, sess.config.BotID, sess.config.SessionID, messages)
+		d.deps.ExpressionAccumulator(context.WithoutCancel(d.parentCtx), sess.config.BotID, sess.config.SessionID, messages)
 	}
 }
 
