@@ -17,14 +17,19 @@ ALTER TABLE providers
     'gemini-speech',
     'openai-images',
     'openai-speech',
+    'openai-transcription',
     'openrouter-speech',
+    'openrouter-transcription',
     'elevenlabs-speech',
+    'elevenlabs-transcription',
     'deepgram-speech',
+    'deepgram-transcription',
     'minimax-speech',
     'volcengine-speech',
     'alibabacloud-speech',
     'microsoft-speech',
-    'google-speech'
+    'google-speech',
+    'google-transcription'
   ));
 
 ALTER TABLE models
