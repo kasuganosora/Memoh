@@ -148,6 +148,14 @@ func (s *DefaultService) PullImage(ctx context.Context, ref string, opts *PullIm
 	if opts != nil && opts.OnProgress != nil {
 		stop := make(chan struct{})
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					s.logger.Error("image pull progress goroutine panicked",
+						slog.String("ref", ref),
+						slog.Any("panic", r),
+					)
+				}
+			}()
 			ticker := time.NewTicker(500 * time.Millisecond)
 			defer ticker.Stop()
 			cs := s.client.ContentStore()

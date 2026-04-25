@@ -18,6 +18,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
+	mathrandv2 "math/rand/v2"
 	"regexp"
 	"strconv"
 	"strings"
@@ -101,7 +102,18 @@ func (m *Manager) enqueueNotification(n Notification) {
 		slog.Bool("has_wake_func", wakeFn != nil),
 	)
 	if wakeFn != nil {
-		go wakeFn(n.BotID, n.SessionID)
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					m.logger.Error("wake function panicked",
+						slog.String("bot_id", n.BotID),
+						slog.String("session_id", n.SessionID),
+						slog.Any("panic", r),
+					)
+				}
+			}()
+			wakeFn(n.BotID, n.SessionID)
+		}()
 	}
 }
 
@@ -200,7 +212,15 @@ func shortRandHex(n int) string {
 	}
 	buf := make([]byte, n)
 	if _, err := rand.Read(buf); err != nil {
-		panic(fmt.Errorf("background: read random bytes: %w", err))
+		// crypto/rand.Read failures are extremely rare; fall back to a
+		// less-random but always-succeeding source for task IDs.
+		rngSuffix := mathrandv2.IntN(1 << (n * 8))
+		return hex.EncodeToString([]byte{
+			byte(rngSuffix >> 24),
+			byte(rngSuffix >> 16),
+			byte(rngSuffix >> 8),
+			byte(rngSuffix),
+		}[:n])
 	}
 	return hex.EncodeToString(buf)
 }

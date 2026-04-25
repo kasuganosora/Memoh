@@ -120,6 +120,7 @@ export const useChatStore = defineStore('chat', () => {
     } else {
       stopMessageEvents()
       stopWebSocket()
+      clearRefreshTimer()
       rejectPendingAssistantStream(new Error('Bot stream stopped'))
       messageEventsSince = ''
       sessions.value = []
@@ -352,6 +353,13 @@ export const useChatStore = defineStore('chat', () => {
     messageEventsStream.stop()
   }
 
+  function clearRefreshTimer() {
+    if (refreshTimer !== null) {
+      clearTimeout(refreshTimer)
+      refreshTimer = null
+    }
+  }
+
   function stopWebSocket() {
     if (activeWs) {
       activeWs.close()
@@ -430,8 +438,8 @@ export const useChatStore = defineStore('chat', () => {
     const sid = (sessionId.value ?? '').trim()
     if (!sid) return
     if (expectedSessionId?.trim() && expectedSessionId.trim() !== sid) return
-    if (refreshTimer) return
 
+    clearRefreshTimer()
     refreshTimer = setTimeout(() => {
       refreshTimer = null
       void refreshCurrentSession()

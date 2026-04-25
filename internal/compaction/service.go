@@ -37,6 +37,15 @@ func ShouldCompact(inputTokens, threshold int) bool {
 // TriggerCompaction runs compaction in the background.
 func (s *Service) TriggerCompaction(ctx context.Context, cfg TriggerConfig) {
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				s.logger.Error("compaction goroutine panicked",
+					slog.String("bot_id", cfg.BotID),
+					slog.String("session_id", cfg.SessionID),
+					slog.Any("panic", r),
+				)
+			}
+		}()
 		bgCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Minute)
 		defer cancel()
 		start := time.Now()

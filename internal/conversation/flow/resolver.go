@@ -446,6 +446,14 @@ func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (r
 	if req.InjectCh != nil {
 		agentInjectCh := make(chan agentpkg.InjectMessage, cap(req.InjectCh))
 		go func() {
+			defer func() {
+				if rec := recover(); rec != nil {
+					r.logger.Error("inject message forwarder panicked",
+						slog.String("bot_id", req.BotID),
+						slog.Any("panic", rec),
+					)
+				}
+			}()
 			for msg := range req.InjectCh {
 				agentMsg := agentpkg.InjectMessage{
 					Text:            msg.Text,
@@ -499,7 +507,17 @@ func (r *Resolver) Chat(ctx context.Context, req conversation.ChatRequest) (conv
 	}
 	req.Query = rc.query
 
-	go r.maybeGenerateSessionTitle(context.WithoutCancel(ctx), req, req.Query)
+	go func() {
+		defer func() {
+			if rec := recover(); rec != nil {
+				r.logger.Error("maybeGenerateSessionTitle panicked",
+					slog.String("bot_id", req.BotID),
+					slog.Any("panic", rec),
+				)
+			}
+		}()
+		r.maybeGenerateSessionTitle(context.WithoutCancel(ctx), req, req.Query)
+	}()
 
 	cfg := rc.runConfig
 	cfg = r.prepareRunConfig(ctx, cfg)
@@ -516,7 +534,17 @@ func (r *Resolver) Chat(ctx context.Context, req conversation.ChatRequest) (conv
 	}
 
 	if result.Usage != nil {
-		go r.maybeCompact(context.WithoutCancel(ctx), req, rc, result.Usage.InputTokens)
+		go func() {
+			defer func() {
+				if rec := recover(); rec != nil {
+					r.logger.Error("maybeCompact panicked",
+						slog.String("bot_id", req.BotID),
+						slog.Any("panic", rec),
+					)
+				}
+			}()
+			r.maybeCompact(context.WithoutCancel(ctx), req, rc, result.Usage.InputTokens)
+		}()
 	}
 
 	return conversation.ChatResponse{

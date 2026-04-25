@@ -1,4 +1,3 @@
-//nolint:gosec
 package tools
 
 import (
@@ -157,7 +156,7 @@ func (p *TranscriptionProvider) loadAudio(ctx context.Context, botID, pathValue,
 			p.logger.Warn("failed to close audio response body", slog.Any("error", closeErr))
 		}
 	}(resp.Body)
-	audio, err := io.ReadAll(resp.Body)
+	audio, err := io.ReadAll(resp.Body) //nolint:gosec // G109: bounded by validated upstream HTTP response
 	if err != nil {
 		return nil, "", "", err
 	}
@@ -186,7 +185,7 @@ func (p *TranscriptionProvider) loadAudioFromPath(ctx context.Context, botID, pa
 			p.logger.Warn("failed to close media reader", slog.Any("error", closeErr))
 		}
 	}(reader)
-	audio, err := io.ReadAll(reader)
+	audio, err := io.ReadAll(reader) //nolint:gosec // G109: bounded by media service upload limits
 	if err != nil {
 		return nil, "", "", err
 	}

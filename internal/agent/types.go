@@ -2,7 +2,6 @@ package agent
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -165,10 +164,10 @@ type ReasoningConfig struct {
 	Effort  string
 }
 
-func mustMarshal(v any) json.RawMessage {
+func safeMarshal(v any, fallback json.RawMessage) json.RawMessage {
 	data, err := json.Marshal(v)
 	if err != nil {
-		panic(fmt.Sprintf("mustMarshal: %v", err))
+		return fallback
 	}
 	return data
 }

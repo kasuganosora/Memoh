@@ -448,7 +448,7 @@ func (a *Agent) runStream(ctx context.Context, cfg RunConfig, ch chan<- StreamEv
 	usageJSON, _ := json.Marshal(totalUsage)
 
 	termEvent := StreamEvent{
-		Messages: mustMarshal(finalMessages),
+		Messages: safeMarshal(finalMessages, json.RawMessage(`[]`)),
 		Usage:    usageJSON,
 	}
 	if aborted {
