@@ -65,48 +65,52 @@
             </FormItem>
           </FormField>
 
-          <template v-if="needsCredentials">
+          <template
+            v-for="field in orderedProviderFields"
+            :key="field.key"
+          >
             <FormField
+              v-if="field.type === 'secret'"
               v-slot="{ componentField }"
-              name="api_key"
+              :name="field.key"
             >
               <FormItem>
                 <Label
                   class="mb-2"
-                  for="speech-provider-create-api-key"
+                  :for="`speech-provider-create-${field.key}`"
                 >
-                  {{ $t('provider.apiKey') }}
+                  {{ field.title || field.key }}
                 </Label>
                 <FormControl>
                   <Input
-                    id="speech-provider-create-api-key"
+                    :id="`speech-provider-create-${field.key}`"
                     type="text"
-                    :placeholder="$t('provider.apiKeyPlaceholder')"
+                    :placeholder="field.description || ''"
                     v-bind="componentField"
-                    :aria-label="$t('provider.apiKey')"
+                    :aria-label="field.title || field.key"
                   />
                 </FormControl>
               </FormItem>
             </FormField>
-
             <FormField
+              v-else-if="field.type === 'string' && !field.advanced"
               v-slot="{ componentField }"
-              name="base_url"
+              :name="field.key"
             >
               <FormItem>
                 <Label
                   class="mb-2"
-                  for="speech-provider-create-base-url"
+                  :for="`speech-provider-create-${field.key}`"
                 >
-                  {{ $t('provider.url') }}
+                  {{ field.title || field.key }}
                 </Label>
                 <FormControl>
                   <Input
-                    id="speech-provider-create-base-url"
+                    :id="`speech-provider-create-${field.key}`"
                     type="text"
-                    :placeholder="$t('provider.urlPlaceholder')"
+                    :placeholder="field.description || ''"
                     v-bind="componentField"
-                    :aria-label="$t('provider.url')"
+                    :aria-label="field.title || field.key"
                   />
                 </FormControl>
               </FormItem>
@@ -117,6 +121,7 @@
     </FormDialogShell>
   </section>
 </template>
+
 <script setup lang="ts">
 import {
   Button,
@@ -129,8 +134,8 @@ import {
 import { toTypedSchema } from '@vee-validate/zod'
 import z from 'zod'
 import { useForm } from 'vee-validate'
-import { useMutation, useQueryCache } from '@pinia/colada'
-import { postProviders } from '@memohai/sdk'
+import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
+import { postProviders, getSpeechProvidersMeta } from '@memohai/sdk'
 import type { ProvidersCreateRequest } from '@memohai/sdk'
 import { useI18n } from 'vue-i18n'
 import { Plus } from 'lucide-vue-next'
@@ -139,26 +144,47 @@ import { useDialogMutation } from '@/composables/useDialogMutation'
 import SearchableSelectPopover from '@/components/searchable-select-popover/index.vue'
 import { computed, watch } from 'vue'
 
+interface SpeechFieldSchema {
+  key: string
+  type: string
+  title?: string
+  description?: string
+  required?: boolean
+  advanced?: boolean
+  enum?: string[]
+  example?: unknown
+  order?: number
+}
+
+interface SpeechConfigSchema {
+  fields?: SpeechFieldSchema[]
+}
+
+interface SpeechProviderMeta {
+  provider: string
+  display_name: string
+  description?: string
+  config_schema?: SpeechConfigSchema
+}
+
 const open = defineModel<boolean>('open')
 const { t } = useI18n()
 const { run } = useDialogMutation()
 
-const SPEECH_CLIENT_TYPES = [
-  { value: 'edge-speech', label: 'Edge Speech', hint: 'Microsoft Edge Read Aloud TTS' },
-  { value: 'grok-speech', label: 'xAI Grok (Speech)', hint: 'xAI Grok text-to-speech API' },
-  { value: 'gemini-speech', label: 'Google Gemini (Speech)', hint: 'Gemini 3.1 Flash TTS' },
-] as const
-
-const CREDENTIAL_REQUIRED_TYPES = new Set(['grok-speech', 'gemini-speech'])
-
-const needsCredentials = computed(() => CREDENTIAL_REQUIRED_TYPES.has(form.values.provider_type))
+const { data: metaList } = useQuery({
+  key: () => ['speech-providers-meta'],
+  query: async () => {
+    const { data } = await getSpeechProvidersMeta({ throwOnError: true })
+    return (data ?? []) as SpeechProviderMeta[]
+  },
+})
 
 const providerTypeOptions = computed(() =>
-  SPEECH_CLIENT_TYPES.map((ct) => ({
-    value: ct.value,
-    label: ct.label,
-    description: ct.hint,
-    keywords: [ct.label, ct.hint],
+  (metaList.value ?? []).map((m) => ({
+    value: m.provider,
+    label: m.display_name,
+    description: m.description ?? '',
+    keywords: [m.display_name, m.description ?? '', m.provider],
   })),
 )
 
@@ -171,6 +197,15 @@ const { mutateAsync: createProviderMutation, isLoading } = useMutation({
     }
     if (typeof data.api_key === 'string' && data.api_key.trim() !== '') {
       config.api_key = data.api_key.trim()
+    }
+    if (typeof data.access_key === 'string' && data.access_key.trim() !== '') {
+      config.access_key = data.access_key.trim()
+    }
+    if (typeof data.secret_key === 'string' && data.secret_key.trim() !== '') {
+      config.secret_key = data.secret_key.trim()
+    }
+    if (typeof data.app_key === 'string' && data.app_key.trim() !== '') {
+      config.app_key = data.app_key.trim()
     }
     const payload = {
       name: data.name,
@@ -186,19 +221,26 @@ const { mutateAsync: createProviderMutation, isLoading } = useMutation({
   },
 })
 
+const currentMeta = computed(() => {
+  if (!metaList.value) return null
+  return metaList.value.find((m) => m.provider === form.values.provider_type) ?? null
+})
+
+const orderedProviderFields = computed(() => {
+  const fields = currentMeta.value?.config_schema?.fields ?? []
+  return [...fields]
+    .filter((f) => f.type === 'secret' || (f.type === 'string' && !f.advanced))
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+})
+
 const providerSchema = toTypedSchema(z.object({
   name: z.string().min(1),
   provider_type: z.string().min(1),
   api_key: z.string().optional(),
   base_url: z.string().optional(),
-}).superRefine((value, ctx) => {
-  if (CREDENTIAL_REQUIRED_TYPES.has(value.provider_type) && !value.api_key?.trim()) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['api_key'],
-      message: 'API key is required',
-    })
-  }
+  access_key: z.string().optional(),
+  secret_key: z.string().optional(),
+  app_key: z.string().optional(),
 }))
 
 const form = useForm({
@@ -207,21 +249,35 @@ const form = useForm({
     provider_type: 'edge-speech',
     api_key: '',
     base_url: '',
+    access_key: '',
+    secret_key: '',
+    app_key: '',
   },
 })
 
+// Auto-fill base_url from config_schema example when provider type changes
 watch(() => form.values.provider_type, (type) => {
-  if (type === 'grok-speech' && !form.values.base_url) {
-    form.setFieldValue('base_url', 'https://api.x.ai/v1')
-  }
-  if (type === 'gemini-speech' && !form.values.base_url) {
-    form.setFieldValue('base_url', 'https://generativelanguage.googleapis.com/v1beta')
-  }
-  if (type === 'edge-speech') {
-    form.setFieldValue('api_key', '')
-    form.setFieldValue('base_url', '')
+  // Reset all credential fields
+  form.setFieldValue('api_key', '')
+  form.setFieldValue('base_url', '')
+  form.setFieldValue('access_key', '')
+  form.setFieldValue('secret_key', '')
+  form.setFieldValue('app_key', '')
+
+  if (!metaList.value) return
+  const meta = metaList.value.find((m) => m.provider === type)
+  if (!meta?.config_schema?.fields) return
+
+  for (const field of meta.config_schema.fields) {
+    if (field.key === 'base_url' && field.example && !isSecretField(field)) {
+      form.setFieldValue('base_url', String(field.example))
+    }
   }
 })
+
+function isSecretField(field: SpeechFieldSchema) {
+  return field.type === 'secret'
+}
 
 const createProvider = form.handleSubmit(async (value) => {
   await run(
