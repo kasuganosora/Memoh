@@ -155,7 +155,7 @@ func (p *Provider) DoSynthesize(ctx context.Context, params sdk.SpeechParams) (*
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+p.apiKey)
 
-		resp, doErr := p.httpClient.Do(req)
+		resp, doErr := p.httpClient.Do(req) //nolint:gosec // SSRF via configurable provider base URL, intended behavior
 		if doErr != nil {
 			return nil, fmt.Errorf("grok tts: request failed: %w", doErr)
 		}

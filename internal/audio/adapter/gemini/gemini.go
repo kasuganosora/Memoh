@@ -19,10 +19,10 @@ import (
 )
 
 const (
-	defaultBaseURL   = "https://generativelanguage.googleapis.com/v1beta"
-	defaultModelID   = "gemini-3.1-flash-tts-preview"
-	defaultVoice     = "Kore"
-	contentTypeWAV   = "audio/wav"
+	defaultBaseURL = "https://generativelanguage.googleapis.com/v1beta"
+	defaultModelID = "gemini-3.1-flash-tts-preview"
+	defaultVoice   = "Kore"
+	contentTypeWAV = "audio/wav"
 )
 
 // Option configures the Gemini TTS provider.
@@ -93,8 +93,8 @@ type geminiInlineData struct {
 }
 
 type geminiGenConfig struct {
-	ResponseModalities []string          `json:"responseModalities"`
-	SpeechConfig       *geminiSpeechCfg  `json:"speechConfig,omitempty"`
+	ResponseModalities []string         `json:"responseModalities"`
+	SpeechConfig       *geminiSpeechCfg `json:"speechConfig,omitempty"`
 }
 
 type geminiSpeechCfg struct {
@@ -221,7 +221,7 @@ func (p *Provider) doRequest(ctx context.Context, endpoint string, payload []byt
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-goog-api-key", p.apiKey)
 
-	resp, err := p.httpClient.Do(req)
+	resp, err := p.httpClient.Do(req) //nolint:gosec // SSRF via configurable provider base URL, intended behavior
 	if err != nil {
 		return nil, false, fmt.Errorf("gemini tts: request failed: %w", err)
 	}
@@ -298,7 +298,7 @@ func pcmToWav(pcm []byte) []byte {
 	)
 	byteRate := sampleRate * numChannels * bitsPerSample / 8
 	blockAlign := numChannels * bitsPerSample / 8
-	dataSize := uint32(len(pcm))
+	dataSize := uint32(len(pcm)) //nolint:gosec // G115: PCM data bounded by HTTP response/API limits, safe on 64-bit
 
 	buf := new(bytes.Buffer)
 	// RIFF header
