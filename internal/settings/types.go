@@ -58,8 +58,18 @@ type UpsertRequest struct {
 	PersistFullToolResults *bool             `json:"persist_full_tool_results,omitempty"`
 	ShowToolCallsInIM      *bool             `json:"show_tool_calls_in_im,omitempty"`
 	ChatTiming             *ChatTimingConfig `json:"chat_timing"`
+	EnableReplyer          *bool             `json:"enable_replyer,omitempty"`
+	ReplyerModelID         string            `json:"replyer_model_id,omitempty"`
+	EnableExpressionLearn  *bool             `json:"enable_expression_learning,omitempty"`
+	EnableProfileTracking  *bool             `json:"enable_profile_tracking,omitempty"`
+	MemorySearchMode       *string           `json:"memory_search_mode,omitempty"`
 }
 
 type ChatTimingConfig struct {
-	IdleCompMinIdleBeforeCredit int64 `json:"idle_comp_min_idle_before_credit,omitempty"`
+	IdleCompMinIdleBeforeCredit int64  `json:"idle_comp_min_idle_before_credit,omitempty"`
+	EnableReplyer               bool   `json:"enable_replyer,omitempty"`
+	ReplyerModelID              string `json:"replyer_model_id,omitempty"`
+	EnableExpressionLearn       bool   `json:"enable_expression_learning,omitempty"`
+	EnableProfileTracking       bool   `json:"enable_profile_tracking,omitempty"`
+	MemorySearchMode            string `json:"memory_search_mode,omitempty"`
 }

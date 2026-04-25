@@ -55,30 +55,43 @@ func (r *Resolver) loadMemoryContextMessage(ctx context.Context, req conversatio
 	}
 }
 
-func (r *Resolver) storeMemory(ctx context.Context, req conversation.ChatRequest, messages []conversation.ModelMessage) {
+// storeMemoryWithProvider is a variant of storeMemory that accepts a pre-resolved
+// Provider. Used from storeRound where the provider is resolved once and shared
+// between memory storage and profile update.
+func (r *Resolver) storeMemoryWithProvider(ctx context.Context, req conversation.ChatRequest, messages []conversation.ModelMessage, p memprovider.Provider) {
 	botID := strings.TrimSpace(req.BotID)
-	if botID == "" {
-		return
-	}
-	memMsgs := toProviderMessages(messages)
-	if len(memMsgs) == 0 {
-		return
-	}
-
-	p := r.resolveMemoryProvider(ctx, botID)
-	if p == nil {
+	if botID == "" || p == nil {
 		return
 	}
 	_, tzLoc := r.resolveTimezone(ctx, req.BotID, req.UserID)
 	if err := p.OnAfterChat(ctx, memprovider.AfterChatRequest{
 		BotID:             botID,
-		Messages:          memMsgs,
+		Messages:          toProviderMessages(messages),
 		UserID:            strings.TrimSpace(req.UserID),
 		ChannelIdentityID: strings.TrimSpace(req.SourceChannelIdentityID),
 		DisplayName:       r.resolveDisplayName(ctx, req),
 		TimezoneLocation:  tzLoc,
 	}); err != nil {
 		r.logger.Error("memory provider OnAfterChat failed", slog.String("bot_id", botID), slog.Any("error", err))
+	}
+}
+
+// updateProfile runs asynchronous user profile extraction from the current round
+// of messages. It reuses the pre-resolved memory provider for search queries.
+func (r *Resolver) updateProfile(ctx context.Context, req conversation.ChatRequest, messages []conversation.ModelMessage, p memprovider.Provider) {
+	if r.profileService == nil || p == nil {
+		return
+	}
+	userID := strings.TrimSpace(req.UserID)
+	if userID == "" {
+		return
+	}
+	providerMsgs := toProviderMessages(messages)
+	if len(providerMsgs) == 0 {
+		return
+	}
+	if err := r.profileService.UpdateFromMessages(ctx, req.BotID, userID, providerMsgs); err != nil {
+		r.logger.Warn("profile update failed", slog.String("bot_id", req.BotID), slog.Any("error", err))
 	}
 }
 

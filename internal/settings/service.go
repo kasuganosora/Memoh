@@ -108,6 +108,21 @@ func (s *Service) UpsertBot(ctx context.Context, botID string, req UpsertRequest
 	if req.ChatTiming != nil {
 		current.ChatTiming = *req.ChatTiming
 	}
+	if req.EnableReplyer != nil {
+		current.ChatTiming.EnableReplyer = *req.EnableReplyer
+	}
+	if strings.TrimSpace(req.ReplyerModelID) != "" {
+		current.ChatTiming.ReplyerModelID = strings.TrimSpace(req.ReplyerModelID)
+	}
+	if req.EnableExpressionLearn != nil {
+		current.ChatTiming.EnableExpressionLearn = *req.EnableExpressionLearn
+	}
+	if req.EnableProfileTracking != nil {
+		current.ChatTiming.EnableProfileTracking = *req.EnableProfileTracking
+	}
+	if req.MemorySearchMode != nil {
+		current.ChatTiming.MemorySearchMode = *req.MemorySearchMode
+	}
 	timezoneValue := pgtype.Text{}
 	if req.Timezone != nil {
 		normalized, err := normalizeOptionalTimezone(*req.Timezone)

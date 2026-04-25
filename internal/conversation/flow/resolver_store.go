@@ -48,9 +48,32 @@ func (r *Resolver) storeRound(ctx context.Context, req conversation.ChatRequest,
 	}
 
 	r.storeMessages(ctx, req, filtered, modelID)
-	go r.storeMemory(context.WithoutCancel(ctx), req, filtered)
+
+	// Resolve memory provider once so both storeMemory and updateProfile share it.
+	p := r.resolveMemoryProvider(ctx, req.BotID)
+	go r.storeMemoryWithProvider(context.WithoutCancel(ctx), req, filtered, p)
+	go r.accumulateForLearning(context.WithoutCancel(ctx), filtered, req.BotID, req.SessionID)
+	go r.updateProfile(context.WithoutCancel(ctx), req, filtered, p)
 
 	return nil
+}
+
+func (r *Resolver) accumulateForLearning(ctx context.Context, messages []conversation.ModelMessage, botID, sessionID string) {
+	if r.expressionLearner == nil {
+		return
+	}
+	exprMsgs := make([]ExpressionMessage, 0, len(messages))
+	for _, msg := range messages {
+		role := msg.Role
+		content := msg.TextContent()
+		if role == "" || content == "" {
+			continue
+		}
+		exprMsgs = append(exprMsgs, ExpressionMessage{Role: role, Content: content})
+	}
+	if len(exprMsgs) > 0 {
+		r.expressionLearner(ctx, botID, sessionID, exprMsgs)
+	}
 }
 
 // isEmptyAssistantMessage returns true if an assistant message has no

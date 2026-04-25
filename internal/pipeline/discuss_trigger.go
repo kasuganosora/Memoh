@@ -610,7 +610,7 @@ func (d *DiscussTrigger) dispatchDiscussReactions(ctx context.Context, cfg Discu
 // ---------------------------------------------------------------------------
 
 func (d *DiscussTrigger) extractPassiveMemory(_ context.Context, sess *discussSession, rc RenderedContext, log *slog.Logger) {
-	if d.deps.MemoryFormation == nil {
+	if d.deps.MemoryFormation == nil && d.deps.ExpressionAccumulator == nil {
 		return
 	}
 	var messages []adapters.Message
@@ -635,18 +635,27 @@ func (d *DiscussTrigger) extractPassiveMemory(_ context.Context, sess *discussSe
 	if len(messages) == 0 {
 		return
 	}
-	req := adapters.AfterChatRequest{
-		BotID:             sess.config.BotID,
-		Messages:          messages,
-		ChannelIdentityID: sess.config.ChannelIdentityID,
-	}
-	go func(parentCtx context.Context) { //nolint:contextcheck // intentionally detached from request context
-		memCtx, memCancel := context.WithTimeout(parentCtx, 2*time.Minute)
-		defer memCancel()
-		if err := d.deps.MemoryFormation.OnAfterChat(memCtx, req); err != nil {
-			log.Warn("passive memory extraction failed", slog.Any("error", err))
+
+	// Passive memory formation.
+	if d.deps.MemoryFormation != nil {
+		req := adapters.AfterChatRequest{
+			BotID:             sess.config.BotID,
+			Messages:          messages,
+			ChannelIdentityID: sess.config.ChannelIdentityID,
 		}
-	}(d.parentCtx)
+		go func(parentCtx context.Context) { //nolint:contextcheck // intentionally detached from request context
+			memCtx, memCancel := context.WithTimeout(parentCtx, 2*time.Minute)
+			defer memCancel()
+			if err := d.deps.MemoryFormation.OnAfterChat(memCtx, req); err != nil {
+				log.Warn("passive memory extraction failed", slog.Any("error", err))
+			}
+		}(d.parentCtx)
+	}
+
+	// Expression/jargon learning — accumulate messages for offline extraction.
+	if d.deps.ExpressionAccumulator != nil {
+		d.deps.ExpressionAccumulator(d.parentCtx, sess.config.BotID, sess.config.SessionID, messages)
+	}
 }
 
 // ---------------------------------------------------------------------------

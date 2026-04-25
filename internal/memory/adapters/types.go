@@ -62,6 +62,25 @@ type SearchRequest struct {
 	Sources          []string       `json:"sources,omitempty"`
 	EmbeddingEnabled *bool          `json:"embedding_enabled,omitempty"`
 	NoStats          bool           `json:"no_stats,omitempty"`
+	Mode             SearchMode     `json:"mode,omitempty"`
+	TimeRange        *TimeRange     `json:"time_range,omitempty"`
+}
+
+// SearchMode controls the retrieval strategy.
+type SearchMode string
+
+const (
+	ModeSearch    SearchMode = "search"    // Default: factual semantic search
+	ModeTime      SearchMode = "time"      // Time-range bounded
+	ModeEpisode   SearchMode = "episode"   // Specific experience/event
+	ModeAggregate SearchMode = "aggregate" // Overall summary
+	ModeHybrid    SearchMode = "hybrid"    // Combined retrieval
+)
+
+// TimeRange constrains search to a time window.
+type TimeRange struct {
+	After  string `json:"after,omitempty"`  // ISO 8601
+	Before string `json:"before,omitempty"` // ISO 8601
 }
 
 type UpdateRequest struct {

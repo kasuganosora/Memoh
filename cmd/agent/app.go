@@ -11,7 +11,10 @@ import (
 	stdpath "path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
+
+	sdk "github.com/memohai/twilight-ai/sdk"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -54,6 +57,8 @@ import (
 	"github.com/memohai/memoh/internal/db"
 	dbsqlc "github.com/memohai/memoh/internal/db/sqlc"
 	emailpkg "github.com/memohai/memoh/internal/email"
+	"github.com/memohai/memoh/internal/expression"
+	expresspostgres "github.com/memohai/memoh/internal/expression/postgres"
 	emailgeneric "github.com/memohai/memoh/internal/email/adapters/generic"
 	emailgmail "github.com/memohai/memoh/internal/email/adapters/gmail"
 	emailmailgun "github.com/memohai/memoh/internal/email/adapters/mailgun"
@@ -72,6 +77,7 @@ import (
 	memmem0 "github.com/memohai/memoh/internal/memory/adapters/mem0"
 	memopenviking "github.com/memohai/memoh/internal/memory/adapters/openviking"
 	"github.com/memohai/memoh/internal/memory/memllm"
+	"github.com/memohai/memoh/internal/memory/profiles"
 	storefs "github.com/memohai/memoh/internal/memory/storefs"
 	"github.com/memohai/memoh/internal/message"
 	"github.com/memohai/memoh/internal/message/event"
@@ -193,7 +199,7 @@ func provideEventStore(log *slog.Logger, queries *dbsqlc.Queries) *pipelinepkg.E
 	return pipelinepkg.NewEventStore(log, queries)
 }
 
-func provideDiscussTrigger(log *slog.Logger, pipeline *pipelinepkg.Pipeline, eventStore *pipelinepkg.EventStore, chatTimingService *chattiming.Service, settingsService *settings.Service, defaultProvider *membuiltin.BuiltinProvider) *pipelinepkg.DiscussTrigger {
+func provideDiscussTrigger(log *slog.Logger, pipeline *pipelinepkg.Pipeline, eventStore *pipelinepkg.EventStore, chatTimingService *chattiming.Service, settingsService *settings.Service, defaultProvider *membuiltin.BuiltinProvider, pool *pgxpool.Pool, a *agentpkg.Agent, exprSelector *expression.Selector) *pipelinepkg.DiscussTrigger {
 	return pipelinepkg.NewDiscussTrigger(pipelinepkg.DiscussTriggerDeps{
 		Pipeline:                 pipeline,
 		EventStore:               eventStore,
@@ -203,6 +209,8 @@ func provideDiscussTrigger(log *slog.Logger, pipeline *pipelinepkg.Pipeline, eve
 		MemoryFormation:          defaultProvider,
 		StreamChunkParser:        inbound.MapStreamChunkToChannelEvents,
 		AssistantOutputExtractor: flow.ExtractAssistantOutputs,
+		ExpressionAccumulator:    makeExpressionAccumulator(pool, a, log),
+		ExpressionSelector:       exprSelector,
 	})
 }
 
@@ -260,7 +268,7 @@ func provideAgent(log *slog.Logger, manager *workspace.Manager) *agentpkg.Agent 
 	})
 }
 
-func injectToolProviders(a *agentpkg.Agent, msgService *message.DBService, providers []agenttools.ToolProvider) {
+func injectToolProviders(a *agentpkg.Agent, msgService *message.DBService, settingsService *settings.Service, exprSelector *expression.Selector, providers []agenttools.ToolProvider) {
 	a.SetToolProviders(providers)
 	for _, p := range providers {
 		if sp, ok := p.(*agenttools.SpawnProvider); ok {
@@ -269,10 +277,41 @@ func injectToolProviders(a *agentpkg.Agent, msgService *message.DBService, provi
 			sp.SetSystemPromptFunc(agentpkg.SpawnSystemPrompt)
 			sp.SetModelCreator(agentpkg.SpawnModelCreatorFunc())
 		}
+		if mp, ok := p.(*agenttools.MessageProvider); ok {
+			mp.SetTextGenerator(&agentTextGenerator{agent: a})
+			mp.SetReplyerConfigCheck(makeReplyerConfigCheck(settingsService))
+			mp.SetReplyerSystemPrompt(agentpkg.ReplyerPrompt)
+			mp.SetExpressionSelector(exprSelector)
+		}
 	}
 }
 
-func provideChatResolver(log *slog.Logger, a *agentpkg.Agent, modelsService *models.Service, queries *dbsqlc.Queries, chatService *conversation.Service, msgService *message.DBService, settingsService *settings.Service, accountService *accounts.Service, mediaService *media.Service, containerdHandler *handlers.ContainerdHandler, memoryRegistry *memprovider.Registry, channelStore *channel.Store, routeService *route.DBService, sessionService *sessionpkg.Service, eventHub *event.Hub, compactionService *compaction.Service, pipeline *pipelinepkg.Pipeline, rc *boot.RuntimeConfig, bgManager *background.Manager) *flow.Resolver {
+type agentTextGenerator struct {
+	agent *agentpkg.Agent
+}
+
+func (g *agentTextGenerator) GenerateText(ctx context.Context, systemPrompt string, messages []sdk.Message) (string, error) {
+	result, err := g.agent.Generate(ctx, agentpkg.RunConfig{
+		System:   systemPrompt,
+		Messages: messages,
+	})
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(result.Text), nil
+}
+
+func makeReplyerConfigCheck(settingsService *settings.Service) agenttools.ReplyerConfigProvider {
+	return func(ctx context.Context, botID string) (bool, string) {
+		s, err := settingsService.GetBot(ctx, botID)
+		if err != nil {
+			return false, ""
+		}
+		return s.ChatTiming.EnableReplyer, s.ChatTiming.ReplyerModelID
+	}
+}
+
+func provideChatResolver(log *slog.Logger, a *agentpkg.Agent, modelsService *models.Service, queries *dbsqlc.Queries, chatService *conversation.Service, msgService *message.DBService, settingsService *settings.Service, accountService *accounts.Service, mediaService *media.Service, containerdHandler *handlers.ContainerdHandler, memoryRegistry *memprovider.Registry, channelStore *channel.Store, routeService *route.DBService, sessionService *sessionpkg.Service, eventHub *event.Hub, compactionService *compaction.Service, pipeline *pipelinepkg.Pipeline, rc *boot.RuntimeConfig, bgManager *background.Manager, pool *pgxpool.Pool, defaultProvider *membuiltin.BuiltinProvider) *flow.Resolver {
 	resolver := flow.NewResolver(log, modelsService, queries, chatService, msgService, settingsService, accountService, a, rc.TimezoneLocation, 120*time.Second)
 	resolver.SetMemoryRegistry(memoryRegistry)
 	resolver.SetSkillLoader(&skillLoaderAdapter{handler: containerdHandler})
@@ -284,6 +323,8 @@ func provideChatResolver(log *slog.Logger, a *agentpkg.Agent, modelsService *mod
 	resolver.SetCompactionService(compactionService)
 	resolver.SetPipeline(pipeline)
 	resolver.SetBackgroundManager(bgManager)
+	resolver.SetExpressionLearner(makeExpressionLearner(pool, a, log))
+	resolver.SetProfileService(makeProfileService(defaultProvider, a, log))
 	bgManager.SetWakeFunc(func(botID, sessionID string) {
 		resolver.TriggerBackgroundNotification(context.Background(), botID, sessionID)
 	})
@@ -474,13 +515,17 @@ func provideBackgroundManager(log *slog.Logger) *background.Manager {
 	return background.New(log)
 }
 
-func provideToolProviders(log *slog.Logger, cfg config.Config, channelManager *channel.Manager, registry *channel.Registry, routeService *route.DBService, scheduleService *schedule.Service, settingsService *settings.Service, searchProviderService *searchproviders.Service, manager *workspace.Manager, mediaService *media.Service, memoryRegistry *memprovider.Registry, emailService *emailpkg.Service, emailManager *emailpkg.Manager, fedGateway *handlers.MCPFederationGateway, mcpConnService *mcp.ConnectionService, modelsService *models.Service, browserContextService *browsercontexts.Service, queries *dbsqlc.Queries, audioService *audiopkg.Service, sessionService *sessionpkg.Service, bgManager *background.Manager) []agenttools.ToolProvider {
+func provideToolProviders(log *slog.Logger, cfg config.Config, channelManager *channel.Manager, registry *channel.Registry, routeService *route.DBService, scheduleService *schedule.Service, settingsService *settings.Service, searchProviderService *searchproviders.Service, manager *workspace.Manager, mediaService *media.Service, memoryRegistry *memprovider.Registry, emailService *emailpkg.Service, emailManager *emailpkg.Manager, fedGateway *handlers.MCPFederationGateway, mcpConnService *mcp.ConnectionService, modelsService *models.Service, browserContextService *browsercontexts.Service, queries *dbsqlc.Queries, audioService *audiopkg.Service, sessionService *sessionpkg.Service, bgManager *background.Manager, pool *pgxpool.Pool) []agenttools.ToolProvider {
 	var assetResolver messaging.AssetResolver
 	if mediaService != nil {
 		assetResolver = &mediaAssetResolverAdapter{media: mediaService}
 	}
 	fedSource := mcpfederation.NewSource(log, fedGateway, mcpConnService)
-	return []agenttools.ToolProvider{
+
+	// Jargon tool — queries learned slang and abbreviations.
+	jargStore := expresspostgres.NewJargonStore(pool)
+
+	providers := []agenttools.ToolProvider{
 		agenttools.NewMessageProvider(log, channelManager, channelManager, registry, assetResolver),
 		agenttools.NewContactsProvider(log, routeService),
 		agenttools.NewScheduleProvider(log, scheduleService),
@@ -497,7 +542,9 @@ func provideToolProviders(log *slog.Logger, cfg config.Config, channelManager *c
 		agenttools.NewImageGenProvider(log, settingsService, modelsService, queries, manager, config.DefaultDataMount),
 		agenttools.NewFederationProvider(log, fedSource),
 		agenttools.NewHistoryProvider(log, sessionService, queries),
+		agenttools.NewJargonProvider(log, jargStore),
 	}
+	return providers
 }
 
 func provideMemoryHandler(log *slog.Logger, botService *bots.Service, accountService *accounts.Service, _ config.Config, manager *workspace.Manager, memoryRegistry *memprovider.Registry, settingsService *settings.Service, _ *handlers.ContainerdHandler) *handlers.MemoryHandler {
@@ -1144,4 +1191,142 @@ func (a *commandContainerFSAdapter) ReadFile(ctx context.Context, botID, filePat
 		return "", err
 	}
 	return resp.GetContent(), nil
+}
+
+// ---------------------------------------------------------------------------
+// Expression selector — shared between chat and discuss paths for style injection
+// into the replyer. Created once at startup; uses the DB pool for expression lookups.
+// ---------------------------------------------------------------------------
+
+// provideExpressionSelector creates a shared ExpressionSelector backed by
+// the PostgreSQL expression store. The embedder is nil by default (keyword
+// fallback); a real embedder can be injected later via fx.Decorate.
+func provideExpressionSelector(pool *pgxpool.Pool, log *slog.Logger) *expression.Selector {
+	store := expresspostgres.NewExpressionStore(pool, log)
+	return expression.NewSelector(store, nil, log)
+}
+
+// ---------------------------------------------------------------------------
+// Expression learner manager — per-bot learners for offline expression/jargon
+// extraction. Shared between the discuss trigger and the chat resolver.
+// ---------------------------------------------------------------------------
+
+// expressionLearnerManager manages per-bot expression learners.
+type expressionLearnerManager struct {
+	mu       sync.Mutex
+	learners map[string]*expression.Learner
+	pool     *pgxpool.Pool
+	llm      expression.LLMService
+	logger   *slog.Logger
+}
+
+func newExpressionLearnerManager(pool *pgxpool.Pool, llm expression.LLMService, logger *slog.Logger) *expressionLearnerManager {
+	return &expressionLearnerManager{
+		learners: make(map[string]*expression.Learner),
+		pool:     pool,
+		llm:      llm,
+		logger:   logger,
+	}
+}
+
+func (m *expressionLearnerManager) getOrCreate(botID string) *expression.Learner {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if l, ok := m.learners[botID]; ok {
+		return l
+	}
+	exprStore := expresspostgres.NewExpressionStore(m.pool, m.logger)
+	jargStore := expresspostgres.NewJargonStore(m.pool)
+	l := expression.NewLearner(botID, m.llm, exprStore, jargStore, m.logger)
+	m.learners[botID] = l
+	return l
+}
+
+// expressionLLMAdapter adapts agentpkg.Agent to expression.LLMService.
+type expressionLLMAdapter struct {
+	agent *agentpkg.Agent
+}
+
+func (a *expressionLLMAdapter) GenerateText(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+	result, err := a.agent.Generate(ctx, agentpkg.RunConfig{
+		System:   systemPrompt,
+		Messages: []sdk.Message{sdk.UserMessage(userMessage)},
+	})
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(result.Text), nil
+}
+
+// makeExpressionAccumulator returns a pipeline.ExpressionAccumulator backed by
+// per-bot expression learners. Returns nil when pool or agent is nil (feature disabled).
+func makeExpressionAccumulator(pool *pgxpool.Pool, a *agentpkg.Agent, log *slog.Logger) pipelinepkg.ExpressionAccumulator {
+	if pool == nil || a == nil {
+		return nil
+	}
+	mgr := newExpressionLearnerManager(pool, &expressionLLMAdapter{agent: a}, log)
+	return func(ctx context.Context, botID, sessionID string, messages []memprovider.Message) {
+		learner := mgr.getOrCreate(botID)
+		exprMsgs := make([]expression.Message, 0, len(messages))
+		for _, msg := range messages {
+			if msg.Role == "user" && strings.TrimSpace(msg.Content) != "" {
+				exprMsgs = append(exprMsgs, expression.Message{Role: msg.Role, Content: msg.Content})
+			}
+		}
+		if len(exprMsgs) > 0 {
+			learner.Accumulate(ctx, exprMsgs)
+		}
+	}
+}
+
+// makeExpressionLearner returns a flow.ExpressionLearner backed by per-bot
+// expression learners. Returns nil when pool or agent is nil (feature disabled).
+func makeExpressionLearner(pool *pgxpool.Pool, a *agentpkg.Agent, log *slog.Logger) flow.ExpressionLearner {
+	if pool == nil || a == nil {
+		return nil
+	}
+	mgr := newExpressionLearnerManager(pool, &expressionLLMAdapter{agent: a}, log)
+	return func(ctx context.Context, botID, sessionID string, messages []flow.ExpressionMessage) {
+		learner := mgr.getOrCreate(botID)
+		exprMsgs := make([]expression.Message, 0, len(messages))
+		for _, msg := range messages {
+			if strings.TrimSpace(msg.Content) != "" {
+				exprMsgs = append(exprMsgs, expression.Message{Role: msg.Role, Content: msg.Content})
+			}
+		}
+		if len(exprMsgs) > 0 {
+			learner.Accumulate(ctx, exprMsgs)
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Profile service wiring
+// ---------------------------------------------------------------------------
+
+// profileLLMAdapter adapts agentpkg.Agent to profiles.ProfileLLM.
+type profileLLMAdapter struct {
+	agent *agentpkg.Agent
+}
+
+func (a *profileLLMAdapter) GenerateText(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+	result, err := a.agent.Generate(ctx, agentpkg.RunConfig{
+		System:   systemPrompt,
+		Messages: []sdk.Message{sdk.UserMessage(userMessage)},
+	})
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(result.Text), nil
+}
+
+// makeProfileService creates a profile service backed by the builtin memory provider
+// and the agent for LLM aggregation. Returns nil if required deps are missing.
+func makeProfileService(defaultProvider *membuiltin.BuiltinProvider, a *agentpkg.Agent, log *slog.Logger) flow.ProfileService {
+	if defaultProvider == nil || a == nil {
+		return nil
+	}
+	cache := profiles.NewMemCache()
+	llm := &profileLLMAdapter{agent: a}
+	return profiles.NewService(defaultProvider, llm, cache, log)
 }

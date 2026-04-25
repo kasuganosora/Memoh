@@ -24,8 +24,9 @@ var (
 	scheduleTmpl        string
 	heartbeatTmpl       string
 
-	MemoryExtractPrompt string
-	MemoryUpdatePrompt  string
+	ReplyerPrompt        string
+	MemoryExtractPrompt  string
+	MemoryUpdatePrompt   string
 
 	includes map[string]string
 )
@@ -40,6 +41,7 @@ func init() {
 	systemSubagentTmpl = mustReadPrompt("prompts/system_subagent.md")
 	scheduleTmpl = mustReadPrompt("prompts/schedule.md")
 	heartbeatTmpl = mustReadPrompt("prompts/heartbeat.md")
+	ReplyerPrompt = readOptionalPrompt("prompts/system_replyer.md")
 	MemoryExtractPrompt = mustReadPrompt("prompts/memory_extract.md")
 	MemoryUpdatePrompt = mustReadPrompt("prompts/memory_update.md")
 
@@ -63,6 +65,17 @@ func mustReadPrompt(name string) string {
 	data, err := promptsFS.ReadFile(name)
 	if err != nil {
 		panic(fmt.Sprintf("failed to read embedded prompt %s: %v", name, err))
+	}
+	return string(data)
+}
+
+// readOptionalPrompt is like mustReadPrompt but returns a built-in
+// fallback instead of panicking when the file is missing. Used for
+// prompts that can be added incrementally (e.g. replyer).
+func readOptionalPrompt(name string) string {
+	data, err := promptsFS.ReadFile(name)
+	if err != nil {
+		return ""
 	}
 	return string(data)
 }

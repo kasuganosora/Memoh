@@ -10,6 +10,7 @@ import (
 	"github.com/memohai/memoh/internal/channel"
 	"github.com/memohai/memoh/internal/chattiming"
 	"github.com/memohai/memoh/internal/conversation"
+	"github.com/memohai/memoh/internal/expression"
 	"github.com/memohai/memoh/internal/memory/adapters"
 )
 
@@ -98,6 +99,8 @@ type DiscussTriggerDeps struct {
 	ChatTimingService        *chattiming.Service
 	SettingsService          settingsLoader
 	MemoryFormation          memoryFormationRunner
+	ExpressionAccumulator    ExpressionAccumulator    // optional: expression/jargon learning
+	ExpressionSelector       *expression.Selector     // optional: expression style selection for replyer
 }
 
 // memoryFormationRunner runs the Extract -> Decide -> Apply pipeline on messages.
@@ -108,6 +111,16 @@ type memoryFormationRunner interface {
 // settingsLoader is a minimal interface for loading bot settings.
 type settingsLoader interface {
 	GetBotChatTiming(ctx context.Context, botID string) (json.RawMessage, error)
+}
+
+// ExpressionAccumulator accumulates chat messages for offline expression/jargon learning.
+// Called from extractPassiveMemory when the bot decides not to reply.
+type ExpressionAccumulator func(ctx context.Context, botID, sessionID string, messages []adapters.Message)
+
+// ExpressionMessage is a minimal message representation for expression learning.
+type ExpressionMessage struct {
+	Role    string
+	Content string
 }
 
 // DiscussSessionConfig holds per-session configuration for discuss mode.

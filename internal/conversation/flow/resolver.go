@@ -96,7 +96,29 @@ type Resolver struct {
 	sessionTurnRefs   map[string]int // key: "botID:sessionID" → active turn refcount
 	timeout           time.Duration
 	clockLocation     *time.Location
-	logger            *slog.Logger
+
+	// expressionLearner accumulates chat messages for offline expression learning.
+	expressionLearner ExpressionLearner
+
+	// profileService builds and maintains user personality profiles.
+	profileService ProfileService
+
+	logger *slog.Logger
+}
+
+// ExpressionMessage is a minimal message representation for expression learning.
+type ExpressionMessage struct {
+	Role    string
+	Content string
+}
+
+// ExpressionLearner is a callback that accumulates messages for offline expression learning.
+// botID identifies which bot the messages belong to.
+type ExpressionLearner func(ctx context.Context, botID, sessionID string, messages []ExpressionMessage)
+
+// ProfileService builds and maintains user personality profiles.
+type ProfileService interface {
+	UpdateFromMessages(ctx context.Context, botID, userID string, messages []memprovider.Message) error
 }
 
 // NewResolver creates a Resolver that uses the internal agent directly.
@@ -184,6 +206,18 @@ func (r *Resolver) SetCompactionService(s *compaction.Service) {
 // background exec notifications are injected into the agent loop.
 func (r *Resolver) SetBackgroundManager(m *background.Manager) {
 	r.bgManager = m
+}
+
+// SetExpressionLearner injects an optional expression learning accumulator.
+// When non-nil, the learner receives user/assistant messages after each round
+// for offline expression/jargon extraction.
+func (r *Resolver) SetExpressionLearner(l ExpressionLearner) {
+	r.expressionLearner = l
+}
+
+// SetProfileService injects an optional profile service for user personality tracking.
+func (r *Resolver) SetProfileService(s ProfileService) {
+	r.profileService = s
 }
 
 // SetOutboundFn configures the function used to deliver background notification
