@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"path/filepath"
+	"path"
 	"strings"
 
 	"github.com/memohai/memoh/internal/workspace/bridge"
@@ -36,7 +36,7 @@ func (p *Provider) Put(ctx context.Context, key string, reader io.Reader) error 
 	if err != nil {
 		return fmt.Errorf("get client: %w", err)
 	}
-	containerPath := filepath.Join(containerMediaRoot, sub)
+	containerPath := path.Join(containerMediaRoot, sub)
 	if _, err := client.WriteRaw(ctx, containerPath, reader); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
@@ -53,7 +53,7 @@ func (p *Provider) Open(ctx context.Context, key string) (io.ReadCloser, error) 
 	if err != nil {
 		return nil, fmt.Errorf("get client: %w", err)
 	}
-	containerPath := filepath.Join(containerMediaRoot, sub)
+	containerPath := path.Join(containerMediaRoot, sub)
 	return client.ReadRaw(ctx, containerPath)
 }
 
@@ -67,14 +67,14 @@ func (p *Provider) Delete(ctx context.Context, key string) error {
 	if err != nil {
 		return fmt.Errorf("get client: %w", err)
 	}
-	containerPath := filepath.Join(containerMediaRoot, sub)
+	containerPath := path.Join(containerMediaRoot, sub)
 	return client.DeleteFile(ctx, containerPath, false)
 }
 
 // AccessPath returns the container-internal path for a storage key.
 func (*Provider) AccessPath(key string) string {
 	_, sub := splitRoutingKey(key)
-	return filepath.Join("/data", containerMediaRoot, sub)
+	return path.Join("/data", containerMediaRoot, sub)
 }
 
 // OpenContainerFile opens a file from a bot's /data/ directory.
@@ -104,8 +104,8 @@ func (p *Provider) ListPrefix(ctx context.Context, prefix string) ([]string, err
 	if err != nil {
 		return nil, nil
 	}
-	dir := filepath.Dir(filepath.Join(containerMediaRoot, sub))
-	base := filepath.Base(sub)
+	dir := path.Dir(path.Join(containerMediaRoot, sub))
+	base := path.Base(sub)
 	entries, err := client.ListDirAll(ctx, dir, false)
 	if err != nil {
 		return nil, nil
@@ -117,19 +117,19 @@ func (p *Provider) ListPrefix(ctx context.Context, prefix string) ([]string, err
 		}
 		name := e.GetPath()
 		if strings.HasPrefix(name, base) {
-			storageKey := filepath.Join(filepath.Dir(sub), name)
-			keys = append(keys, filepath.Join(botID, storageKey))
+			storageKey := path.Join(path.Dir(sub), name)
+			keys = append(keys, path.Join(botID, storageKey))
 		}
 	}
 	return keys, nil
 }
 
 func parseRoutingKey(key string) (botID, storageKey string, err error) {
-	clean := filepath.Clean(key)
-	if filepath.IsAbs(clean) {
+	clean := path.Clean(key)
+	if path.IsAbs(clean) {
 		return "", "", fmt.Errorf("absolute key is forbidden: %s", key)
 	}
-	if strings.HasPrefix(clean, ".."+string(filepath.Separator)) || clean == ".." {
+	if strings.HasPrefix(clean, "../") || clean == ".." {
 		return "", "", fmt.Errorf("path traversal is forbidden: %s", key)
 	}
 	botID, sub := splitRoutingKey(clean)
@@ -140,7 +140,7 @@ func parseRoutingKey(key string) (botID, storageKey string, err error) {
 }
 
 func splitRoutingKey(key string) (botID, storageKey string) {
-	idx := strings.IndexByte(key, filepath.Separator)
+	idx := strings.IndexByte(key, '/')
 	if idx <= 0 {
 		return "", key
 	}
