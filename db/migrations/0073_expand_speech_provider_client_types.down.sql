@@ -4,13 +4,19 @@
 DELETE FROM providers
 WHERE client_type IN (
   'openai-speech',
+  'openai-transcription',
   'openrouter-speech',
+  'openrouter-transcription',
   'elevenlabs-speech',
+  'elevenlabs-transcription',
   'deepgram-speech',
+  'deepgram-transcription',
   'minimax-speech',
   'volcengine-speech',
   'alibabacloud-speech',
-  'microsoft-speech'
+  'microsoft-speech',
+  'google-speech',
+  'google-transcription'
 );
 
 ALTER TABLE IF EXISTS providers DROP CONSTRAINT IF EXISTS providers_client_type_check;
