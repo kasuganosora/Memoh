@@ -22,6 +22,8 @@ import (
 	volcenginespeech "github.com/memohai/twilight-ai/provider/volcengine/speech"
 	sdk "github.com/memohai/twilight-ai/sdk"
 
+	geminisp "github.com/memohai/memoh/internal/audio/adapter/gemini"
+	groksp "github.com/memohai/memoh/internal/audio/adapter/grok"
 	"github.com/memohai/memoh/internal/models"
 )
 
@@ -379,6 +381,54 @@ func defaultProviderDefinitions() []ProviderDefinition {
 			Order: 20,
 		},
 		{
+			ClientType:  models.ClientTypeGrokSpeech,
+			DisplayName: "Grok Speech",
+			Icon:        "xai",
+			Description: "xAI Grok text-to-speech",
+			ConfigSchema: ConfigSchema{Fields: []FieldSchema{
+				secretField("api_key", "API Key", "xAI API key", true, 10),
+				stringField("base_url", "Base URL", "Override the API base URL", false, "https://api.x.ai/v1", 20),
+			}},
+			DefaultModel: "grok-tts",
+			SupportsList: false,
+			Models: []ModelInfo{{
+				ID:          "grok-tts",
+				Name:        "Grok TTS",
+				Description: "xAI Grok text-to-speech with expressive voices",
+				ConfigSchema: ConfigSchema{Fields: []FieldSchema{
+					enumField("voice", "Voice", "Grok voice ID", false, []string{"eve", "ara", "rex", "sal", "leo"}, 10),
+					enumField("language", "Language", "BCP-47 language code", false, []string{"en", "ar-EG", "ar-SA", "ar-AE", "bn", "zh", "fr", "de", "hi", "id", "it", "ja", "ko", "pt-BR", "pt-PT", "ru", "es-MX", "es-ES", "tr", "vi"}, 20),
+					enumField("response_format", "Response Format", "Audio format", false, []string{"mp3", "wav", "pcm", "mulaw", "alaw"}, 30),
+				}},
+				Capabilities: ModelCapabilities{
+					ConfigSchema: ConfigSchema{Fields: []FieldSchema{
+						enumField("voice", "Voice", "Grok voice ID", false, []string{"eve", "ara", "rex", "sal", "leo"}, 10),
+						enumField("language", "Language", "BCP-47 language code", false, []string{"en", "ar-EG", "ar-SA", "ar-AE", "bn", "zh", "fr", "de", "hi", "id", "it", "ja", "ko", "pt-BR", "pt-PT", "ru", "es-MX", "es-ES", "tr", "vi"}, 20),
+						enumField("response_format", "Response Format", "Audio format", false, []string{"mp3", "wav", "pcm", "mulaw", "alaw"}, 30),
+					}},
+					Voices: []VoiceInfo{
+						{ID: "eve", Name: "Eve"},
+						{ID: "ara", Name: "Ara"},
+						{ID: "rex", Name: "Rex"},
+						{ID: "sal", Name: "Sal"},
+						{ID: "leo", Name: "Leo"},
+					},
+					Formats: []string{"mp3", "wav", "pcm", "mulaw", "alaw"},
+				},
+			}},
+			Factory: func(config map[string]any) (sdk.SpeechProvider, error) {
+				opts := []groksp.Option{}
+				if v := configString(config, "api_key"); v != "" {
+					opts = append(opts, groksp.WithAPIKey(v))
+				}
+				if v := configString(config, "base_url"); v != "" {
+					opts = append(opts, groksp.WithBaseURL(v))
+				}
+				return groksp.New(opts...), nil
+			},
+			Order: 25,
+		},
+		{
 			ClientType:  models.ClientTypeOpenRouterSpeech,
 			DisplayName: "OpenRouter Speech",
 			Icon:        "openrouter",
@@ -559,6 +609,72 @@ func defaultProviderDefinitions() []ProviderDefinition {
 				return googletranscription.New(opts...), nil
 			},
 			Order: 45,
+		},
+		{
+			ClientType:  models.ClientTypeGeminiSpeech,
+			DisplayName: "Gemini Speech",
+			Icon:        "gemini-color",
+			Description: "Google Gemini text-to-speech",
+			ConfigSchema: ConfigSchema{Fields: []FieldSchema{
+				secretField("api_key", "API Key", "Google API key", true, 10),
+				stringField("base_url", "Base URL", "Override the API base URL", false, "https://generativelanguage.googleapis.com/v1beta", 20),
+			}},
+			DefaultModel: "gemini-3.1-flash-tts-preview",
+			SupportsList: false,
+			Models: []ModelInfo{{
+				ID:          "gemini-3.1-flash-tts-preview",
+				Name:        "Gemini 3.1 Flash TTS",
+				Description: "Google Gemini text-to-speech with 30 expressive voices",
+				ConfigSchema: ConfigSchema{Fields: []FieldSchema{
+					enumField("voice", "Voice", "Gemini voice name", false, []string{
+						"Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Aoede",
+						"Callirrhoe", "Autonoe", "Enceladus", "Iapetus", "Umbriel", "Algieba",
+						"Despina", "Erinome", "Algenib", "Rasalgethi", "Laomedeia", "Achernar",
+						"Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi",
+						"Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat",
+					}, 10),
+				}},
+				Capabilities: ModelCapabilities{
+					ConfigSchema: ConfigSchema{Fields: []FieldSchema{
+						enumField("voice", "Voice", "Gemini voice name", false, []string{
+							"Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Aoede",
+							"Callirrhoe", "Autonoe", "Enceladus", "Iapetus", "Umbriel", "Algieba",
+							"Despina", "Erinome", "Algenib", "Rasalgethi", "Laomedeia", "Achernar",
+							"Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi",
+							"Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat",
+						}, 10),
+					}},
+					Voices: []VoiceInfo{
+						{ID: "Zephyr", Name: "Zephyr"}, {ID: "Puck", Name: "Puck"},
+						{ID: "Charon", Name: "Charon"}, {ID: "Kore", Name: "Kore"},
+						{ID: "Fenrir", Name: "Fenrir"}, {ID: "Leda", Name: "Leda"},
+						{ID: "Orus", Name: "Orus"}, {ID: "Aoede", Name: "Aoede"},
+						{ID: "Callirrhoe", Name: "Callirrhoe"}, {ID: "Autonoe", Name: "Autonoe"},
+						{ID: "Enceladus", Name: "Enceladus"}, {ID: "Iapetus", Name: "Iapetus"},
+						{ID: "Umbriel", Name: "Umbriel"}, {ID: "Algieba", Name: "Algieba"},
+						{ID: "Despina", Name: "Despina"}, {ID: "Erinome", Name: "Erinome"},
+						{ID: "Algenib", Name: "Algenib"}, {ID: "Rasalgethi", Name: "Rasalgethi"},
+						{ID: "Laomedeia", Name: "Laomedeia"}, {ID: "Achernar", Name: "Achernar"},
+						{ID: "Alnilam", Name: "Alnilam"}, {ID: "Schedar", Name: "Schedar"},
+						{ID: "Gacrux", Name: "Gacrux"}, {ID: "Pulcherrima", Name: "Pulcherrima"},
+						{ID: "Achird", Name: "Achird"}, {ID: "Zubenelgenubi", Name: "Zubenelgenubi"},
+						{ID: "Vindemiatrix", Name: "Vindemiatrix"}, {ID: "Sadachbia", Name: "Sadachbia"},
+						{ID: "Sadaltager", Name: "Sadaltager"}, {ID: "Sulafat", Name: "Sulafat"},
+					},
+					Formats: []string{"wav"},
+				},
+			}},
+			Factory: func(config map[string]any) (sdk.SpeechProvider, error) {
+				opts := []geminisp.Option{}
+				if v := configString(config, "api_key"); v != "" {
+					opts = append(opts, geminisp.WithAPIKey(v))
+				}
+				if v := configString(config, "base_url"); v != "" {
+					opts = append(opts, geminisp.WithBaseURL(v))
+				}
+				return geminisp.New(opts...), nil
+			},
+			Order: 46,
 		},
 		{
 			ClientType:  models.ClientTypeDeepgramSpeech,
