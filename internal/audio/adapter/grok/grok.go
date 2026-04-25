@@ -91,7 +91,7 @@ func parseConfig(cfg map[string]any) audioConfig {
 	if cfg == nil {
 		return ac
 	}
-	if v, ok := cfg["voice"].(string); ok && v != "" {
+	if v, ok := cfg["voice_id"].(string); ok && v != "" {
 		ac.Voice = v
 	}
 	if v, ok := cfg["language"].(string); ok && v != "" {

@@ -100,6 +100,16 @@ export const CLIENT_TYPE_META: Record<string, ClientTypeMeta> = {
     label: 'Microsoft Speech',
     hint: 'Azure Cognitive Services TTS',
   },
+  'grok-speech': {
+    value: 'grok-speech',
+    label: 'xAI Grok Speech',
+    hint: 'xAI Grok text-to-speech',
+  },
+  'gemini-speech': {
+    value: 'gemini-speech',
+    label: 'Gemini Speech',
+    hint: 'Google Gemini text-to-speech',
+  },
   'google-speech': {
     value: 'google-speech',
     label: 'Google Speech',

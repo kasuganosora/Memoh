@@ -396,14 +396,14 @@ func defaultProviderDefinitions() []ProviderDefinition {
 				Name:        "Grok TTS",
 				Description: "xAI Grok text-to-speech with expressive voices",
 				ConfigSchema: ConfigSchema{Fields: []FieldSchema{
-					enumField("voice", "Voice", "Grok voice ID", false, []string{"eve", "ara", "rex", "sal", "leo"}, 10),
-					enumField("language", "Language", "BCP-47 language code", false, []string{"en", "ar-EG", "ar-SA", "ar-AE", "bn", "zh", "fr", "de", "hi", "id", "it", "ja", "ko", "pt-BR", "pt-PT", "ru", "es-MX", "es-ES", "tr", "vi"}, 20),
+					enumField("voice_id", "Voice ID", "Grok voice identifier", false, []string{"eve", "ara", "rex", "sal", "leo"}, 10),
+					enumField("language", "Language", "BCP-47 language code or auto", true, []string{"auto", "en", "ar-EG", "ar-SA", "ar-AE", "bn", "zh", "fr", "de", "hi", "id", "it", "ja", "ko", "pt-BR", "pt-PT", "ru", "es-MX", "es-ES", "tr", "vi"}, 20),
 					enumField("response_format", "Response Format", "Audio format", false, []string{"mp3", "wav", "pcm", "mulaw", "alaw"}, 30),
 				}},
 				Capabilities: ModelCapabilities{
 					ConfigSchema: ConfigSchema{Fields: []FieldSchema{
-						enumField("voice", "Voice", "Grok voice ID", false, []string{"eve", "ara", "rex", "sal", "leo"}, 10),
-						enumField("language", "Language", "BCP-47 language code", false, []string{"en", "ar-EG", "ar-SA", "ar-AE", "bn", "zh", "fr", "de", "hi", "id", "it", "ja", "ko", "pt-BR", "pt-PT", "ru", "es-MX", "es-ES", "tr", "vi"}, 20),
+						enumField("voice_id", "Voice ID", "Grok voice identifier", false, []string{"eve", "ara", "rex", "sal", "leo"}, 10),
+						enumField("language", "Language", "BCP-47 language code or auto", true, []string{"auto", "en", "ar-EG", "ar-SA", "ar-AE", "bn", "zh", "fr", "de", "hi", "id", "it", "ja", "ko", "pt-BR", "pt-PT", "ru", "es-MX", "es-ES", "tr", "vi"}, 20),
 						enumField("response_format", "Response Format", "Audio format", false, []string{"mp3", "wav", "pcm", "mulaw", "alaw"}, 30),
 					}},
 					Voices: []VoiceInfo{
