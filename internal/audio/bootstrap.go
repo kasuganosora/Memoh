@@ -19,20 +19,40 @@ func SyncRegistry(ctx context.Context, logger *slog.Logger, queries *sqlc.Querie
 		provider, err := queries.GetProviderByClientType(ctx, string(def.ClientType))
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
+				// Provider not yet in DB – create it from registry definition so
+				// that speech models can be synced.  This covers providers whose
+				// YAML template may not have been loaded before the audio bootstrap.
+				var icon pgtype.Text
+				if def.Icon != "" {
+					icon = pgtype.Text{String: def.Icon, Valid: true}
+				}
+				providerCfg, cfgErr := json.Marshal(map[string]any{})
+				if cfgErr != nil {
+					return fmt.Errorf("marshal empty config for %s: %w", def.ClientType, cfgErr)
+				}
+				provider, err = queries.UpsertRegistryProvider(ctx, sqlc.UpsertRegistryProviderParams{
+					Name:       def.DisplayName,
+					ClientType: string(def.ClientType),
+					Icon:       icon,
+					Config:     providerCfg,
+				})
+				if err != nil {
+					return fmt.Errorf("auto-create provider %s: %w", def.ClientType, err)
+				}
 				if logger != nil {
-					logger.Warn("audio registry skipped provider without template",
+					logger.Info("audio registry auto-created provider",
 						slog.String("provider", string(def.ClientType)),
 						slog.String("display_name", def.DisplayName))
 				}
-				continue
+			} else {
+				if logger != nil {
+					logger.Warn("audio registry failed to load provider template",
+						slog.String("provider", string(def.ClientType)),
+						slog.String("display_name", def.DisplayName),
+						slog.Any("error", err))
+				}
+				return fmt.Errorf("get provider by client type %s: %w", def.ClientType, err)
 			}
-			if logger != nil {
-				logger.Warn("audio registry failed to load provider template",
-					slog.String("provider", string(def.ClientType)),
-					slog.String("display_name", def.DisplayName),
-					slog.Any("error", err))
-			}
-			return fmt.Errorf("get provider by client type %s: %w", def.ClientType, err)
 		}
 
 		synced := 0
