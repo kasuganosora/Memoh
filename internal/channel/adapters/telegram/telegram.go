@@ -115,7 +115,7 @@ func (a *TelegramAdapter) getOrCreateBot(cfg Config, configID string) (*tgbotapi
 	if bot, ok := a.bots[cacheKey]; ok {
 		return bot, nil
 	}
-	httpClient, err := common.NewHTTPClient(30*time.Second, cfg.HTTPProxy)
+	httpClient, err := common.NewHTTPClient(60*time.Second, cfg.HTTPProxy)
 	if err != nil {
 		if a.logger != nil {
 			a.logger.Error("create bot http client failed", slog.String("config_id", configID), slog.Any("error", err))
