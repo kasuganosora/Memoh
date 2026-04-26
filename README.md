@@ -62,6 +62,12 @@ sudo docker compose up -d
 
 Visit <http://localhost:8082> after startup. Default login: `admin` / `admin123`
 
+> **Full-featured startup (vector DB, sparse encoder, browser automation):**
+> ```bash
+> sudo docker compose --profile qdrant --profile sparse --profile browser up -d
+> ```
+> Sparse Encoder + Qdrant together enable semantic memory search.
+
 See [DEPLOYMENT.md](DEPLOYMENT.md) for custom configuration and production setup.
 
 Documentation entry points:

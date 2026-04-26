@@ -63,6 +63,12 @@ sudo docker compose up -d
 
 启动后访问 <http://localhost:8082>。默认登录：`admin` / `admin123`
 
+> **全功能启动（含向量数据库、稀疏编码器、浏览器自动化）：**
+> ```bash
+> sudo docker compose --profile qdrant --profile sparse --profile browser up -d
+> ```
+> Sparse Encoder 和 Qdrant 配合使用可启用语义记忆搜索。
+
 自定义配置与生产部署请参阅 [DEPLOYMENT.md](DEPLOYMENT.md)。
 
 文档入口：
