@@ -112,7 +112,7 @@ func (l *Learner) LearnFromHistory(ctx context.Context, messages []Message) erro
 	var sb strings.Builder
 	sb.WriteString("Recent chat messages:\n\n")
 	for _, msg := range messages {
-		sb.WriteString(fmt.Sprintf("[%s]: %s\n", msg.Role, strings.TrimSpace(msg.Content)))
+		fmt.Fprintf(&sb, "[%s]: %s\n", msg.Role, strings.TrimSpace(msg.Content))
 	}
 
 	response, err := l.llm.GenerateText(ctx, learnPromptTemplate, sb.String())

@@ -214,13 +214,10 @@ func shortRandHex(n int) string {
 	if _, err := rand.Read(buf); err != nil {
 		// crypto/rand.Read failures are extremely rare; fall back to a
 		// less-random but always-succeeding source for task IDs.
-		rngSuffix := mathrandv2.IntN(1 << (n * 8))
-		return hex.EncodeToString([]byte{
-			byte(rngSuffix >> 24),
-			byte(rngSuffix >> 16),
-			byte(rngSuffix >> 8),
-			byte(rngSuffix),
-		}[:n])
+		for i := range n {
+			buf[i] = byte(mathrandv2.IntN(256)) //nolint:gosec // fallback when crypto/rand fails
+		}
+		return hex.EncodeToString(buf)
 	}
 	return hex.EncodeToString(buf)
 }

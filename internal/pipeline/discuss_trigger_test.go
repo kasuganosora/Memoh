@@ -298,7 +298,7 @@ func (f *fakeBroadcaster) PublishEvent(_ string, event channel.StreamEvent) {
 // --- Phase 3: Dispatcher integration tests ---
 
 type fakeDiscussDispatcher struct {
-	mu              sync.Mutex
+	mu               sync.Mutex
 	markActiveCalled bool
 	markDoneCalled   bool
 	activeRoutes     map[string]bool

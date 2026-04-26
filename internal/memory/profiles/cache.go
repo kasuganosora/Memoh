@@ -39,7 +39,7 @@ func NewMemCacheWithTTL(ttl time.Duration) ProfileCache {
 	}
 }
 
-func (c *memCache) key(botID, userID string) string {
+func (*memCache) key(botID, userID string) string {
 	return botID + ":" + userID
 }
 

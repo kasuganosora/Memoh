@@ -3,6 +3,7 @@ package profiles
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -94,7 +95,7 @@ func (s *Service) UpdateFromMessages(ctx context.Context, botID, userID string, 
 		if role == "" || content == "" {
 			continue
 		}
-		msgText.WriteString(fmt.Sprintf("[%s]: %s\n", role, content))
+		fmt.Fprintf(&msgText, "[%s]: %s\n", role, content)
 	}
 	userPrompt := msgText.String()
 	if userPrompt == "" {
@@ -125,18 +126,20 @@ func (s *Service) UpdateFromMessages(ctx context.Context, botID, userID string, 
 
 	// Merge existing profile context into the user prompt.
 	if len(existingTraits) > 0 || len(existingFacts) > 0 {
-		userPrompt += "\n\nExisting profile data for this user:\n"
+		var mergeSb strings.Builder
+		mergeSb.WriteString("\n\nExisting profile data for this user:\n")
 		for _, t := range existingTraits {
-			userPrompt += fmt.Sprintf("- %s\n", t)
+			fmt.Fprintf(&mergeSb, "- %s\n", t)
 		}
 		for _, f := range existingFacts {
-			userPrompt += fmt.Sprintf("- %s\n", f)
+			fmt.Fprintf(&mergeSb, "- %s\n", f)
 		}
+		userPrompt += mergeSb.String()
 	}
 
 	// Call LLM to extract traits and facts.
 	if s.llm == nil {
-		return fmt.Errorf("profile: LLM not configured")
+		return errors.New("profile: LLM not configured")
 	}
 	llmResp, err := s.llm.GenerateText(ctx, profileExtractSystemPrompt, userPrompt)
 	if err != nil {
@@ -265,13 +268,13 @@ func formatProfileForStorage(p *Profile) string {
 	if len(p.Traits) > 0 {
 		b.WriteString("Traits:\n")
 		for _, t := range p.Traits {
-			b.WriteString(fmt.Sprintf("- %s: %s (strength: %.1f, evidence: %s)\n", t.Name, t.Value, t.Strength, t.Evidence))
+			fmt.Fprintf(&b, "- %s: %s (strength: %.1f, evidence: %s)\n", t.Name, t.Value, t.Strength, t.Evidence)
 		}
 	}
 	if len(p.Facts) > 0 {
 		b.WriteString("Facts:\n")
 		for _, f := range p.Facts {
-			b.WriteString(fmt.Sprintf("- [%s] %s (strength: %.1f, source: %s)\n", f.Category, f.Content, f.Strength, f.Source))
+			fmt.Fprintf(&b, "- [%s] %s (strength: %.1f, source: %s)\n", f.Category, f.Content, f.Strength, f.Source)
 		}
 	}
 	return b.String()

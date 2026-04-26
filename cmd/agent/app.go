@@ -14,10 +14,9 @@ import (
 	"sync"
 	"time"
 
-	sdk "github.com/memohai/twilight-ai/sdk"
-
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	sdk "github.com/memohai/twilight-ai/sdk"
 	"go.uber.org/fx"
 	"golang.org/x/crypto/bcrypt"
 
@@ -1265,7 +1264,7 @@ func makeExpressionAccumulator(pool *pgxpool.Pool, a *agentpkg.Agent, log *slog.
 		return nil
 	}
 	mgr := newExpressionLearnerManager(pool, &expressionLLMAdapter{agent: a}, log)
-	return func(ctx context.Context, botID, sessionID string, messages []memprovider.Message) {
+	return func(ctx context.Context, botID, _ string, messages []memprovider.Message) {
 		learner := mgr.getOrCreate(botID)
 		exprMsgs := make([]expression.Message, 0, len(messages))
 		for _, msg := range messages {
@@ -1286,7 +1285,7 @@ func makeExpressionLearner(pool *pgxpool.Pool, a *agentpkg.Agent, log *slog.Logg
 		return nil
 	}
 	mgr := newExpressionLearnerManager(pool, &expressionLLMAdapter{agent: a}, log)
-	return func(ctx context.Context, botID, sessionID string, messages []flow.ExpressionMessage) {
+	return func(ctx context.Context, botID, _ string, messages []flow.ExpressionMessage) {
 		learner := mgr.getOrCreate(botID)
 		exprMsgs := make([]expression.Message, 0, len(messages))
 		for _, msg := range messages {

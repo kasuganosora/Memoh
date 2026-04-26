@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 )
 
 // Selector finds matching expressions for a given conversational context.
@@ -59,11 +60,12 @@ func FormatStyleReference(entries []ExpressionEntry) string {
 	if len(entries) == 0 {
 		return ""
 	}
-	result := "\n## Style Reference\n\n"
-	result += "The bot's past expressions in similar situations:\n"
+	var sb strings.Builder
+	sb.WriteString("\n## Style Reference\n\n")
+	sb.WriteString("The bot's past expressions in similar situations:\n")
 	for _, e := range entries {
-		result += fmt.Sprintf("- Situation: \"%s\" → Style: \"%s\"\n", e.Situation, e.Style)
+		fmt.Fprintf(&sb, "- Situation: \"%s\" → Style: \"%s\"\n", e.Situation, e.Style)
 	}
-	result += "\nMatch your reply to these styles naturally. Don't force them if they don't fit.\n"
-	return result
+	sb.WriteString("\nMatch your reply to these styles naturally. Don't force them if they don't fit.\n")
+	return sb.String()
 }
