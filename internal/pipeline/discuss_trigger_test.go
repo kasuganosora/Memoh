@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/memohai/memoh/internal/channel"
@@ -297,6 +298,7 @@ func (f *fakeBroadcaster) PublishEvent(_ string, event channel.StreamEvent) {
 // --- Phase 3: Dispatcher integration tests ---
 
 type fakeDiscussDispatcher struct {
+	mu              sync.Mutex
 	markActiveCalled bool
 	markDoneCalled   bool
 	activeRoutes     map[string]bool
@@ -312,25 +314,34 @@ func newFakeDiscussDispatcher() *fakeDiscussDispatcher {
 }
 
 func (f *fakeDiscussDispatcher) IsActive(routeID string) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	return f.activeRoutes[routeID]
 }
 
 func (f *fakeDiscussDispatcher) MarkActive(routeID string) <-chan conversation.InjectMessage {
+	f.mu.Lock()
 	f.markActiveCalled = true
 	f.activeRoutes[routeID] = true
+	f.mu.Unlock()
 	return f.injectCh
 }
 
 func (f *fakeDiscussDispatcher) MarkDone(routeID string) DiscussMarkDoneResult {
+	f.mu.Lock()
 	f.markDoneCalled = true
 	delete(f.activeRoutes, routeID)
 	notifs := f.queuedNotifs
 	f.queuedNotifs = nil
+	f.mu.Unlock()
 	return DiscussMarkDoneResult{QueuedNotifications: notifs}
 }
 
 func (f *fakeDiscussDispatcher) Inject(routeID string, msg conversation.InjectMessage) bool {
-	if !f.activeRoutes[routeID] {
+	f.mu.Lock()
+	active := f.activeRoutes[routeID]
+	f.mu.Unlock()
+	if !active {
 		return false
 	}
 	select {
@@ -372,12 +383,16 @@ func TestHandleReplyWithAgent_DispatcherMarkActiveAndDone(t *testing.T) {
 
 	driver.handleReplyWithAgent(context.Background(), sess, rc, driver.logger)
 
+	disp.mu.Lock()
 	if !disp.markActiveCalled {
+		disp.mu.Unlock()
 		t.Fatal("expected dispatcher.MarkActive to be called")
 	}
 	if !disp.markDoneCalled {
+		disp.mu.Unlock()
 		t.Fatal("expected dispatcher.MarkDone to be called")
 	}
+	disp.mu.Unlock()
 	// After MarkDone, route should no longer be active.
 	if disp.IsActive("route-discuss-1") {
 		t.Fatal("expected route to be inactive after MarkDone")
@@ -474,6 +489,7 @@ func TestHandleReplyWithAgent_DispatcherQueueDrain(t *testing.T) {
 			Content:      []RenderedContentPiece{{Type: "text", Text: "queued msg"}},
 		},
 	}
+	disp.mu.Lock()
 	disp.queuedNotifs = []DiscussQueuedNotification{
 		{
 			SessionID: "sess-1",
@@ -485,6 +501,7 @@ func TestHandleReplyWithAgent_DispatcherQueueDrain(t *testing.T) {
 			},
 		},
 	}
+	disp.mu.Unlock()
 
 	driver := NewDiscussTrigger(DiscussTriggerDeps{
 		Pipeline:          NewPipeline(RenderParams{}),
@@ -513,11 +530,15 @@ func TestHandleReplyWithAgent_DispatcherQueueDrain(t *testing.T) {
 
 	// After MarkDone, the queued notification should have been replayed via NotifyRC.
 	// Since the session already exists, the RC should be pushed to the session's rcCh.
+	disp.mu.Lock()
 	if !disp.markDoneCalled {
+		disp.mu.Unlock()
 		t.Fatal("expected dispatcher.MarkDone to be called")
 	}
 	// The queued notifications should have been consumed.
 	if len(disp.queuedNotifs) != 0 {
+		disp.mu.Unlock()
 		t.Fatalf("expected queued notifications to be consumed, got %d", len(disp.queuedNotifs))
 	}
+	disp.mu.Unlock()
 }
