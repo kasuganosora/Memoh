@@ -59,3 +59,81 @@ func TestFilterThinkingTags(t *testing.T) {
 		})
 	}
 }
+
+func TestFilterToolCallXML(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "no xml tags",
+			input: "Hello, world!",
+			want:  "Hello, world!",
+		},
+		{
+			name:  "xai function call removed",
+			input: `<xai:function_call>Hello</xai:function_call>`,
+			want:  "",
+		},
+		{
+			name:  "parameter tag removed",
+			input: `<parameter name="attachments">["/data/img.jpg"]</parameter>`,
+			want:  "",
+		},
+		{
+			name:  "tool call with surrounding text",
+			input: `Before<xai:function_call>internal</xai:function_call>After`,
+			want:  "BeforeAfter",
+		},
+		{
+			name:  "multiple xml tags mixed with text",
+			input: `Hello <parameter name="text">world</parameter> and <xai:function_call>stuff</xai:function_call> done`,
+			want:  "Hello  and  done",
+		},
+		{
+			name:  "function_call without namespace",
+			input: `<function_call>do_something()</function_call>Result`,
+			want:  "Result",
+		},
+		{
+			name:  "tool_call with broken closing tag not matched",
+			input: `<tool_call id="call_123" name="send">{"text":"hi"}</tool_callVisible text`,
+			want:  `<tool_call id="call_123" name="send">{"text":"hi"}</tool_callVisible text`,
+		},
+		{
+			name:  "invoke and tool_result tags",
+			input: `<invoke>call</invoke>Answer<tool_result>{"ok":true}</tool_result>`,
+			want:  "Answer",
+		},
+		{
+			name:  "self-closing tag",
+			input: `Before<parameter name="x"/>After`,
+			want:  "BeforeAfter",
+		},
+		{
+			name:  "execute tag",
+			input: `<execute>rm -rf /</execute>Clean!`,
+			want:  "Clean!",
+		},
+		{
+			name:  "regular html not stripped",
+			input: `<b>bold</b> and <i>italic</i>`,
+			want:  "<b>bold</b> and <i>italic</i>",
+		},
+		{
+			name:  "empty string",
+			input: "",
+			want:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FilterToolCallXML(tt.input)
+			if got != tt.want {
+				t.Errorf("FilterToolCallXML(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}

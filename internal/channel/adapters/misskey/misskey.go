@@ -1064,6 +1064,7 @@ func (s *misskeyBlockStream) Close(ctx context.Context) error {
 	// incorrectly emit in the content field when context overflows.
 	msg.Message.Text = channel.FilterReasoningArray(msg.Message.Text)
 	msg.Message.Text = channel.FilterThinkingTags(msg.Message.Text)
+	msg.Message.Text = channel.FilterToolCallXML(msg.Message.Text)
 	if len(msg.Attachments) == 0 && len(s.attachments) > 0 {
 		msg.Attachments = append(msg.Attachments, s.attachments...)
 	}

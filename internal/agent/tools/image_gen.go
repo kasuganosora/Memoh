@@ -130,8 +130,11 @@ func (p *ImageGenProvider) execGenerateImage(ctx context.Context, session Sessio
 	}
 
 	var result any
-	// Dispatch: models with image-api compat use the dedicated /images/generations endpoint.
-	if modelResp.HasCompatibility(models.CompatImageApi) {
+	// Dispatch: models with image-api compat or openai-images client type
+	// use the dedicated /images/generations endpoint. The client_type check
+	// is a safety net — if the provider is configured for image API calls,
+	// route accordingly even if compatibilities are incomplete.
+	if modelResp.HasCompatibility(models.CompatImageApi) || provider.ClientType == "openai-images" {
 		result, err = p.execImageAPI(ctx, botID, prompt, modelResp, provider, creds)
 	} else {
 		result, err = p.execChatImage(ctx, botID, prompt, size, modelResp, provider, creds)
