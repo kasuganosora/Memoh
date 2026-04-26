@@ -3,6 +3,7 @@
 package channel
 
 import (
+	"regexp"
 	"strings"
 	"time"
 )
@@ -313,10 +314,22 @@ type Message struct {
 
 // IsEmpty reports whether the message carries no content.
 func (m Message) IsEmpty() bool {
-	return strings.TrimSpace(m.Text) == "" &&
+	return isBlankMessageText(m.Text) &&
 		len(m.Parts) == 0 &&
 		len(m.Attachments) == 0 &&
 		len(m.Actions) == 0
+}
+
+// markdownFenceRe matches text that is only backtick(s) — an unclosed markdown
+// code fence that provides no useful content (e.g. "```" produced by a
+// truncated or glitchy LLM response).
+var markdownFenceRe = regexp.MustCompile(`^\s*\` + "`" + `{1,3}\s*$`)
+
+// isBlankMessageText returns true if the text is empty or contains only
+// whitespace or a bare markdown code fence.
+func isBlankMessageText(text string) bool {
+	t := strings.TrimSpace(text)
+	return t == "" || markdownFenceRe.MatchString(t)
 }
 
 // PlainText extracts the plain text representation of the message.

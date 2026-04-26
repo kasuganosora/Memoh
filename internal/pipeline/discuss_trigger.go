@@ -504,6 +504,12 @@ func (d *DiscussTrigger) consumeStream(
 					d.dispatchDiscussReactions(ctx, cfg, event.Reactions, log)
 					continue
 				}
+				// In discuss mode, text deltas are internal monologue —
+				// only the send/reply tool delivers visible messages.
+				// Skip text-phase deltas to prevent leaking monologue to the channel.
+				if event.Type == channel.StreamEventDelta && event.Phase == channel.StreamPhaseText {
+					continue
+				}
 				if outStream != nil {
 					if pushErr := outStream.Push(ctx, event); pushErr != nil {
 						log.Warn("discuss: outbound stream push failed",
@@ -530,46 +536,22 @@ func (d *DiscussTrigger) consumeStream(
 	return
 }
 
-func (d *DiscussTrigger) finalizeOutboundStream(
-	agentCtx, parentCtx context.Context,
+func (*DiscussTrigger) finalizeOutboundStream(
+	_, parentCtx context.Context,
 	_ DiscussSessionConfig,
 	outStream channel.OutboundStream,
-	finalMessages []conversation.ModelMessage,
+	_ []conversation.ModelMessage,
 	log *slog.Logger,
 ) {
 	if outStream == nil {
 		return
 	}
-	if len(finalMessages) > 0 && d.deps.AssistantOutputExtractor != nil {
-		outputs := d.deps.AssistantOutputExtractor(finalMessages)
-		for _, output := range outputs {
-			outMessage := d.buildOutboundMessage(output)
-			if outMessage.IsEmpty() {
-				continue
-			}
-			if pushErr := outStream.Push(agentCtx, channel.StreamEvent{
-				Type:  channel.StreamEventFinal,
-				Final: &channel.StreamFinalizePayload{Message: outMessage},
-			}); pushErr != nil {
-				log.Warn("discuss: final message push failed", slog.Any("error", pushErr))
-			}
-		}
-	}
+	// In discuss mode, pure text assistant output is internal monologue —
+	// only the send/reply tool delivers visible messages via SendDirect.
+	// Skip pushing assistant outputs to the outbound stream entirely.
 	if closeErr := outStream.Close(context.WithoutCancel(parentCtx)); closeErr != nil {
 		log.Warn("discuss: outbound stream close failed", slog.Any("error", closeErr))
 	}
-}
-
-func (*DiscussTrigger) buildOutboundMessage(output conversation.AssistantOutput) channel.Message {
-	text := strings.TrimSpace(output.Content)
-	if text == "" {
-		return channel.Message{}
-	}
-	msg := channel.Message{Text: text}
-	if channel.ContainsMarkdown(text) {
-		msg.Format = channel.MessageFormatMarkdown
-	}
-	return msg
 }
 
 // ---------------------------------------------------------------------------
