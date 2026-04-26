@@ -128,7 +128,7 @@ func (h *ProvidersHandler) Get(c echo.Context) error {
 // @Description Get models for a provider by id, optionally filtered by type
 // @Tags providers
 // @Param id path string true "Provider ID (UUID)"
-// @Param type query string false "Model type (chat, embedding)"
+// @Param type query string false "Model type (chat, embedding, image)"
 // @Success 200 {array} models.GetResponse
 // @Failure 400 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse

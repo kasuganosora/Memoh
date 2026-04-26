@@ -14,6 +14,7 @@ const (
 	ModelTypeEmbedding     ModelType = "embedding"
 	ModelTypeSpeech        ModelType = "speech"
 	ModelTypeTranscription ModelType = "transcription"
+	ModelTypeImage         ModelType = "image"
 )
 
 type ClientType string
@@ -119,7 +120,7 @@ func (m *Model) Validate() error {
 	if _, err := uuid.Parse(m.ProviderID); err != nil {
 		return errors.New("provider ID must be a valid UUID")
 	}
-	if m.Type != ModelTypeChat && m.Type != ModelTypeEmbedding && m.Type != ModelTypeSpeech && m.Type != ModelTypeTranscription {
+	if m.Type != ModelTypeChat && m.Type != ModelTypeEmbedding && m.Type != ModelTypeSpeech && m.Type != ModelTypeTranscription && m.Type != ModelTypeImage {
 		return errors.New("invalid model type")
 	}
 	cfg := m.ParseConfig()

@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS models (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT models_provider_id_model_id_unique UNIQUE (provider_id, model_id),
-  CONSTRAINT models_type_check CHECK (type IN ('chat', 'embedding', 'speech', 'transcription'))
+  CONSTRAINT models_type_check CHECK (type IN ('chat', 'embedding', 'speech', 'transcription', 'image'))
 );
 
 CREATE TABLE IF NOT EXISTS model_variants (

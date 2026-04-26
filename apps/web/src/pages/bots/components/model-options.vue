@@ -93,7 +93,7 @@ export interface ModelOption {
 const props = defineProps<{
   models: ModelsGetResponse[]
   providers: ProvidersGetResponse[]
-  modelType: 'chat' | 'embedding'
+  modelType: 'chat' | 'embedding' | 'image'
   open?: boolean
 }>()
 
