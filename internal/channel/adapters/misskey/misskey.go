@@ -385,6 +385,7 @@ type misskeyNote struct {
 	Mentions   []string      `json:"mentions"`
 	Visibility string        `json:"visibility"`
 	Reply      *misskeyNote  `json:"reply"`
+	Renote     *misskeyNote  `json:"renote"`
 	Files      []misskeyFile `json:"files"`
 }
 
@@ -511,6 +512,14 @@ func (a *MisskeyAdapter) handleChannelEvent(ctx context.Context, cfg channel.Cha
 func (*MisskeyAdapter) buildInboundMessage(me *meResponse, note misskeyNote) (channel.InboundMessage, bool) {
 	text := strings.TrimSpace(note.Text)
 	attachments := collectMisskeyAttachments(note)
+
+	// If this is a quote/renote without commentary, fall back to the quoted text so we don't drop it.
+	if text == "" && note.Renote != nil {
+		if rt := strings.TrimSpace(note.Renote.Text); rt != "" {
+			text = rt
+		}
+	}
+
 	if text == "" && len(attachments) == 0 {
 		return channel.InboundMessage{}, false
 	}
@@ -536,6 +545,25 @@ func (*MisskeyAdapter) buildInboundMessage(me *meResponse, note misskeyNote) (ch
 		}
 		if senderName != "" {
 			text = fmt.Sprintf("[Reply to %s: %s]\n%s", senderName, quotedText, text)
+		}
+	}
+
+	// Build quoted context for renotes (quote posts).
+	if note.Renote != nil && note.Renote.Text != "" {
+		quotedText := strings.TrimSpace(note.Renote.Text)
+		if len([]rune(quotedText)) > 200 {
+			quotedText = string([]rune(quotedText)[:200]) + "..."
+		}
+		senderName := note.Renote.User.Name
+		if senderName == "" {
+			senderName = note.Renote.User.Username
+		}
+		if senderName != "" {
+			if text == "" {
+				text = fmt.Sprintf("[Renote from %s: %s]", senderName, quotedText)
+			} else {
+				text = fmt.Sprintf("[Renote from %s: %s]\n%s", senderName, quotedText, text)
+			}
 		}
 	}
 
