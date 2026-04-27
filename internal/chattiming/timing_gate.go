@@ -80,6 +80,10 @@ func (tg *TimingGate) Evaluate(ctx context.Context, params TimingGateParams, run
 		return TimingGateResult{Decision: TimingContinue, Reason: "mentioned"}
 	}
 
+	// Short-circuit runaway LLM latency.
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	prompt := buildTimingGatePrompt(params)
 
 	cfg := runConfig

@@ -136,6 +136,7 @@ func (d *Debouncer) Stop() {
 	defer d.mu.Unlock()
 
 	d.stopped = true
+	d.started = time.Time{}
 	if d.timer != nil {
 		d.timer.Stop()
 	}
