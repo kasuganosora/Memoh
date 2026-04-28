@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -33,9 +34,10 @@ const (
 
 // MisskeyAdapter implements the channel.Adapter interfaces for Misskey.
 type MisskeyAdapter struct {
-	logger *slog.Logger
-	mu     sync.RWMutex
-	me     map[string]*meResponse // keyed by config ID
+	logger   *slog.Logger
+	mu       sync.RWMutex
+	me       map[string]*meResponse // keyed by config ID
+	mentions map[string][]string    // noteID -> mention handles to reuse on reply
 }
 
 // NewMisskeyAdapter creates a MisskeyAdapter with the given logger.
@@ -44,8 +46,9 @@ func NewMisskeyAdapter(log *slog.Logger) *MisskeyAdapter {
 		log = slog.Default()
 	}
 	return &MisskeyAdapter{
-		logger: log.With(slog.String("adapter", "misskey")),
-		me:     make(map[string]*meResponse),
+		logger:   log.With(slog.String("adapter", "misskey")),
+		me:       make(map[string]*meResponse),
+		mentions: make(map[string][]string),
 	}
 }
 
@@ -414,6 +417,83 @@ type misskeyUser struct {
 	AvatarURL string `json:"avatarUrl"`
 }
 
+// storeMentions caches mention handles from a note so replies can @ 同一串参与者。
+// 来源：文本里的 @handles；note.Mentions 仅含 userId 无法直接用。
+// 排除：当前 note 作者、reply 作者、renote 作者、bot 自己，且去重。
+func (a *MisskeyAdapter) storeMentions(note misskeyNote, me *meResponse) {
+	if note.ID == "" {
+		return
+	}
+	mentions := extractMentionHandles(note)
+
+	exclude := map[string]struct{}{}
+	if me != nil {
+		exclude["@"+me.Username] = struct{}{}
+	}
+	exclude[formatUserHandle(note.User)] = struct{}{}
+	if note.Reply != nil {
+		exclude[formatUserHandle(note.Reply.User)] = struct{}{}
+	}
+	if note.Renote != nil {
+		exclude[formatUserHandle(note.Renote.User)] = struct{}{}
+	}
+
+	filtered := make([]string, 0, len(mentions))
+	seen := map[string]struct{}{}
+	for _, h := range mentions {
+		h = strings.TrimSpace(h)
+		if h == "" {
+			continue
+		}
+		if _, skip := exclude[h]; skip {
+			continue
+		}
+		if _, dup := seen[h]; dup {
+			continue
+		}
+		seen[h] = struct{}{}
+		filtered = append(filtered, h)
+	}
+
+	a.mu.Lock()
+	a.mentions[note.ID] = filtered
+	a.mu.Unlock()
+}
+
+func extractMentionHandles(note misskeyNote) []string {
+	allText := note.Text
+	if note.CW != "" {
+		allText += "\n" + note.CW
+	}
+	if note.Reply != nil {
+		allText += "\n" + note.Reply.Text
+	}
+	if note.Renote != nil {
+		allText += "\n" + note.Renote.Text
+	}
+	mentionRe := regexp.MustCompile(`@[^\s@]+(?:@[^\s@]+)?`)
+	return mentionRe.FindAllString(allText, -1)
+}
+
+func formatUserHandle(u misskeyUser) string {
+	if u.Username == "" {
+		return ""
+	}
+	if strings.TrimSpace(u.Host) != "" {
+		return "@" + u.Username + "@" + u.Host
+	}
+	return "@" + u.Username
+}
+
+func (a *MisskeyAdapter) getMentions(noteID string) []string {
+	if noteID == "" {
+		return nil
+	}
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return append([]string(nil), a.mentions[noteID]...)
+}
+
 func (a *MisskeyAdapter) handleStreamMessage(ctx context.Context, cfg channel.ChannelConfig, me *meResponse, handler channel.InboundHandler, raw []byte, dedup map[string]time.Time, dedupMu *sync.Mutex, tlCfg timelineConfig) {
 	var msg streamMessage
 	if err := json.Unmarshal(raw, &msg); err != nil {
@@ -460,6 +540,7 @@ func (a *MisskeyAdapter) handleChannelEvent(ctx context.Context, cfg channel.Cha
 		if note.UserID == me.ID {
 			return
 		}
+		a.storeMentions(note, me)
 		inbound, ok := a.buildInboundMessage(me, note)
 		if !ok {
 			return
@@ -496,6 +577,7 @@ func (a *MisskeyAdapter) handleChannelEvent(ctx context.Context, cfg channel.Cha
 		if notif.Note.UserID == me.ID {
 			return
 		}
+		a.storeMentions(notif.Note, me)
 		inbound, ok := a.buildInboundMessage(me, notif.Note)
 		if !ok {
 			return
@@ -509,7 +591,7 @@ func (a *MisskeyAdapter) handleChannelEvent(ctx context.Context, cfg channel.Cha
 	}
 }
 
-func (*MisskeyAdapter) buildInboundMessage(me *meResponse, note misskeyNote) (channel.InboundMessage, bool) {
+func (a *MisskeyAdapter) buildInboundMessage(me *meResponse, note misskeyNote) (channel.InboundMessage, bool) {
 	text := strings.TrimSpace(note.Text)
 	attachments := collectMisskeyAttachments(note)
 
@@ -826,7 +908,6 @@ func (a *MisskeyAdapter) Send(ctx context.Context, cfg channel.ChannelConfig, ms
 	if text == "" && len(msg.Message.Attachments) == 0 {
 		return errors.New("message text or attachments required")
 	}
-	text = textutil.TruncateRunesWithSuffix(text, misskeyMaxNoteLength, "...")
 
 	// Extract replyId from the message's Reply reference, not from target.
 	// Target is the delivery destination (user ID for DMs), replyId is the
@@ -835,6 +916,20 @@ func (a *MisskeyAdapter) Send(ctx context.Context, cfg channel.ChannelConfig, ms
 	if msg.Message.Message.Reply != nil {
 		replyID = strings.TrimSpace(msg.Message.Message.Reply.MessageID)
 	}
+
+	// Auto-mention: prepend all participants from the replied note, excluding self/reply/renote authors.
+	if replyID != "" {
+		if auto := a.getMentions(replyID); len(auto) > 0 {
+			prefix := strings.Join(auto, " ")
+			if text == "" {
+				text = prefix
+			} else {
+				text = prefix + "\n" + text
+			}
+		}
+	}
+
+	text = textutil.TruncateRunesWithSuffix(text, misskeyMaxNoteLength, "...")
 
 	// Determine visibility: use "home" for replies, "public" for standalone notes.
 	visibility := "public"
