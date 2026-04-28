@@ -419,7 +419,7 @@ type misskeyUser struct {
 
 // storeMentions caches mention handles from a note so replies can @ 同一串参与者。
 // 来源：文本里的 @handles；note.Mentions 仅含 userId 无法直接用。
-// 排除：当前 note 作者、reply 作者、renote 作者、bot 自己，且去重。
+// 排除：bot 自己、renote 原贴作者（引用原作者）；reply 作者保留。
 func (a *MisskeyAdapter) storeMentions(note misskeyNote, me *meResponse) {
 	if note.ID == "" {
 		return
@@ -429,10 +429,6 @@ func (a *MisskeyAdapter) storeMentions(note misskeyNote, me *meResponse) {
 	exclude := map[string]struct{}{}
 	if me != nil {
 		exclude["@"+me.Username] = struct{}{}
-	}
-	exclude[formatUserHandle(note.User)] = struct{}{}
-	if note.Reply != nil {
-		exclude[formatUserHandle(note.Reply.User)] = struct{}{}
 	}
 	if note.Renote != nil {
 		exclude[formatUserHandle(note.Renote.User)] = struct{}{}
