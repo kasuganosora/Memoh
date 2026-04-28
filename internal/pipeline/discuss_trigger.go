@@ -332,6 +332,13 @@ func (d *DiscussTrigger) resolveProbeConfig(ctx context.Context, sess *discussSe
 // ---------------------------------------------------------------------------
 
 func (d *DiscussTrigger) handleReplyWithAgent(ctx context.Context, sess *discussSession, rc RenderedContext, log *slog.Logger) {
+	// Hard deadline so the session loop always returns to select, even if the
+	// LLM provider or outbound send hangs indefinitely.
+	const maxAgentCallDuration = 15 * time.Minute
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, maxAgentCallDuration)
+	defer cancel()
+
 	cfg := sess.config
 	sess.lastAgentCallAt = time.Now()
 	isMentioned := wasRecentlyMentioned(rc, sess.lastProcessedMs)
@@ -549,7 +556,7 @@ func (*DiscussTrigger) finalizeOutboundStream(
 	// In discuss mode, pure text assistant output is internal monologue —
 	// only the send/reply tool delivers visible messages via SendDirect.
 	// Skip pushing assistant outputs to the outbound stream entirely.
-	if closeErr := outStream.Close(context.WithoutCancel(parentCtx)); closeErr != nil {
+	if closeErr := outStream.Close(parentCtx); closeErr != nil {
 		log.Warn("discuss: outbound stream close failed", slog.Any("error", closeErr))
 	}
 }
