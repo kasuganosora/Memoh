@@ -30,6 +30,7 @@ const (
 	misskeyTimelineMinTextLen   = 5                // minimum text length for timeline notes
 	misskeyDedupTTL             = 2 * time.Minute  // TTL for timeline note dedup cache
 	misskeyDedupCleanupInterval = 30 * time.Second // cleanup interval for dedup cache
+	misskeyMentionCacheMax      = 500              // max cached mention entries before eviction
 )
 
 // MisskeyAdapter implements the channel.Adapter interfaces for Misskey.
@@ -452,6 +453,11 @@ func (a *MisskeyAdapter) storeMentions(note misskeyNote, me *meResponse) {
 	}
 
 	a.mu.Lock()
+	if len(a.mentions) >= misskeyMentionCacheMax {
+		// Evict all entries — mention data is only useful for immediate replies,
+		// so dropping stale entries is safe and avoids unbounded memory growth.
+		a.mentions = make(map[string][]string, misskeyMentionCacheMax)
+	}
 	a.mentions[note.ID] = filtered
 	a.mu.Unlock()
 }
