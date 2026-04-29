@@ -33,6 +33,9 @@ const (
 	misskeyMentionCacheMax      = 500              // max cached mention entries before eviction
 )
 
+// mentionRe matches @user or @user@host handles in note text.
+var mentionRe = regexp.MustCompile(`@[^\s@]+(?:@[^\s@]+)?`)
+
 // MisskeyAdapter implements the channel.Adapter interfaces for Misskey.
 type MisskeyAdapter struct {
 	logger   *slog.Logger
@@ -420,7 +423,7 @@ type misskeyUser struct {
 
 // storeMentions caches mention handles from a note so replies can @ 同一串参与者。
 // 来源：文本里的 @handles；note.Mentions 仅含 userId 无法直接用。
-// 排除：bot 自己、renote 原贴作者（引用原作者）；reply 作者保留。
+// 排除：bot 自己、note 作者（回复时 Misskey 自动 @ 对方）、renote 原贴作者。
 func (a *MisskeyAdapter) storeMentions(note misskeyNote, me *meResponse) {
 	if note.ID == "" {
 		return
@@ -430,6 +433,11 @@ func (a *MisskeyAdapter) storeMentions(note misskeyNote, me *meResponse) {
 	exclude := map[string]struct{}{}
 	if me != nil {
 		exclude["@"+me.Username] = struct{}{}
+	}
+	// Exclude the note's own author — Misskey automatically notifies the
+	// reply target, so mentioning them again is redundant.
+	if h := formatUserHandle(note.User); h != "" {
+		exclude[h] = struct{}{}
 	}
 	if note.Renote != nil {
 		exclude[formatUserHandle(note.Renote.User)] = struct{}{}
@@ -473,7 +481,6 @@ func extractMentionHandles(note misskeyNote) []string {
 	if note.Renote != nil {
 		allText += "\n" + note.Renote.Text
 	}
-	mentionRe := regexp.MustCompile(`@[^\s@]+(?:@[^\s@]+)?`)
 	return mentionRe.FindAllString(allText, -1)
 }
 

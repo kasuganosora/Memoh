@@ -215,7 +215,7 @@ fi
 # Escape sed special characters in user-provided values to prevent
 # pattern breakage (handles @, |, /, $, \, etc. in passwords).
 escape_sed() {
-  printf '%s' "$1" | sed 's/[&/\|]/\\&/g'
+  printf '%s' "$1" | sed 's/[&/\|$]/\\&/g'
 }
 ADMIN_USER_ESC=$(escape_sed "$ADMIN_USER")
 ADMIN_PASS_ESC=$(escape_sed "$ADMIN_PASS")
