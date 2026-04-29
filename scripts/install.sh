@@ -211,12 +211,22 @@ if [ "$MEMOH_DOCKER_VERSION" != "latest" ]; then
     echo "${GREEN}✓ Docker images pinned to ${MEMOH_DOCKER_VERSION}${NC}"
 fi
 
-# Generate config.toml from template
+# Generate config.toml from template.
+# Escape sed special characters in user-provided values to prevent
+# pattern breakage (handles @, |, /, $, \, etc. in passwords).
+escape_sed() {
+  printf '%s' "$1" | sed 's/[&/\|]/\\&/g'
+}
+ADMIN_USER_ESC=$(escape_sed "$ADMIN_USER")
+ADMIN_PASS_ESC=$(escape_sed "$ADMIN_PASS")
+JWT_SECRET_ESC=$(escape_sed "$JWT_SECRET")
+PG_PASS_ESC=$(escape_sed "$PG_PASS")
+
 cp conf/app.docker.toml config.toml
-sed -i.bak "s|username = \"admin\"|username = \"${ADMIN_USER}\"|" config.toml
-sed -i.bak "s|password = \"admin123\"|password = \"${ADMIN_PASS}\"|" config.toml
-sed -i.bak "s|jwt_secret = \".*\"|jwt_secret = \"${JWT_SECRET}\"|" config.toml
-sed -i.bak "s|password = \"memoh123\"|password = \"${PG_PASS}\"|" config.toml
+sed -i.bak "s|username = \"admin\"|username = \"${ADMIN_USER_ESC}\"|" config.toml
+sed -i.bak "s|password = \"admin123\"|password = \"${ADMIN_PASS_ESC}\"|" config.toml
+sed -i.bak "s|jwt_secret = \".*\"|jwt_secret = \"${JWT_SECRET_ESC}\"|" config.toml
+sed -i.bak "s|password = \"memoh123\"|password = \"${PG_PASS_ESC}\"|" config.toml
 export POSTGRES_PASSWORD="${PG_PASS}"
 if [ "$USE_CN_MIRROR" = true ]; then
   sed -i.bak 's|# registry = "memoh.cn"|registry = "memoh.cn"|' config.toml
@@ -268,13 +278,22 @@ if [ "$USE_CN_MIRROR" = true ]; then
   echo "${GREEN}✓ Using China mainland mirror (memoh.cn)${NC}"
 fi
 
-echo POSTGRES_PASSWORD="${PG_PASS}" >> .env
-echo MEMOH_CONFIG=./config.toml >> .env
-echo MEMOH_DATA_DIR="${MEMOH_DATA_DIR}" >> .env
-echo USE_SPARSE="${USE_SPARSE}" >> .env
-echo BROWSER_TAG="${BROWSER_TAG}" >> .env
-echo BROWSER_CORES="${BROWSER_CORES}" >> .env
+cat > .env <<ENVEOF
+POSTGRES_PASSWORD="${PG_PASS}"
+MEMOH_CONFIG=./config.toml
+MEMOH_DATA_DIR="${MEMOH_DATA_DIR}"
+USE_SPARSE="${USE_SPARSE}"
+BROWSER_TAG="${BROWSER_TAG}"
+BROWSER_CORES="${BROWSER_CORES}"
+ENVEOF
 echo "${GREEN}✓ Browser: ${BROWSER_CORE} (image tag: ${BROWSER_TAG})${NC}"
+
+# Stop existing services before upgrading to avoid migration conflicts.
+if $DOCKER compose $COMPOSE_FILES $COMPOSE_PROFILES ps --quiet 2>/dev/null | grep -q .; then
+    echo ""
+    echo "${YELLOW}Stopping existing services...${NC}"
+    $DOCKER compose $COMPOSE_FILES $COMPOSE_PROFILES down || true
+fi
 
 echo ""
 echo "${GREEN}Pulling Docker images...${NC}"

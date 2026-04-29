@@ -587,7 +587,7 @@ func (a *MisskeyAdapter) handleChannelEvent(ctx context.Context, cfg channel.Cha
 	}
 }
 
-func (a *MisskeyAdapter) buildInboundMessage(me *meResponse, note misskeyNote) (channel.InboundMessage, bool) {
+func (*MisskeyAdapter) buildInboundMessage(me *meResponse, note misskeyNote) (channel.InboundMessage, bool) {
 	text := strings.TrimSpace(note.Text)
 	attachments := collectMisskeyAttachments(note)
 
