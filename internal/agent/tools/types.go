@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -113,6 +114,28 @@ func (s SessionContext) FormatTime(t time.Time) string {
 		t = t.In(s.TimezoneLocation)
 	}
 	return t.Format(time.RFC3339)
+}
+
+// maxSendsPerTurn is the maximum number of outbound message tool calls
+// (send, reply, speak) allowed per agent turn in discuss mode.
+const maxSendsPerTurn int32 = 3
+
+// ErrSendLimitReached is returned when the per-turn send limit is exceeded.
+// Callers should surface this to the LLM as a stop signal, not a retryable error.
+var ErrSendLimitReached = errors.New("send limit reached")
+
+// CheckSendLimit increments the per-turn send counter and returns
+// ErrSendLimitReached if the limit has been exceeded. It is safe to call
+// with a nil SendCount (no limit enforced).
+func CheckSendLimit(session SessionContext) error {
+	if session.SendCount == nil {
+		return nil
+	}
+	count := session.SendCount.Add(1)
+	if count > maxSendsPerTurn {
+		return fmt.Errorf("%w: maximum %d sends per turn — stop sending", ErrSendLimitReached, maxSendsPerTurn)
+	}
+	return nil
 }
 
 // ToolProvider supplies a set of tools for the agent.

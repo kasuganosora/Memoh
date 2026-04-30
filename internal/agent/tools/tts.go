@@ -86,6 +86,11 @@ func (p *TTSProvider) Tools(ctx context.Context, session SessionContext) ([]sdk.
 }
 
 func (p *TTSProvider) execSpeak(ctx context.Context, session SessionContext, args map[string]any) (any, error) {
+	// Per-turn send limit: check BEFORE expensive TTS synthesis.
+	if err := CheckSendLimit(session); err != nil {
+		return nil, err
+	}
+
 	botID := strings.TrimSpace(session.BotID)
 	if botID == "" {
 		return nil, errors.New("bot_id is required")
@@ -148,7 +153,21 @@ func (p *TTSProvider) execSpeak(ctx context.Context, session SessionContext, arg
 		msg.Reply = &channel.ReplyRef{MessageID: replyTo}
 	}
 	if err := p.sender.Send(ctx, botID, channelType, channel.SendRequest{Target: target, Message: msg}); err != nil {
-		return nil, err
+		// Translate dedup/rate-limit errors into LLM-friendly stop signals.
+		switch {
+		case errors.Is(err, channel.ErrOutboundDedup):
+			return map[string]any{
+				"ok":    false,
+				"error": "voice message already delivered (duplicate suppressed) — do not retry",
+			}, nil
+		case errors.Is(err, channel.ErrOutboundRateLimit):
+			return map[string]any{
+				"ok":    false,
+				"error": "outbound rate limit exceeded — stop sending and wait",
+			}, nil
+		default:
+			return nil, err
+		}
 	}
 	return map[string]any{
 		"ok": true, "bot_id": botID, "platform": channelType.String(), "target": target,

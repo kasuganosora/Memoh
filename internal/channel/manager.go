@@ -33,6 +33,10 @@ type BindingStore interface {
 // Callers can check for this to provide feedback to the LLM about why the send failed.
 var ErrOutboundDedup = errors.New("outbound message suppressed as duplicate")
 
+// ErrOutboundRateLimit is returned when the per-bot per-channel send rate limit
+// has been exceeded. Callers should surface this to the LLM as a stop signal.
+var ErrOutboundRateLimit = errors.New("outbound rate limit exceeded")
+
 // ConfigStore is the full persistence interface. Components should depend on smaller
 // interfaces above; ConfigStore exists as a convenience for wiring.
 type ConfigStore interface {
@@ -304,7 +308,7 @@ func (m *Manager) Send(ctx context.Context, botID string, channelType ChannelTyp
 				slog.String("bot_id", botID),
 				slog.String("target", target))
 		}
-		return fmt.Errorf("outbound rate limit exceeded for %s/%s", botID, channelType)
+		return fmt.Errorf("%w: %s/%s", ErrOutboundRateLimit, botID, channelType)
 	}
 
 	// Outbound dedup: reject identical messages to the same target within a short window.

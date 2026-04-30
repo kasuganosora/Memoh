@@ -190,21 +190,10 @@ func (p *MessageProvider) reactTool(session SessionContext) sdk.Tool {
 	}
 }
 
-// maxSendsPerTurn is the maximum number of send tool calls allowed per agent
-// turn in discuss mode. This prevents the LLM from spamming the channel with
-// many send calls in a single response.
-const maxSendsPerTurn int32 = 3
-
 func (p *MessageProvider) execSend(ctx context.Context, session SessionContext, args map[string]any) (any, error) {
-	// Per-turn send limit: prevent the LLM from calling send excessively in a single turn.
-	if session.SendCount != nil {
-		count := session.SendCount.Add(1)
-		if count > maxSendsPerTurn {
-			return map[string]any{
-				"ok":    false,
-				"error": fmt.Sprintf("send limit reached: maximum %d sends per turn", maxSendsPerTurn),
-			}, nil
-		}
+	// Per-turn send limit: prevent the LLM from calling send/reply/speak excessively.
+	if err := CheckSendLimit(session); err != nil {
+		return nil, err
 	}
 
 	result, err := p.exec.Send(ctx, toMessagingSession(session), args)
@@ -216,7 +205,7 @@ func (p *MessageProvider) execSend(ctx context.Context, session SessionContext, 
 	if result.Local && session.SessionType == "discuss" {
 		sendResult, err := p.exec.SendDirect(ctx, toMessagingSession(session), result.Target, args)
 		if err != nil {
-			return nil, err
+			return p.handleSendError(err)
 		}
 		resp := map[string]any{
 			"ok": true, "bot_id": sendResult.BotID, "platform": sendResult.Platform, "target": sendResult.Target,
@@ -252,6 +241,26 @@ func (p *MessageProvider) execSend(ctx context.Context, session SessionContext, 
 		resp["message_id"] = result.MessageID
 	}
 	return resp, nil
+}
+
+// handleSendError translates outbound pipeline errors into LLM-friendly
+// tool results. Dedup and rate-limit hits are returned as successful tool
+// calls with explicit "do not retry" instructions so the LLM stops sending.
+func (p *MessageProvider) handleSendError(err error) (any, error) {
+	switch {
+	case errors.Is(err, channel.ErrOutboundDedup):
+		return map[string]any{
+			"ok":    false,
+			"error": "message already delivered (duplicate suppressed) — do not retry",
+		}, nil
+	case errors.Is(err, channel.ErrOutboundRateLimit):
+		return map[string]any{
+			"ok":    false,
+			"error": "outbound rate limit exceeded — stop sending and wait",
+		}, nil
+	default:
+		return nil, err
+	}
 }
 
 func channelAttachmentsToToolAttachments(atts []channel.Attachment) []Attachment {
