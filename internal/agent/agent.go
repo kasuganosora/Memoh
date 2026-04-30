@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	sdk "github.com/memohai/twilight-ai/sdk"
@@ -668,6 +669,7 @@ func (a *Agent) assembleTools(ctx context.Context, cfg RunConfig, emitter tools.
 		Skills:             skillsMap,
 		TimezoneLocation:   cfg.Identity.TimezoneLocation,
 		Emitter:            emitter,
+		SendCount:          new(atomic.Int32),
 	}
 
 	var allTools []sdk.Tool

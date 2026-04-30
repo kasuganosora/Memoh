@@ -29,6 +29,10 @@ type BindingStore interface {
 	ResolveChannelIdentityBinding(ctx context.Context, channelType ChannelType, criteria BindingCriteria) (string, error)
 }
 
+// ErrOutboundDedup is returned when an outbound message is suppressed as a duplicate.
+// Callers can check for this to provide feedback to the LLM about why the send failed.
+var ErrOutboundDedup = errors.New("outbound message suppressed as duplicate")
+
 // ConfigStore is the full persistence interface. Components should depend on smaller
 // interfaces above; ConfigStore exists as a convenience for wiring.
 type ConfigStore interface {
@@ -311,7 +315,7 @@ func (m *Manager) Send(ctx context.Context, botID string, channelType ChannelTyp
 				slog.String("bot_id", botID),
 				slog.String("target", target))
 		}
-		return nil // silently suppress duplicate
+		return ErrOutboundDedup
 	}
 
 	if m.logger != nil {
