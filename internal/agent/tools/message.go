@@ -246,7 +246,7 @@ func (p *MessageProvider) execSend(ctx context.Context, session SessionContext, 
 // handleSendError translates outbound pipeline errors into LLM-friendly
 // tool results. Dedup and rate-limit hits are returned as successful tool
 // calls with explicit "do not retry" instructions so the LLM stops sending.
-func (p *MessageProvider) handleSendError(err error) (any, error) {
+func (*MessageProvider) handleSendError(err error) (any, error) {
 	switch {
 	case errors.Is(err, channel.ErrOutboundDedup):
 		return map[string]any{
