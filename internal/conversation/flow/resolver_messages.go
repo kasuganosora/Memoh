@@ -79,11 +79,50 @@ func prependUserMessage(query string, output []conversation.ModelMessage) []conv
 	return append(round, output...)
 }
 
-// modelMessagesToSDKMessages converts a slice of persistence messages to SDK messages.
-func modelMessagesToSDKMessages(msgs []conversation.ModelMessage) []sdk.Message {
+// modelMessagesToSDKMessagesWithVisionControl converts persistence messages to SDK
+// messages, stripping non-text parts (images, files) when the target model does
+// not support vision/multimodal input. This prevents provider errors when messages
+// containing multimodal content from a vision-capable session are replayed to a
+// text-only model (e.g. compaction, schedule, heartbeat, subagent).
+func modelMessagesToSDKMessagesWithVisionControl(msgs []conversation.ModelMessage, supportsVision bool) []sdk.Message {
 	result := make([]sdk.Message, 0, len(msgs))
 	for _, mm := range msgs {
-		result = append(result, modelMessageToSDKMessage(mm))
+		msg := modelMessageToSDKMessage(mm)
+		if !supportsVision {
+			msg = stripNonTextParts(msg)
+		}
+		result = append(result, msg)
 	}
 	return result
+}
+
+// stripNonTextParts removes ImagePart and FilePart from a message, replacing
+// them with a text placeholder. This is necessary when sending messages that
+// were originally created with a vision-capable model to a text-only model,
+// since the provider API will reject multimodal content it cannot process.
+func stripNonTextParts(msg sdk.Message) sdk.Message {
+	hasNonText := false
+	for _, p := range msg.Content {
+		switch p.(type) {
+		case sdk.ImagePart, sdk.FilePart:
+			hasNonText = true
+		}
+	}
+	if !hasNonText {
+		return msg
+	}
+
+	filtered := make([]sdk.MessagePart, 0, len(msg.Content))
+	for _, p := range msg.Content {
+		switch p.(type) {
+		case sdk.ImagePart:
+			filtered = append(filtered, sdk.TextPart{Text: "[image]"})
+		case sdk.FilePart:
+			filtered = append(filtered, sdk.TextPart{Text: "[file]"})
+		default:
+			filtered = append(filtered, p)
+		}
+	}
+	msg.Content = filtered
+	return msg
 }

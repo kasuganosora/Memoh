@@ -153,7 +153,7 @@ func (s *Service) doCompaction(ctx context.Context, logID pgtype.UUID, sessionUU
 	for _, m := range toCompact {
 		entries = append(entries, messageEntry{
 			Role:    m.Role,
-			Content: string(m.Content),
+			Content: stripMultimodalContent(string(m.Content)),
 		})
 		messageIDs = append(messageIDs, m.ID)
 	}
