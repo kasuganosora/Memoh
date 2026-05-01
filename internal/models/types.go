@@ -153,6 +153,25 @@ func (m *Model) HasCompatibility(c string) bool {
 	return false
 }
 
+// clientTypesWithInlineImages lists client types whose provider API actually
+// accepts image content parts (image_url, etc.) in chat message payloads.
+// CompatVision on the model alone is not sufficient — the provider's API must
+// also support the wire format. For example, DeepSeek uses openai-completions
+// but rejects image_url content; only true OpenAI and Anthropic accept it.
+var clientTypesWithInlineImages = map[ClientType]bool{
+	ClientTypeOpenAIResponses:    true,
+	ClientTypeAnthropicMessages:  true,
+	ClientTypeGoogleGenerativeAI: true,
+}
+
+// ClientSupportsInlineImages returns true if the given client type's provider
+// API supports sending inline image content in chat messages. This is used to
+// gate SupportsImageInput: even if a model has CompatVision, images must not
+// be injected unless the provider API can actually process them.
+func ClientSupportsInlineImages(clientType ClientType) bool {
+	return clientTypesWithInlineImages[clientType]
+}
+
 type AddRequest Model
 
 type AddResponse struct {

@@ -676,7 +676,7 @@ func (r *Resolver) buildBaseRunConfig(ctx context.Context, p baseRunConfigParams
 		Model:              sdkModel,
 		ReasoningEffort:    reasoningEffort,
 		SessionType:        p.SessionType,
-		SupportsImageInput: chatModel.HasCompatibility(models.CompatVision),
+		SupportsImageInput: chatModel.HasCompatibility(models.CompatVision) && models.ClientSupportsInlineImages(models.ClientType(provider.ClientType)),
 		SupportsToolCall:   chatModel.HasCompatibility(models.CompatToolCall),
 		Identity: agentpkg.SessionContext{
 			BotID:             p.BotID,
