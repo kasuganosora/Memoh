@@ -311,6 +311,11 @@ func (m *Manager) Send(ctx context.Context, botID string, channelType ChannelTyp
 		return fmt.Errorf("%w: %s/%s", ErrOutboundRateLimit, botID, channelType)
 	}
 
+	// Compute the outbound dedup key up front so we can clean it up
+	// if the actual send fails. The dedup entry is optimistic — it must
+	// be removed when the adapter reports a delivery failure.
+	dedupKey := m.outboundDedupKey(channelType, target, req.Message)
+
 	// Outbound dedup: reject identical messages to the same target within a short window.
 	if dup := m.checkOutboundDedup(channelType, target, req.Message); dup {
 		if m.logger != nil {
@@ -331,10 +336,12 @@ func (m *Manager) Send(ctx context.Context, botID string, channelType ChannelTyp
 		Message: req.Message,
 	}, policy)
 	if err != nil {
+		m.removeOutboundDedup(dedupKey)
 		return err
 	}
 	for _, item := range outbound {
 		if err := m.sendWithConfig(ctx, sender, config, item, policy); err != nil {
+			m.removeOutboundDedup(dedupKey)
 			if m.logger != nil {
 				m.logger.Error("send outbound failed", slog.String("channel", channelType.String()), slog.String("bot_id", botID), slog.Any("error", err))
 			}
@@ -469,6 +476,36 @@ func (m *Manager) checkOutboundDedup(channelType ChannelType, target string, msg
 	}
 	m.outboundDedup[key] = outboundDedupEntry{sentAt: now}
 	return false
+}
+
+// outboundDedupKey computes the SHA-256 dedup key for the given message.
+func (*Manager) outboundDedupKey(channelType ChannelType, target string, msg Message) string {
+	text := msg.PlainText()
+	if text == "" && len(msg.Attachments) == 0 {
+		return ""
+	}
+	h := sha256.New()
+	h.Write([]byte(channelType.String()))
+	h.Write([]byte{0})
+	h.Write([]byte(target))
+	h.Write([]byte{0})
+	h.Write([]byte(text))
+	for _, a := range msg.Attachments {
+		h.Write([]byte{0})
+		h.Write([]byte(a.URL))
+		h.Write([]byte(a.ContentHash))
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// removeOutboundDedup removes a dedup entry (e.g. when the actual send failed).
+func (m *Manager) removeOutboundDedup(key string) {
+	if key == "" {
+		return
+	}
+	m.outboundDedupMu.Lock()
+	delete(m.outboundDedup, key)
+	m.outboundDedupMu.Unlock()
 }
 
 // evictOutboundDedupLocked removes expired entries. Must be called with outboundDedupMu held.

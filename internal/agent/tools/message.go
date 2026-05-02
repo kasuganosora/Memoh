@@ -251,7 +251,7 @@ func (*MessageProvider) handleSendError(err error) (any, error) {
 	case errors.Is(err, channel.ErrOutboundDedup):
 		return map[string]any{
 			"ok":    false,
-			"error": "message already delivered (duplicate suppressed) — do not retry",
+			"error": "message suppressed as duplicate — identical content was just sent to this target, do not retry",
 		}, nil
 	case errors.Is(err, channel.ErrOutboundRateLimit):
 		return map[string]any{
