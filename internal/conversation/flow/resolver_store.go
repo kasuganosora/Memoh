@@ -8,6 +8,7 @@ import (
 
 	sdk "github.com/memohai/twilight-ai/sdk"
 
+	"github.com/memohai/memoh/internal/channel"
 	"github.com/memohai/memoh/internal/conversation"
 	messagepkg "github.com/memohai/memoh/internal/message"
 )
@@ -142,6 +143,14 @@ func (r *Resolver) storeMessages(ctx context.Context, req conversation.ChatReque
 	for i, msg := range messages {
 		msg = normalizeUserMessageContent(msg)
 
+		// Sanitize assistant text content: strip any <tool_calls> XML that
+		// the LLM may have emitted as text (instead of native tool calls).
+		// This prevents the model from "learning" the XML format from
+		// history and perpetuating the broken pattern.
+		if msg.Role == "assistant" {
+			msg.Content = sanitizeAssistantContent(msg.Content)
+		}
+
 		// Prune tool results at store time to reduce DB bloat.
 		// This prevents ~10KB+ tool outputs from being stored verbatim.
 		if pruneToolResults {
@@ -232,7 +241,56 @@ func outboundAssetRefsToMessageRefs(refs []conversation.OutboundAssetRef) []mess
 	return result
 }
 
-// chatAttachmentsToAssetRefs converts ChatAttachment slice to message AssetRef slice.
+// sanitizeAssistantContent strips <tool_calls> XML from assistant message
+// content before storage. When an LLM emits tool calls as text instead of
+// using the native API, the raw XML gets stored in history and the model
+// may "learn" to repeat this broken pattern. We filter it here to break
+// the self-reinforcing cycle.
+func sanitizeAssistantContent(content json.RawMessage) json.RawMessage {
+	if len(content) == 0 {
+		return content
+	}
+
+	// Try array of content parts first (multimodal format).
+	var parts []struct {
+		Text string `json:"text"`
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(content, &parts); err == nil && len(parts) > 0 {
+		changed := false
+		for i := range parts {
+			if parts[i].Type == "text" {
+				cleaned := channel.FilterToolCallXML(parts[i].Text)
+				if cleaned != parts[i].Text {
+					parts[i].Text = cleaned
+					changed = true
+				}
+			}
+		}
+		if changed {
+			b, err := json.Marshal(parts)
+			if err == nil {
+				return b
+			}
+		}
+		return content
+	}
+
+	// Fall back to simple string content.
+	var text string
+	if err := json.Unmarshal(content, &text); err == nil {
+		cleaned := channel.FilterToolCallXML(text)
+		if cleaned != text {
+			b, err := json.Marshal(cleaned)
+			if err == nil {
+				return b
+			}
+		}
+	}
+
+	return content
+}
+
 // Only attachments that carry a content_hash are included.
 func chatAttachmentsToAssetRefs(attachments []conversation.ChatAttachment) []messagepkg.AssetRef {
 	if len(attachments) == 0 {
