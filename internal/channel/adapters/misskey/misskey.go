@@ -624,39 +624,8 @@ func (*MisskeyAdapter) buildInboundMessage(me *meResponse, note misskeyNote) (ch
 		return channel.InboundMessage{}, false
 	}
 
-	// Build quoted context for replies.
-	if note.Reply != nil && note.Reply.Text != "" {
-		quotedText := strings.TrimSpace(note.Reply.Text)
-		if len([]rune(quotedText)) > 200 {
-			quotedText = string([]rune(quotedText)[:200]) + "..."
-		}
-		senderName := note.Reply.User.Name
-		if senderName == "" {
-			senderName = note.Reply.User.Username
-		}
-		if senderName != "" {
-			text = fmt.Sprintf("[Reply to %s: %s]\n%s", senderName, quotedText, text)
-		}
-	}
-
-	// Build quoted context for renotes (quote posts).
-	if note.Renote != nil && note.Renote.Text != "" {
-		quotedText := strings.TrimSpace(note.Renote.Text)
-		if len([]rune(quotedText)) > 200 {
-			quotedText = string([]rune(quotedText)[:200]) + "..."
-		}
-		senderName := note.Renote.User.Name
-		if senderName == "" {
-			senderName = note.Renote.User.Username
-		}
-		if senderName != "" {
-			if text == "" {
-				text = fmt.Sprintf("[Renote from %s: %s]", senderName, quotedText)
-			} else {
-				text = fmt.Sprintf("[Renote from %s: %s]\n%s", senderName, quotedText, text)
-			}
-		}
-	}
+	// Prepend reply/renote context so the bot sees what the user is replying to or quoting.
+	text = noteReplyContext(note, text)
 
 	senderID := note.UserID
 	displayName := note.User.Name
@@ -728,6 +697,51 @@ func (*MisskeyAdapter) buildInboundMessage(me *meResponse, note misskeyNote) (ch
 			"note_id":      note.ID,
 		},
 	}, true
+}
+
+// noteReplyContext prepends reply and renote context to the given text so the
+// bot can see what the user is replying to or quoting. Both fields are truncated
+// to 200 runes to keep prompts concise.
+func noteReplyContext(note misskeyNote, text string) string {
+	// Build quoted context for replies.
+	if note.Reply != nil && note.Reply.Text != "" {
+		quotedText := strings.TrimSpace(note.Reply.Text)
+		if len([]rune(quotedText)) > 200 {
+			quotedText = string([]rune(quotedText)[:200]) + "..."
+		}
+		senderName := note.Reply.User.Name
+		if senderName == "" {
+			senderName = note.Reply.User.Username
+		}
+		if senderName != "" && quotedText != "" {
+			if text == "" {
+				text = fmt.Sprintf("[Reply to %s: %s]", senderName, quotedText)
+			} else {
+				text = fmt.Sprintf("[Reply to %s: %s]\n%s", senderName, quotedText, text)
+			}
+		}
+	}
+
+	// Build quoted context for renotes (quote posts).
+	if note.Renote != nil && note.Renote.Text != "" {
+		quotedText := strings.TrimSpace(note.Renote.Text)
+		if len([]rune(quotedText)) > 200 {
+			quotedText = string([]rune(quotedText)[:200]) + "..."
+		}
+		senderName := note.Renote.User.Name
+		if senderName == "" {
+			senderName = note.Renote.User.Username
+		}
+		if senderName != "" && quotedText != "" {
+			if text == "" {
+				text = fmt.Sprintf("[Renote from %s: %s]", senderName, quotedText)
+			} else {
+				text = fmt.Sprintf("[Renote from %s: %s]\n%s", senderName, quotedText, text)
+			}
+		}
+	}
+
+	return text
 }
 
 // handleTimelineNote processes a note event from a timeline subscription.
@@ -802,6 +816,16 @@ func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source stri
 		text = fmt.Sprintf("[Timeline/%s] @%s: [shared %d file(s)]", source, username, len(attachments))
 	}
 
+	// Prepend reply/renote context so the bot sees what the note is replying to or quoting.
+	text = noteReplyContext(note, text)
+
+	var replyRef *channel.ReplyRef
+	if note.ReplyID != "" {
+		replyRef = &channel.ReplyRef{
+			MessageID: note.ReplyID,
+		}
+	}
+
 	attrs := map[string]string{
 		"user_id":  note.UserID,
 		"username": note.User.Username,
@@ -826,6 +850,7 @@ func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source stri
 			ID:          note.ID,
 			Format:      channel.MessageFormatPlain,
 			Text:        text,
+			Reply:       replyRef,
 			Attachments: attachments,
 		},
 		ReplyTarget: note.ID,
