@@ -2,6 +2,7 @@ package channel
 
 import (
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"strings"
 )
@@ -19,10 +20,11 @@ var filterThinkingRe = regexp.MustCompile(`(?is)<think(?:ing)?>\s*.*?\s*</think(
 //	<parameter name="...">...</parameter>
 //	<function_call>...</function_call>
 //	<tool_call id="...">...</tool_call (including broken/unclosed tags)
-var filterToolCallXMLRe = regexp.MustCompile(`(?is)<(?:[a-z]+:)?(?:function_call|parameter|invoke|tool_call|tool_result|execute)(?:\s[^>]*)?\s*>.*?(?:</(?:[a-z]+:)?(?:function_call|parameter|invoke|tool_call|tool_result|execute)(?:\s[^>]*)?\s*>|<(?:[a-z]+:)?(?:function_call|parameter|invoke|tool_call|tool_result|execute)(?:\s[^>]*)?\s*/>)`)
+//	<tool_calls>...</tool_calls> (wrapper tag)
+var filterToolCallXMLRe = regexp.MustCompile(`(?is)<(?:[a-z]+:)?(?:function_call|parameter|invoke|tool_calls?|tool_result|execute)(?:\s[^>]*)?\s*>.*?(?:</(?:[a-z]+:)?(?:function_call|parameter|invoke|tool_calls?|tool_result|execute)(?:\s[^>]*)?\s*>|<(?:[a-z]+:)?(?:function_call|parameter|invoke|tool_calls?|tool_result|execute)(?:\s[^>]*)?\s*/>)`)
 
 // filterToolCallXMLSelfClosing matches self-closing tool-call XML tags.
-var filterToolCallXMLSelfClosing = regexp.MustCompile(`(?is)<(?:[a-z]+:)?(?:function_call|parameter|invoke|tool_call|tool_result|execute)(?:\s[^>]*)?\s*/>`)
+var filterToolCallXMLSelfClosing = regexp.MustCompile(`(?is)<(?:[a-z]+:)?(?:function_call|parameter|invoke|tool_calls?|tool_result|execute)(?:\s[^>]*)?\s*/>`)
 
 // FilterThinkingTags strips <thinking>...</thinking> and <think\>...</think\> blocks
 // from LLM output text. These tags may appear when a model does not use structured
@@ -39,6 +41,66 @@ func FilterToolCallXML(text string) string {
 	text = filterToolCallXMLRe.ReplaceAllString(text, "")
 	text = filterToolCallXMLSelfClosing.ReplaceAllString(text, "")
 	return strings.TrimSpace(text)
+}
+
+// ParsedToolCall represents a tool call extracted from raw XML text.
+type ParsedToolCall struct {
+	ID    string          `json:"id"`
+	Name  string          `json:"name"`
+	Input json.RawMessage `json:"input"`
+}
+
+// toolCallXMLRe extracts individual <tool_call id="..." name="...">{...}</tool_call> elements from text.
+var toolCallXMLRe = regexp.MustCompile(`(?s)<tool_call\s+id="([^"]*)"\s+name="([^"]*)"\s*>(.*?)</tool_call>`)
+
+// ExtractToolCallsFromText parses <tool_call> XML elements from plain text that
+// some models (e.g. DeepSeek) emit instead of using the native API tool_call
+// structure. Returns extracted tool calls and the text with XML stripped.
+func ExtractToolCallsFromText(text string) ([]ParsedToolCall, string) {
+	matches := toolCallXMLRe.FindAllStringSubmatch(text, -1)
+	if len(matches) == 0 {
+		return nil, text
+	}
+	var calls []ParsedToolCall
+	for _, m := range matches {
+		if len(m) < 4 {
+			continue
+		}
+		input := strings.TrimSpace(m[3])
+		if input == "" {
+			input = "{}"
+		}
+		// Validate input is valid JSON.
+		var raw json.RawMessage
+		if err := json.Unmarshal([]byte(input), &raw); err != nil {
+			continue
+		}
+		calls = append(calls, ParsedToolCall{
+			ID:    strings.TrimSpace(m[1]),
+			Name:  strings.TrimSpace(m[2]),
+			Input: raw,
+		})
+	}
+	cleaned := toolCallXMLRe.ReplaceAllString(text, "")
+	cleaned = filterToolCallXMLSelfClosing.ReplaceAllString(cleaned, "")
+	cleaned = filterToolCallXMLRe.ReplaceAllString(cleaned, "")
+	cleaned = strings.TrimSpace(cleaned)
+	return calls, cleaned
+}
+
+// ToolCallToEventInput converts a ParsedToolCall into a StreamToolCallEvent
+// for the agent's event pipeline.
+func (tc ParsedToolCall) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]any{
+		"id":    tc.ID,
+		"name":  tc.Name,
+		"input": tc.Input,
+	})
+}
+
+// FormatToolCallError formats a tool execution error for a parsed text tool call.
+func FormatToolCallError(toolCallID, toolName string, err error) string {
+	return fmt.Sprintf("text-parsed tool call %q (%s) failed: %v", toolName, toolCallID, err)
 }
 
 // FilterReasoningArray detects and extracts text from raw JSON reasoning arrays

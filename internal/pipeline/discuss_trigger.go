@@ -487,6 +487,7 @@ func (d *DiscussTrigger) consumeStream(
 	outStream channel.OutboundStream,
 	log *slog.Logger,
 ) (hadOutput bool, finalMessages []conversation.ModelMessage, streamErr error) {
+	var textBuf strings.Builder
 	for chunkCh != nil || errCh != nil {
 		select {
 		case chunk, ok := <-chunkCh:
@@ -515,6 +516,7 @@ func (d *DiscussTrigger) consumeStream(
 				// only the send/reply tool delivers visible messages.
 				// Skip text-phase deltas to prevent leaking monologue to the channel.
 				if event.Type == channel.StreamEventDelta && event.Phase == channel.StreamPhaseText {
+					textBuf.WriteString(event.Delta)
 					continue
 				}
 				if outStream != nil {
@@ -540,6 +542,20 @@ func (d *DiscussTrigger) consumeStream(
 			break
 		}
 	}
+
+	// Detect text-based tool calls the LLM emitted as plain text instead of
+	// using the native tool-call API. Attempt to execute them to avoid silently
+	// dropping tool calls (e.g. send) that the user expects to be delivered.
+	if textBuf.Len() > 0 && outStream != nil {
+		acc := textBuf.String()
+		if calls, _ := channel.ExtractToolCallsFromText(acc); len(calls) > 0 {
+			log.Warn("discuss: detected text-based tool calls in monologue",
+				slog.Int("count", len(calls)),
+				slog.String("bot_id", cfg.BotID))
+			d.executeTextToolCalls(ctx, cfg, calls, outStream, log)
+		}
+	}
+
 	return
 }
 
@@ -578,8 +594,84 @@ func (d *DiscussTrigger) drainDiscussQueue(ctx context.Context, routeID string, 
 }
 
 // ---------------------------------------------------------------------------
-// Reactions
+// Text-based tool call execution
 // ---------------------------------------------------------------------------
+
+// executeTextToolCalls executes tool calls that were embedded as XML text in the
+// LLM's monologue (when the model fails to use the native tool-call API).
+// Currently handles "send" and "reply" tools directly via the channel sender.
+func (d *DiscussTrigger) executeTextToolCalls(
+	ctx context.Context,
+	cfg DiscussSessionConfig,
+	calls []channel.ParsedToolCall,
+	outStream channel.OutboundStream,
+	log *slog.Logger,
+) {
+	if d.deps.ChannelSender == nil {
+		return
+	}
+	chType := channel.ChannelType(cfg.CurrentPlatform)
+	sender, err := d.deps.ChannelSender.GetReplySender(cfg.BotID, chType)
+	if err != nil {
+		log.Warn("discuss: failed to get reply sender for text tool calls",
+			slog.Any("error", err))
+		return
+	}
+
+	for _, call := range calls {
+		switch call.Name {
+		case "send", "reply":
+			var args struct {
+				Text    string `json:"text"`
+				ReplyTo string `json:"reply_to"`
+				Target  string `json:"target"`
+			}
+			if err := json.Unmarshal(call.Input, &args); err != nil {
+				log.Warn("discuss: failed to parse text tool call args",
+					slog.String("tool", call.Name), slog.Any("error", err))
+				continue
+			}
+			text := strings.TrimSpace(args.Text)
+			if text == "" {
+				continue
+			}
+			target := strings.TrimSpace(args.Target)
+			if target == "" {
+				target = cfg.ReplyTarget
+			}
+			msg := channel.Message{
+				Text:   text,
+				Format: channel.MessageFormatPlain,
+			}
+			if args.ReplyTo != "" {
+				msg.Reply = &channel.ReplyRef{MessageID: strings.TrimSpace(args.ReplyTo)}
+			}
+			// Push the formatted message through the outbound stream for display,
+			// then send it directly via the reply sender.
+			if outStream != nil {
+				_ = outStream.Push(ctx, channel.StreamEvent{
+					Type:  channel.StreamEventDelta,
+					Delta: text,
+					Phase: channel.StreamPhaseText,
+				})
+			}
+			if err := sender.Send(ctx, channel.OutboundMessage{
+				Target:  target,
+				Message: msg,
+			}); err != nil {
+				log.Error("discuss: text tool call send failed",
+					slog.String("tool", call.Name), slog.Any("error", err))
+			} else {
+				log.Info("discuss: executed text-based tool call",
+					slog.String("tool", call.Name),
+					slog.Int("text_len", len(text)))
+			}
+		default:
+			log.Warn("discuss: unsupported text-based tool call",
+				slog.String("tool", call.Name))
+		}
+	}
+}
 
 func (d *DiscussTrigger) dispatchDiscussReactions(ctx context.Context, cfg DiscussSessionConfig, reactions []channel.ReactRequest, log *slog.Logger) {
 	if d.deps.Reactor == nil || cfg.CurrentPlatform == "" || cfg.ReplyTarget == "" {
