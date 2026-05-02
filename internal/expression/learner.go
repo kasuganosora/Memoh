@@ -88,12 +88,11 @@ func (l *Learner) Accumulate(ctx context.Context, messages []Message, sessionID 
 			}()
 			// Reset counter regardless of outcome
 			atomic.StoreInt32(&l.pending, 0)
-			// Snapshot buffer and clear it under lock.
-			l.mu.Lock()
+			// Snapshot buffer and clear it — we already hold l.mu from TryLock,
+			// so direct access is safe (no nested Lock required).
 			bufCopy := make([]Message, len(l.buffer))
 			copy(bufCopy, l.buffer)
 			l.buffer = l.buffer[:0]
-			l.mu.Unlock()
 			if len(bufCopy) == 0 {
 				return
 			}

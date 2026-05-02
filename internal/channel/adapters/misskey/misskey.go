@@ -620,7 +620,17 @@ func (*MisskeyAdapter) buildInboundMessage(me *meResponse, note misskeyNote) (ch
 		mention := "@" + me.Username
 		text = strings.TrimSpace(strings.Replace(text, mention, "", 1))
 	}
-	if text == "" {
+
+	// After stripping the mention the text might be empty (e.g. a note that is
+	// only "@bot" with a quoted renote). Fall back to the renote text so the
+	// message is not silently dropped.
+	if text == "" && note.Renote != nil {
+		if rt := strings.TrimSpace(note.Renote.Text); rt != "" {
+			text = rt
+		}
+	}
+
+	if text == "" && len(attachments) == 0 {
 		return channel.InboundMessage{}, false
 	}
 
