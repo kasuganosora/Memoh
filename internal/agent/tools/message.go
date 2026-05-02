@@ -98,6 +98,12 @@ func (p *MessageProvider) Tools(ctx context.Context, session SessionContext) ([]
 	if session.IsSubagent {
 		return nil, nil
 	}
+	// Heartbeat analysis phase (phase 1): the LLM should only inspect and
+	// report — no send/reply/react tools. Alert delivery is handled by
+	// the resolver in a separate phase 2 call (heartbeat_alert).
+	if session.SessionType == "heartbeat" {
+		return nil, nil
+	}
 	var tools []sdk.Tool
 	sess := session
 

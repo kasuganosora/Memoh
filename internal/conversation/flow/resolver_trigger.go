@@ -85,11 +85,23 @@ func (r *Resolver) TriggerSchedule(ctx context.Context, botID string, payload sc
 	}, storeErr
 }
 
-// TriggerHeartbeat executes a heartbeat check via the internal agent.
+// TriggerHeartbeat executes a heartbeat check via the internal agent in two phases:
+//
+//	Phase 1 (analysis):  The LLM inspects the system state without access to the
+//	                     send tool. It either replies HEARTBEAT_OK or produces
+//	                     analysis text describing what needs attention.
+//	Phase 2 (alert):     Only triggered when Phase 1 does NOT return HEARTBEAT_OK.
+//	                     A second LLM call with send tool access decides whether
+//	                     and how to deliver the alert. This follows the Discuss
+//	                     pattern where the bot makes the final delivery decision.
 func (r *Resolver) TriggerHeartbeat(ctx context.Context, botID string, payload heartbeat.TriggerPayload, token string) (heartbeat.TriggerResult, error) {
 	if strings.TrimSpace(botID) == "" {
 		return heartbeat.TriggerResult{}, errors.New("bot id is required")
 	}
+
+	// ---------------------------------------------------------------------------
+	// Shared setup: model selection and prompt construction.
+	// ---------------------------------------------------------------------------
 
 	var heartbeatModel string
 	if botSettings, err := r.loadBotSettings(ctx, botID); err == nil {
@@ -131,30 +143,136 @@ func (r *Resolver) TriggerHeartbeat(ctx context.Context, botID string, payload h
 	cfg.Messages = append(cfg.Messages, sdk.UserMessage(heartbeatPrompt))
 	cfg = r.prepareRunConfig(ctx, cfg)
 
-	result, err := r.agent.Generate(ctx, cfg)
+	// ---------------------------------------------------------------------------
+	// Phase 1: Heartbeat analysis — send tool is NOT available.
+	//           The LLM inspects state and produces analysis text or HEARTBEAT_OK.
+	// ---------------------------------------------------------------------------
+
+	phase1Result, err := r.agent.Generate(ctx, cfg)
 	if err != nil {
 		return heartbeat.TriggerResult{}, err
 	}
 
-	status := "alert"
-	text := strings.TrimSpace(result.Text)
-	if isHeartbeatOK(text) {
-		status = "ok"
+	phase1Text := strings.TrimSpace(phase1Result.Text)
+
+	// HEARTBEAT_OK → all clear, nothing to do. Store and return.
+	if isHeartbeatOK(phase1Text) {
+		outputMessages := sdkMessagesToModelMessages(phase1Result.Messages)
+		roundMessages := prependUserMessage(heartbeatPrompt, outputMessages)
+		_ = r.storeRound(ctx, req, roundMessages, rc.model.ID)
+
+		usageJSON, _ := json.Marshal(phase1Result.Usage)
+		return heartbeat.TriggerResult{
+			Status:     "ok",
+			Text:       phase1Text,
+			Usage:      usageJSON,
+			UsageBytes: usageJSON,
+			ModelID:    rc.model.ID,
+			SessionID:  payload.SessionID,
+		}, nil
 	}
 
-	outputMessages := sdkMessagesToModelMessages(result.Messages)
-	roundMessages := prependUserMessage(heartbeatPrompt, outputMessages)
-	_ = r.storeRound(ctx, req, roundMessages, rc.model.ID)
+	// Store Phase 1 round before proceeding to Phase 2.
+	phase1Messages := sdkMessagesToModelMessages(phase1Result.Messages)
+	phase1Round := prependUserMessage(heartbeatPrompt, phase1Messages)
+	_ = r.storeRound(ctx, req, phase1Round, rc.model.ID)
 
-	totalUsageJSON, _ := json.Marshal(result.Usage)
+	r.logger.Info("heartbeat phase 1 complete, entering phase 2 alert decision",
+		slog.String("bot_id", botID),
+		slog.String("session_id", payload.SessionID),
+	)
+
+	// ---------------------------------------------------------------------------
+	// Phase 2: Alert decision — send tool IS available.
+	//           The LLM reviews the Phase 1 analysis and decides whether and
+	//           how to send an alert. This follows the Discuss pattern where
+	//           the bot controls delivery decisions, not the analysis phase.
+	// ---------------------------------------------------------------------------
+
+	alertReq := conversation.ChatRequest{
+		BotID:     botID,
+		ChatID:    botID,
+		SessionID: payload.SessionID,
+		Query:     phase1Text,
+		UserID:    payload.OwnerUserID,
+		Token:     token,
+		Model:     heartbeatModel,
+	}
+	alertRC, err := r.resolve(ctx, alertReq)
+	if err != nil {
+		// Phase 2 resolution failed — return Phase 1 result with alert status.
+		r.logger.Warn("heartbeat phase 2 resolve failed, falling back to phase 1",
+			slog.String("bot_id", botID),
+			slog.Any("error", err),
+		)
+		phase1UsageJSON, _ := json.Marshal(phase1Result.Usage)
+		return heartbeat.TriggerResult{
+			Status:     "alert",
+			Text:       phase1Text,
+			Usage:      phase1UsageJSON,
+			UsageBytes: phase1UsageJSON,
+			ModelID:    rc.model.ID,
+			SessionID:  payload.SessionID,
+		}, nil
+	}
+
+	alertCfg := alertRC.runConfig
+	alertCfg.SessionType = "heartbeat_alert"
+	alertCfg.Identity.ChannelIdentityID = strings.TrimSpace(payload.OwnerUserID)
+
+	// The Phase 1 analysis text is the user message for Phase 2.
+	alertCfg.Messages = append(alertCfg.Messages, sdk.UserMessage(phase1Text))
+	alertCfg = r.prepareRunConfig(ctx, alertCfg)
+
+	phase2Result, err := r.agent.Generate(ctx, alertCfg)
+	if err != nil {
+		r.logger.Warn("heartbeat phase 2 generate failed",
+			slog.String("bot_id", botID),
+			slog.Any("error", err),
+		)
+		phase1UsageJSON, _ := json.Marshal(phase1Result.Usage)
+		return heartbeat.TriggerResult{
+			Status:     "alert",
+			Text:       phase1Text,
+			Usage:      phase1UsageJSON,
+			UsageBytes: phase1UsageJSON,
+			ModelID:    rc.model.ID,
+			SessionID:  payload.SessionID,
+		}, nil
+	}
+
+	// Store Phase 2 round.
+	phase2Messages := sdkMessagesToModelMessages(phase2Result.Messages)
+	phase2Round := prependUserMessage(phase1Text, phase2Messages)
+	_ = r.storeRound(ctx, alertReq, phase2Round, alertRC.model.ID)
+
+	// Combine usage from both phases.
+	combinedUsage := heartbeatCombinedUsage{
+		Phase1: phase1Result.Usage,
+		Phase2: phase2Result.Usage,
+	}
+	combinedUsageJSON, _ := json.Marshal(combinedUsage)
+
+	r.logger.Info("heartbeat phase 2 alert decision complete",
+		slog.String("bot_id", botID),
+		slog.String("session_id", payload.SessionID),
+		slog.Int("phase2_messages", len(phase2Result.Messages)),
+	)
+
 	return heartbeat.TriggerResult{
-		Status:     status,
-		Text:       text,
-		Usage:      totalUsageJSON,
-		UsageBytes: totalUsageJSON,
-		ModelID:    rc.model.ID,
+		Status:     "alert",
+		Text:       strings.TrimSpace(phase2Result.Text),
+		Usage:      combinedUsage,
+		UsageBytes: combinedUsageJSON,
+		ModelID:    alertRC.model.ID,
 		SessionID:  payload.SessionID,
 	}, nil
+}
+
+// heartbeatCombinedUsage wraps usage from both heartbeat phases for logging.
+type heartbeatCombinedUsage struct {
+	Phase1 *sdk.Usage `json:"phase1"`
+	Phase2 *sdk.Usage `json:"phase2"`
 }
 
 func isHeartbeatOK(text string) bool {

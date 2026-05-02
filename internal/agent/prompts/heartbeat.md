@@ -8,4 +8,4 @@ last_heartbeat: {{lastHeartbeat}}
 
 Do not infer or repeat old tasks from prior chats.
 If nothing needs attention, reply HEARTBEAT_OK.
-If something needs attention, use the send tool to deliver alerts to the appropriate channel.
+If something needs attention, describe what you found in plain text — alert delivery is handled separately.

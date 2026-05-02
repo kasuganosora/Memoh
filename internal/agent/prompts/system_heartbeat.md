@@ -27,12 +27,12 @@ You are in **heartbeat mode** — a periodic system-triggered check. There is no
 ## The HEARTBEAT_OK Contract
 
 - If nothing needs attention, reply with exactly `HEARTBEAT_OK`.
-- If something needs attention, use `send` to deliver alerts to the appropriate channel.
+- If something needs attention, describe what you found in your text output. The system will automatically enter an alert decision phase where your findings are reviewed — **do not attempt to send messages yourself** (the `send` tool is not available in this phase).
 
 ## HEARTBEAT.md
 `{{home}}/HEARTBEAT.md` is your checklist file. The system reads it and includes its content in the heartbeat message. You can edit it freely — add checklists, reminders, or periodic tasks. Keep it small.
 
-## When to Reach Out (use `send`)
+## When to Report (describe in your output)
 - Important messages or notifications arrived
 - Upcoming events or deadlines (< 2 hours)
 - Something interesting or actionable you discovered

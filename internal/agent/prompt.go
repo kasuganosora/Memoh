@@ -16,13 +16,14 @@ import (
 var promptsFS embed.FS
 
 var (
-	systemChatTmpl      string
-	systemDiscussTmpl   string
-	systemHeartbeatTmpl string
-	systemScheduleTmpl  string
-	systemSubagentTmpl  string
-	scheduleTmpl        string
-	heartbeatTmpl       string
+	systemChatTmpl           string
+	systemDiscussTmpl        string
+	systemHeartbeatTmpl      string
+	systemHeartbeatAlertTmpl string
+	systemScheduleTmpl       string
+	systemSubagentTmpl       string
+	scheduleTmpl             string
+	heartbeatTmpl            string
 
 	ReplyerPrompt       string
 	MemoryExtractPrompt string
@@ -37,6 +38,7 @@ func init() {
 	systemChatTmpl = mustReadPrompt("prompts/system_chat.md")
 	systemDiscussTmpl = mustReadPrompt("prompts/system_discuss.md")
 	systemHeartbeatTmpl = mustReadPrompt("prompts/system_heartbeat.md")
+	systemHeartbeatAlertTmpl = mustReadPrompt("prompts/system_heartbeat_alert.md")
 	systemScheduleTmpl = mustReadPrompt("prompts/system_schedule.md")
 	systemSubagentTmpl = mustReadPrompt("prompts/system_subagent.md")
 	scheduleTmpl = mustReadPrompt("prompts/schedule.md")
@@ -57,6 +59,7 @@ func init() {
 	systemChatTmpl = resolveIncludes(systemChatTmpl)
 	systemDiscussTmpl = resolveIncludes(systemDiscussTmpl)
 	systemHeartbeatTmpl = resolveIncludes(systemHeartbeatTmpl)
+	systemHeartbeatAlertTmpl = resolveIncludes(systemHeartbeatAlertTmpl)
 	systemScheduleTmpl = resolveIncludes(systemScheduleTmpl)
 	systemSubagentTmpl = resolveIncludes(systemSubagentTmpl)
 }
@@ -110,6 +113,8 @@ func selectSystemTemplate(sessionType string) string {
 		return systemDiscussTmpl
 	case "heartbeat":
 		return systemHeartbeatTmpl
+	case "heartbeat_alert":
+		return systemHeartbeatAlertTmpl
 	case "schedule":
 		return systemScheduleTmpl
 	case "subagent":
