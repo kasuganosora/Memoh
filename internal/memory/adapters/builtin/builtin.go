@@ -137,6 +137,12 @@ func memorySourceLabel(item adapters.MemoryItem) string {
 				parts = append(parts, name)
 			}
 		}
+		if platform, ok := item.Metadata["source_platform"].(string); ok {
+			platform = strings.TrimSpace(platform)
+			if platform != "" {
+				parts = append(parts, platform)
+			}
+		}
 	}
 	if ts := strings.TrimSpace(item.CreatedAt); ts != "" {
 		if len(ts) > 10 {
@@ -239,6 +245,17 @@ func (p *BuiltinProvider) OnAfterChat(ctx context.Context, req adapters.AfterCha
 		"bot_id":    botID,
 	}
 	metadata := adapters.BuildProfileMetadata(req.UserID, req.ChannelIdentityID, req.DisplayName)
+	if req.SourcePlatform != "" || req.SourceSessionID != "" {
+		if metadata == nil {
+			metadata = make(map[string]any)
+		}
+		if req.SourcePlatform != "" {
+			metadata["source_platform"] = req.SourcePlatform
+		}
+		if req.SourceSessionID != "" {
+			metadata["source_session_id"] = req.SourceSessionID
+		}
+	}
 	if _, err := p.service.Add(ctx, adapters.AddRequest{
 		Messages: req.Messages,
 		BotID:    botID,

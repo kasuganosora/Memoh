@@ -433,3 +433,132 @@ func TestOnBeforeChatRecallsFactMemory(t *testing.T) {
 		t.Fatalf("expected recalled context to mention oolong tea, got %q", result.ContextText)
 	}
 }
+
+func TestFormationSourcePlatformAndSessionID(t *testing.T) {
+	t.Parallel()
+	encoder := &fakeSparseEncoder{}
+	index := newFakeSparseIndex(encoder)
+	store := newFakeSparseStore()
+	runtime := &sparseRuntime{qdrant: index, encoder: encoder, store: store}
+
+	llm := &fakeLLM{
+		extractFacts: []string{"User discussed project timeline"},
+		decideActions: []adapters.DecisionAction{
+			{Event: "ADD", Text: "User discussed project timeline"},
+		},
+	}
+
+	result := runFormation(context.Background(), slog.Default(), llm, runtime, adapters.AfterChatRequest{
+		BotID: "bot-src",
+		Messages: []adapters.Message{
+			{Role: "user", Content: "Let's discuss the project timeline"},
+		},
+		SourcePlatform:  "misskey",
+		SourceSessionID: "misskey-timeline-42",
+	})
+
+	if result.Added != 1 {
+		t.Fatalf("expected 1 added, got %d", result.Added)
+	}
+
+	// Verify metadata includes source platform and session ID.
+	if len(store.items) == 0 {
+		t.Fatal("expected at least 1 stored item")
+	}
+	for _, item := range store.items {
+		if item.Metadata == nil {
+			t.Fatal("expected non-nil metadata on stored memory item")
+		}
+		if platform, ok := item.Metadata["source_platform"].(string); !ok || platform != "misskey" {
+			t.Fatalf("expected source_platform=misskey in metadata, got %v", item.Metadata["source_platform"])
+		}
+		if sid, ok := item.Metadata["source_session_id"].(string); !ok || sid != "misskey-timeline-42" {
+			t.Fatalf("expected source_session_id=misskey-timeline-42 in metadata, got %v", item.Metadata["source_session_id"])
+		}
+	}
+}
+
+func TestFormationNoSourceMetadata(t *testing.T) {
+	t.Parallel()
+	encoder := &fakeSparseEncoder{}
+	index := newFakeSparseIndex(encoder)
+	store := newFakeSparseStore()
+	runtime := &sparseRuntime{qdrant: index, encoder: encoder, store: store}
+
+	llm := &fakeLLM{
+		extractFacts: []string{"User likes coffee"},
+		decideActions: []adapters.DecisionAction{
+			{Event: "ADD", Text: "User likes coffee"},
+		},
+	}
+
+	result := runFormation(context.Background(), slog.Default(), llm, runtime, adapters.AfterChatRequest{
+		BotID: "bot-no-src",
+		Messages: []adapters.Message{
+			{Role: "user", Content: "I like coffee"},
+		},
+		// SourcePlatform and SourceSessionID intentionally empty.
+	})
+
+	if result.Added != 1 {
+		t.Fatalf("expected 1 added, got %d", result.Added)
+	}
+
+	// Verify no source metadata is injected when both are empty.
+	for _, item := range store.items {
+		if _, ok := item.Metadata["source_platform"]; ok {
+			t.Fatal("expected no source_platform when SourcePlatform is empty")
+		}
+		if _, ok := item.Metadata["source_session_id"]; ok {
+			t.Fatal("expected no source_session_id when SourceSessionID is empty")
+		}
+	}
+}
+
+func TestMemorySourceLabel(t *testing.T) {
+	tests := []struct {
+		name     string
+		metadata map[string]any
+		contains []string
+	}{
+		{
+			name:     "no metadata",
+			metadata: nil,
+			contains: nil,
+		},
+		{
+			name: "platform only",
+			metadata: map[string]any{
+				"source_platform": "misskey",
+			},
+			contains: []string{"misskey"},
+		},
+		{
+			name: "display name and platform",
+			metadata: map[string]any{
+				"profile_display_name": "Alice",
+				"source_platform":      "telegram",
+			},
+			contains: []string{"Alice", "telegram"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			item := adapters.MemoryItem{
+				Metadata: tt.metadata,
+			}
+			label := memorySourceLabel(item)
+			if len(tt.contains) == 0 {
+				if label != "" {
+					t.Fatalf("expected empty label, got %q", label)
+				}
+				return
+			}
+			for _, c := range tt.contains {
+				if c != "" && !strings.Contains(label, c) {
+					t.Fatalf("expected label to contain %q, got %q", c, label)
+				}
+			}
+		})
+	}
+}

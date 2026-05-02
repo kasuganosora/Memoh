@@ -18,14 +18,15 @@ type LLMService interface {
 // Learner is a domain service that asynchronously learns expression patterns
 // and jargon terms from accumulated chat messages.
 type Learner struct {
-	botID    string
-	llm      LLMService
-	exprRepo ExpressionRepository
-	jargRepo JargonRepository
-	pending  int32      // atomic — accumulated message count
-	buffer   []Message  // guarded by mu
-	mu       sync.Mutex // prevents concurrent learning runs
-	logger   *slog.Logger
+	botID         string
+	llm           LLMService
+	exprRepo      ExpressionRepository
+	jargRepo      JargonRepository
+	pending       int32      // atomic — accumulated message count
+	buffer        []Message  // guarded by mu
+	lastSessionID string     // last session that contributed messages
+	mu            sync.Mutex // prevents concurrent learning runs
+	logger        *slog.Logger
 }
 
 const (
@@ -46,13 +47,17 @@ func NewLearner(botID string, llm LLMService, exprRepo ExpressionRepository, jar
 
 // Accumulate adds messages to the pending count and buffer. When the threshold
 // is reached, it attempts to start a non-blocking learning run.
-func (l *Learner) Accumulate(ctx context.Context, messages []Message) {
+// sessionID records which session contributed these messages for source tracking.
+func (l *Learner) Accumulate(ctx context.Context, messages []Message, sessionID string) {
 	if len(messages) == 0 {
 		return
 	}
 
 	// Buffer messages for later processing (user messages only).
 	l.mu.Lock()
+	if sessionID != "" {
+		l.lastSessionID = sessionID
+	}
 	for _, msg := range messages {
 		if msg.Role == "user" && strings.TrimSpace(msg.Content) != "" {
 			l.buffer = append(l.buffer, msg)
@@ -123,7 +128,11 @@ func (l *Learner) LearnFromHistory(ctx context.Context, messages []Message) erro
 	// Remove Markdown code fences if present.
 	response = stripMarkdownFences(response)
 
-	expressions, jargons, err := extractExpressionsFromLLM(l.botID, "", response)
+	l.mu.Lock()
+	sessionID := l.lastSessionID
+	l.mu.Unlock()
+
+	expressions, jargons, err := extractExpressionsFromLLM(l.botID, sessionID, response)
 	if err != nil {
 		return fmt.Errorf("parse extraction: %w", err)
 	}

@@ -1,6 +1,6 @@
 ## Contacts & Messaging
 
-Use `get_contacts` to list all known contacts and conversations. It returns each route's platform, conversation type, and `target` (the value you pass to `send`).
+Use `get_contacts` to list all known contacts and conversations across all platforms. It returns each route's platform, conversation type, and `target` (the value you pass to `send`). This is your unified address book — every conversation you participate in, regardless of platform.
 
 Supported platforms: telegram, discord, qq, matrix, feishu, wecom, dingtalk, wechatoa, weixin, misskey, web.
 

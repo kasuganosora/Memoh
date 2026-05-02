@@ -631,6 +631,8 @@ func (d *DiscussTrigger) extractPassiveMemory(_ context.Context, sess *discussSe
 			BotID:             sess.config.BotID,
 			Messages:          messages,
 			ChannelIdentityID: sess.config.ChannelIdentityID,
+			SourcePlatform:    sess.config.CurrentPlatform,
+			SourceSessionID:   sess.config.SessionID,
 		}
 		go func(parentCtx context.Context) { //nolint:contextcheck // intentionally detached from request context
 			memCtx, memCancel := context.WithTimeout(parentCtx, 2*time.Minute)

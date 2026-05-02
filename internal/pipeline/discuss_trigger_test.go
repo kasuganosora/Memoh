@@ -9,6 +9,7 @@ import (
 
 	"github.com/memohai/memoh/internal/channel"
 	"github.com/memohai/memoh/internal/conversation"
+	"github.com/memohai/memoh/internal/memory/adapters"
 )
 
 // testStreamChunkParser is a simple parser for tests that handles agent_end and text_delta events.
@@ -541,4 +542,62 @@ func TestHandleReplyWithAgent_DispatcherQueueDrain(t *testing.T) {
 		t.Fatalf("expected queued notifications to be consumed, got %d", len(disp.queuedNotifs))
 	}
 	disp.mu.Unlock()
+}
+
+func TestExtractPassiveMemory_SourceMetadata(t *testing.T) {
+	// Not parallel — extractPassiveMemory spawns a goroutine that races with test reads.
+
+	done := make(chan adapters.AfterChatRequest, 1)
+	fakeFormation := &fakeMemoryFormation{
+		onAfterChatFn: func(req adapters.AfterChatRequest) error {
+			done <- req
+			return nil
+		},
+	}
+
+	driver := NewDiscussTrigger(DiscussTriggerDeps{
+		Pipeline:          NewPipeline(RenderParams{}),
+		StreamChunkParser: testStreamChunkParser,
+		MemoryFormation:   fakeFormation,
+	})
+
+	rc := RenderedContext{
+		{
+			ReceivedAtMs: 100,
+			Content:      []RenderedContentPiece{{Type: "text", Text: "test message"}},
+		},
+	}
+
+	sess := &discussSession{
+		config: DiscussSessionConfig{
+			BotID:           "bot-src",
+			SessionID:       "sess-src",
+			CurrentPlatform: "misskey",
+		},
+		lastProcessedMs: 0,
+	}
+
+	driver.extractPassiveMemory(context.Background(), sess, rc, driver.logger)
+
+	// Wait for the async goroutine to call OnAfterChat.
+	capturedReq := <-done
+
+	if capturedReq.SourcePlatform != "misskey" {
+		t.Fatalf("expected SourcePlatform=misskey, got %q", capturedReq.SourcePlatform)
+	}
+	if capturedReq.SourceSessionID != "sess-src" {
+		t.Fatalf("expected SourceSessionID=sess-src, got %q", capturedReq.SourceSessionID)
+	}
+}
+
+// fakeMemoryFormation implements memoryFormationRunner for testing.
+type fakeMemoryFormation struct {
+	onAfterChatFn func(req adapters.AfterChatRequest) error
+}
+
+func (f *fakeMemoryFormation) OnAfterChat(_ context.Context, req adapters.AfterChatRequest) error {
+	if f.onAfterChatFn != nil {
+		return f.onAfterChatFn(req)
+	}
+	return nil
 }

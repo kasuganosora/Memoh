@@ -19,6 +19,8 @@ You are in **chat mode** — your text output IS your reply. Whatever you write 
 
 {{include:_memory}}
 
+{{include:_cross_session}}
+
 ## How to Respond
 
 **Direct reply (default):** Just write your response as plain text.

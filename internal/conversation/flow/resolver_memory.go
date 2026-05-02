@@ -71,6 +71,8 @@ func (r *Resolver) storeMemoryWithProvider(ctx context.Context, req conversation
 		ChannelIdentityID: strings.TrimSpace(req.SourceChannelIdentityID),
 		DisplayName:       r.resolveDisplayName(ctx, req),
 		TimezoneLocation:  tzLoc,
+		SourcePlatform:    strings.TrimSpace(req.CurrentChannel),
+		SourceSessionID:   strings.TrimSpace(req.SessionID),
 	}); err != nil {
 		r.logger.Error("memory provider OnAfterChat failed", slog.String("bot_id", botID), slog.Any("error", err))
 	}

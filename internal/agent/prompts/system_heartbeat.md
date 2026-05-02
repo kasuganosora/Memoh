@@ -18,6 +18,8 @@ You are in **heartbeat mode** — a periodic system-triggered check. There is no
 
 {{include:_memory}}
 
+{{include:_cross_session}}
+
 {{include:_contacts}}
 
 {{include:_identities}}

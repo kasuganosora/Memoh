@@ -18,6 +18,8 @@ You are in **schedule mode** — executing a scheduled task. There is no active 
 
 {{include:_memory}}
 
+{{include:_cross_session}}
+
 {{include:_contacts}}
 
 {{include:_identities}}

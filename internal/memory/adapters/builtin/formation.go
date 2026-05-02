@@ -71,6 +71,17 @@ func runFormation(ctx context.Context, logger *slog.Logger, llm adapters.LLM, ru
 		"bot_id":    botID,
 	}
 	metadata := adapters.BuildProfileMetadata(req.UserID, req.ChannelIdentityID, req.DisplayName)
+	if req.SourcePlatform != "" || req.SourceSessionID != "" {
+		if metadata == nil {
+			metadata = make(map[string]any)
+		}
+		if req.SourcePlatform != "" {
+			metadata["source_platform"] = req.SourcePlatform
+		}
+		if req.SourceSessionID != "" {
+			metadata["source_session_id"] = req.SourceSessionID
+		}
+	}
 
 	applyActions(ctx, logger, runtime, botID, decided.Actions, filters, metadata, &result)
 	return result

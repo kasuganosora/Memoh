@@ -25,6 +25,10 @@ type AfterChatRequest struct {
 	ChannelIdentityID string
 	DisplayName       string
 	TimezoneLocation  *time.Location
+	// SourcePlatform records which platform (telegram, discord, misskey, etc.) the conversation came from.
+	SourcePlatform string
+	// SourceSessionID records which session the conversation belongs to.
+	SourceSessionID string
 }
 
 // LLM is the interface for LLM operations needed by memory service.

@@ -1264,7 +1264,7 @@ func makeExpressionAccumulator(pool *pgxpool.Pool, a *agentpkg.Agent, log *slog.
 		return nil
 	}
 	mgr := newExpressionLearnerManager(pool, &expressionLLMAdapter{agent: a}, log)
-	return func(ctx context.Context, botID, _ string, messages []memprovider.Message) {
+	return func(ctx context.Context, botID, sessionID string, messages []memprovider.Message) {
 		learner := mgr.getOrCreate(botID)
 		exprMsgs := make([]expression.Message, 0, len(messages))
 		for _, msg := range messages {
@@ -1273,7 +1273,7 @@ func makeExpressionAccumulator(pool *pgxpool.Pool, a *agentpkg.Agent, log *slog.
 			}
 		}
 		if len(exprMsgs) > 0 {
-			learner.Accumulate(ctx, exprMsgs)
+			learner.Accumulate(ctx, exprMsgs, sessionID)
 		}
 	}
 }
@@ -1285,7 +1285,7 @@ func makeExpressionLearner(pool *pgxpool.Pool, a *agentpkg.Agent, log *slog.Logg
 		return nil
 	}
 	mgr := newExpressionLearnerManager(pool, &expressionLLMAdapter{agent: a}, log)
-	return func(ctx context.Context, botID, _ string, messages []flow.ExpressionMessage) {
+	return func(ctx context.Context, botID, sessionID string, messages []flow.ExpressionMessage) {
 		learner := mgr.getOrCreate(botID)
 		exprMsgs := make([]expression.Message, 0, len(messages))
 		for _, msg := range messages {
@@ -1294,7 +1294,7 @@ func makeExpressionLearner(pool *pgxpool.Pool, a *agentpkg.Agent, log *slog.Logg
 			}
 		}
 		if len(exprMsgs) > 0 {
-			learner.Accumulate(ctx, exprMsgs)
+			learner.Accumulate(ctx, exprMsgs, sessionID)
 		}
 	}
 }
