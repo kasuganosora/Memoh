@@ -747,58 +747,6 @@ func (r *Resolver) ResolveRunConfig(ctx context.Context, botID, sessionID, chann
 	}, nil
 }
 
-// describeImagesWithVisionModel forwards images to a multimodal model and
-// returns a detailed text description. Used when the main model doesn't
-// support vision but a fallback vision model is configured.
-func (r *Resolver) describeImagesWithVisionModel(ctx context.Context, modelID string, images []sdk.ImagePart) (string, error) {
-	visionModel, provider, err := r.fetchChatModel(ctx, modelID)
-	if err != nil {
-		return "", fmt.Errorf("resolve vision model: %w", err)
-	}
-
-	authResolver := providers.NewService(nil, r.queries, "")
-	creds, err := authResolver.ResolveModelCredentials(ctx, provider)
-	if err != nil {
-		return "", fmt.Errorf("resolve vision model credentials: %w", err)
-	}
-
-	sdkModel := models.NewSDKChatModel(models.SDKModelConfig{
-		ModelID:    visionModel.ModelID,
-		ClientType: provider.ClientType,
-		APIKey:     creds.APIKey,
-		BaseURL:    providers.ProviderConfigString(provider, "base_url"),
-		HTTPClient: r.streamHTTPClient,
-	})
-
-	imageParts := make([]sdk.MessagePart, 0, len(images))
-	for _, img := range images {
-		if strings.TrimSpace(img.Image) != "" {
-			imageParts = append(imageParts, img)
-		}
-	}
-	if len(imageParts) == 0 {
-		return "", nil
-	}
-
-	prompt := "Please describe this image in detail. Include all visible objects, people, text, colors, layout, and any other relevant information that would help someone understand this image without seeing it."
-
-	genCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	client := sdk.NewClient()
-	text, err := client.GenerateText(genCtx,
-		sdk.WithModel(sdkModel),
-		sdk.WithMessages([]sdk.Message{
-			sdk.UserMessage(prompt, imageParts...),
-		}),
-	)
-	if err != nil {
-		return "", fmt.Errorf("vision model call: %w", err)
-	}
-
-	return strings.TrimSpace(text), nil
-}
-
 // prepareRunConfig generates the system prompt and appends the user message.
 func (r *Resolver) prepareRunConfig(ctx context.Context, cfg agentpkg.RunConfig) agentpkg.RunConfig {
 	supportsImageInput := cfg.SupportsImageInput
@@ -838,29 +786,27 @@ func (r *Resolver) prepareRunConfig(ctx context.Context, cfg agentpkg.RunConfig)
 		PlatformIdentitiesSection: platformIdentitiesSection,
 	})
 
-	// Multimodal fallback: when the main model doesn't support vision but
-	// images are present and a vision fallback model is configured, describe
-	// the images with the vision model and inject the description as text.
-	if !cfg.SupportsImageInput && len(cfg.InlineImages) > 0 && cfg.VisionModelID != "" {
-		desc, err := r.describeImagesWithVisionModel(ctx, cfg.VisionModelID, cfg.InlineImages)
-		if err != nil {
-			r.logger.Warn("multimodal fallback: image description failed, images will be dropped",
-				slog.String("bot_id", cfg.Identity.BotID),
-				slog.Int("image_count", len(cfg.InlineImages)),
-				slog.Any("error", err),
-			)
-		} else if desc != "" {
-			if cfg.Query != "" {
-				cfg.Query = desc + "\n\n" + cfg.Query
-			} else {
-				cfg.Query = desc
-			}
-			cfg.InlineImages = nil
-			r.logger.Info("multimodal fallback: images described by vision model",
-				slog.String("bot_id", cfg.Identity.BotID),
-				slog.Int("image_count", len(cfg.InlineImages)),
-			)
-		}
+	// Run the message processing pipeline. Each processor handles one type
+	// of content that the main model cannot process natively (images today;
+	// video, audio, files in the future). Processors transform content into
+	// text descriptions that the main model can understand.
+	state := &MessageState{
+		BotID:        cfg.Identity.BotID,
+		Query:        cfg.Query,
+		InlineImages: cfg.InlineImages,
+	}
+	pipeline := r.buildMessagePipeline(VisionConfig{
+		SupportsVision: cfg.SupportsImageInput,
+		VisionModelID:  cfg.VisionModelID,
+	})
+	if err := runMessagePipeline(ctx, pipeline, state, r.logger); err != nil {
+		r.logger.Warn("message pipeline: processing failed, continuing with original message",
+			slog.String("bot_id", cfg.Identity.BotID),
+			slog.Any("error", err),
+		)
+	} else {
+		cfg.Query = state.Query
+		cfg.InlineImages = state.InlineImages
 	}
 
 	if cfg.Query != "" {
