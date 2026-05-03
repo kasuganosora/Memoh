@@ -4,31 +4,57 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strings"
 	"time"
 
 	sdk "github.com/memohai/twilight-ai/sdk"
 
+	"github.com/memohai/memoh/internal/db"
+	"github.com/memohai/memoh/internal/db/sqlc"
 	"github.com/memohai/memoh/internal/models"
 	"github.com/memohai/memoh/internal/providers"
 )
 
+// ---------------------------------------------------------------------------
+// Processor
+// ---------------------------------------------------------------------------
+
+// ImageProcessorDeps holds the dependencies for the image description
+// processor. All deps are explicit so the processor can be tested in
+// isolation without a Resolver.
+type ImageProcessorDeps struct {
+	VisionModelID      string
+	FetchModel         func(ctx context.Context, modelID string) (ModelProvider, error)
+	ResolveCredentials func(ctx context.Context, provider Provider) (Credentials, error)
+	HTTPClient         *http.Client
+	Logger             *slog.Logger
+}
+
 // imageDescriptionProcessor describes images through a vision-capable
 // model when the main model does not support images natively.
 type imageDescriptionProcessor struct {
-	visionModelID string
-	describer     func(ctx context.Context, images []sdk.ImagePart) (string, error)
-	logger        *slog.Logger
+	deps ImageProcessorDeps
+}
+
+// NewImageDescriptionProcessor creates a processor that describes images
+// using a vision-capable fallback model. All dependencies are injected
+// via deps so the processor can be independently tested.
+func NewImageDescriptionProcessor(deps ImageProcessorDeps) *imageDescriptionProcessor {
+	if deps.Logger == nil {
+		deps.Logger = slog.Default()
+	}
+	return &imageDescriptionProcessor{deps: deps}
 }
 
 func (p *imageDescriptionProcessor) Name() string { return "image_description" }
 
 func (p *imageDescriptionProcessor) Process(ctx context.Context, state *MessageState) error {
-	if p.visionModelID == "" || len(state.InlineImages) == 0 {
+	if p.deps.VisionModelID == "" || len(state.InlineImages) == 0 {
 		return nil
 	}
 
-	desc, err := p.describer(ctx, state.InlineImages)
+	desc, err := DescribeImagesWithVisionModel(ctx, p.deps.VisionModelID, state.InlineImages, p.deps.FetchModel, p.deps.ResolveCredentials, p.deps.HTTPClient)
 	if err != nil {
 		return err
 	}
@@ -43,67 +69,30 @@ func (p *imageDescriptionProcessor) Process(ctx context.Context, state *MessageS
 	}
 	state.InlineImages = nil
 
-	p.logger.Info("image description complete",
+	p.deps.Logger.Info("image description complete",
 		slog.String("bot_id", state.BotID),
 	)
 
 	return nil
 }
 
-// buildMessagePipeline constructs the ordered list of message processors
-// based on the current run configuration. New content types can be added
-// here as additional processors.
-func (r *Resolver) buildMessagePipeline(cfg VisionConfig) []MessageProcessor {
-	var processors []MessageProcessor
+// ---------------------------------------------------------------------------
+// Standalone image description function (no Resolver dependency)
+// ---------------------------------------------------------------------------
 
-	if !cfg.SupportsVision && cfg.VisionModelID != "" {
-		processors = append(processors, &imageDescriptionProcessor{
-			visionModelID: cfg.VisionModelID,
-			describer: func(ctx context.Context, images []sdk.ImagePart) (string, error) {
-				return r.describeImagesWithVisionModel(ctx, cfg.VisionModelID, images)
-			},
-			logger: r.logger,
-		})
-	}
-
-	// Future processors:
-	// if !cfg.SupportsAudio && cfg.AudioModelID != "" { ... }
-	// if !cfg.SupportsVideo && cfg.VideoModelID != "" { ... }
-
-	return processors
-}
-
-// VisionConfig holds the vision-related configuration extracted from a
-// RunConfig. Decoupled from RunConfig so the pipeline builder doesn't
-// depend on the full config struct.
-type VisionConfig struct {
-	SupportsVision bool
-	VisionModelID  string
-}
-
-// describeImagesWithVisionModel forwards images to a multimodal model
-// and returns a detailed text description.
-func (r *Resolver) describeImagesWithVisionModel(ctx context.Context, modelID string, images []sdk.ImagePart) (string, error) {
-	visionModel, provider, err := r.fetchChatModel(ctx, modelID)
-	if err != nil {
-		return "", fmt.Errorf("resolve vision model: %w", err)
-	}
-
-	authResolver := providers.NewService(nil, r.queries, "")
-	creds, err := authResolver.ResolveModelCredentials(ctx, provider)
-	if err != nil {
-		return "", fmt.Errorf("resolve vision model credentials: %w", err)
-	}
-
-	sdkModel := models.NewSDKChatModel(models.SDKModelConfig{
-		ModelID:        visionModel.ModelID,
-		ClientType:     provider.ClientType,
-		APIKey:         creds.APIKey,
-		CodexAccountID: creds.CodexAccountID,
-		BaseURL:        providers.ProviderConfigString(provider, "base_url"),
-		HTTPClient:     r.streamHTTPClient,
-	})
-
+// DescribeImagesWithVisionModel forwards images to a multimodal model
+// and returns a detailed text description. All external dependencies
+// are injected so this function can be tested independently.
+func DescribeImagesWithVisionModel(
+	ctx context.Context,
+	modelID string,
+	images []sdk.ImagePart,
+	fetchModel func(ctx context.Context, modelID string) (ModelProvider, error),
+	resolveCredentials func(ctx context.Context, provider Provider) (Credentials, error),
+	httpClient *http.Client,
+) (string, error) {
+	// Filter empty images first — avoids resolving the model when there
+	// are no actual images to describe.
 	imageParts := make([]sdk.MessagePart, 0, len(images))
 	for _, img := range images {
 		if strings.TrimSpace(img.Image) != "" {
@@ -113,6 +102,27 @@ func (r *Resolver) describeImagesWithVisionModel(ctx context.Context, modelID st
 	if len(imageParts) == 0 {
 		return "", nil
 	}
+
+	modelProvider, err := fetchModel(ctx, modelID)
+	if err != nil {
+		return "", fmt.Errorf("resolve vision model: %w", err)
+	}
+
+	creds, err := resolveCredentials(ctx, Provider{
+		ID:         modelProvider.ProviderID,
+		ClientType: modelProvider.ClientType,
+	})
+	if err != nil {
+		return "", fmt.Errorf("resolve vision model credentials: %w", err)
+	}
+
+	sdkModel := models.NewSDKChatModel(models.SDKModelConfig{
+		ModelID:        modelProvider.ModelID,
+		ClientType:     modelProvider.ClientType,
+		APIKey:         creds.APIKey,
+		CodexAccountID: creds.CodexAccountID,
+		HTTPClient:     httpClient,
+	})
 
 	prompt := "Please describe this image in detail. Include all visible objects, people, text, colors, layout, and any other relevant information that would help someone understand this image without seeing it."
 
@@ -131,4 +141,121 @@ func (r *Resolver) describeImagesWithVisionModel(ctx context.Context, modelID st
 	}
 
 	return strings.TrimSpace(text), nil
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline builder (standalone)
+// ---------------------------------------------------------------------------
+
+// VisionConfig holds the vision-related configuration extracted from a
+// RunConfig. Decoupled so the pipeline builder doesn't depend on RunConfig.
+type VisionConfig struct {
+	SupportsVision bool
+	VisionModelID  string
+}
+
+// BuildMessagePipeline constructs the ordered list of message processors
+// based on the current configuration. This is a standalone function so it
+// can be tested with any configuration without a Resolver.
+//
+// New content types are added here as additional processor construction
+// branches.
+func BuildMessagePipeline(cfg VisionConfig, deps PipelineDeps) []MessageProcessor {
+	var processors []MessageProcessor
+
+	if !cfg.SupportsVision && cfg.VisionModelID != "" {
+		processors = append(processors, NewImageDescriptionProcessor(ImageProcessorDeps{
+			VisionModelID:      cfg.VisionModelID,
+			FetchModel:         deps.FetchModel,
+			ResolveCredentials: deps.ResolveCredentials,
+			HTTPClient:         deps.HTTPClient,
+			Logger:             deps.Logger,
+		}))
+	}
+
+	// Future processors:
+	// if !cfg.SupportsAudio && cfg.AudioModelID != "" { ... }
+	// if !cfg.SupportsVideo && cfg.VideoModelID != "" { ... }
+
+	return processors
+}
+
+// ---------------------------------------------------------------------------
+// Resolver adapter (thin glue layer)
+// ---------------------------------------------------------------------------
+
+// buildMessagePipeline is a thin adapter on Resolver that translates
+// Resolver-scoped types into the standalone pipeline deps.
+func (r *Resolver) buildMessagePipeline(cfg VisionConfig) []MessageProcessor {
+	deps := PipelineDeps{
+		FetchModel: func(ctx context.Context, modelID string) (ModelProvider, error) {
+			m, p, err := r.fetchChatModel(ctx, modelID)
+			if err != nil {
+				return ModelProvider{}, err
+			}
+			return ModelProvider{
+				ModelID:    m.ModelID,
+				ClientType: p.ClientType,
+				ProviderID: p.ID.String(),
+			}, nil
+		},
+		ResolveCredentials: func(ctx context.Context, provider Provider) (Credentials, error) {
+			authResolver := providers.NewService(nil, r.queries, "")
+			creds, err := authResolver.ResolveModelCredentials(ctx, sqlcProviderFromModelProvider(provider))
+			if err != nil {
+				return Credentials{}, err
+			}
+			return Credentials{
+				APIKey:         creds.APIKey,
+				CodexAccountID: creds.CodexAccountID,
+			}, nil
+		},
+		HTTPClient: r.streamHTTPClient,
+		Logger:     r.logger,
+	}
+	return BuildMessagePipeline(cfg, deps)
+}
+
+// ---------------------------------------------------------------------------
+// Legacy method (delegates to standalone function)
+// ---------------------------------------------------------------------------
+
+// describeImagesWithVisionModel forwards images to a multimodal model
+// and returns a detailed text description. Kept as a Resolver method
+// for backward compatibility; delegates to the standalone function.
+func (r *Resolver) describeImagesWithVisionModel(ctx context.Context, modelID string, images []sdk.ImagePart) (string, error) {
+	return DescribeImagesWithVisionModel(ctx, modelID, images,
+		func(ctx context.Context, id string) (ModelProvider, error) {
+			m, p, err := r.fetchChatModel(ctx, id)
+			if err != nil {
+				return ModelProvider{}, err
+			}
+			return ModelProvider{
+				ModelID:    m.ModelID,
+				ClientType: p.ClientType,
+				ProviderID: p.ID.String(),
+			}, nil
+		},
+		func(ctx context.Context, provider Provider) (Credentials, error) {
+			authResolver := providers.NewService(nil, r.queries, "")
+			creds, err := authResolver.ResolveModelCredentials(ctx, sqlcProviderFromModelProvider(provider))
+			if err != nil {
+				return Credentials{}, err
+			}
+			return Credentials{
+				APIKey:         creds.APIKey,
+				CodexAccountID: creds.CodexAccountID,
+			}, nil
+		},
+		r.streamHTTPClient,
+	)
+}
+
+// sqlcProviderFromModelProvider converts a pipeline Provider to sqlc.Provider.
+// The pipeline Provider.ID carries the provider record UUID as a string.
+func sqlcProviderFromModelProvider(p Provider) sqlc.Provider {
+	return sqlc.Provider{
+		ID:         db.ParseUUIDOrEmpty(p.ID),
+		ClientType: p.ClientType,
+	}
 }

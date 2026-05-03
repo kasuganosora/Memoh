@@ -3,6 +3,7 @@ package flow
 import (
 	"context"
 	"log/slog"
+	"net/http"
 
 	sdk "github.com/memohai/twilight-ai/sdk"
 )
@@ -64,4 +65,42 @@ func runMessagePipeline(ctx context.Context, processors []MessageProcessor, stat
 		}
 	}
 	return nil
+}
+
+// PipelineDeps holds all external dependencies needed to build message
+// processors. Extracted from Resolver so processors can be constructed
+// and tested independently.
+type PipelineDeps struct {
+	// FetchModel resolves a model by ID (UUID or slug) and returns
+	// its metadata and provider information.
+	FetchModel func(ctx context.Context, modelID string) (ModelProvider, error)
+
+	// ResolveCredentials returns provider API credentials given a provider.
+	ResolveCredentials func(ctx context.Context, provider Provider) (Credentials, error)
+
+	// HTTPClient is used for LLM provider HTTP calls. Inject a custom
+	// *http.Client with mock transport for testing.
+	HTTPClient *http.Client
+
+	Logger *slog.Logger
+}
+
+// ModelProvider pairs model metadata with its provider for LLM calls.
+type ModelProvider struct {
+	ModelID    string // The model identifier (e.g. "gpt-4o")
+	ClientType string // Provider client type (e.g. "openai-completions")
+	ProviderID string // Provider record UUID for credential lookup
+}
+
+// Provider holds provider identifier needed for credential resolution.
+type Provider struct {
+	ID         string
+	ClientType string
+}
+
+// Credentials holds the API key and optional account identifier for
+// authenticating LLM provider calls.
+type Credentials struct {
+	APIKey         string
+	CodexAccountID string
 }
