@@ -451,6 +451,17 @@ func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (r
 	}
 	runCfg.InlineImages = extractNativeImageParts(mergedAttachments)
 
+	// When the main model doesn't support vision but a fallback vision model
+	// is configured, extract images from the original attachments so the
+	// message pipeline can describe them. Without this, images routed to the
+	// fallback bucket are converted to tool_file_ref and never reach the pipeline.
+	if !runCfg.SupportsImageInput && runCfg.VisionModelID != "" {
+		fallbackImages := extractImagePartsForVisionFallback(ctx, r, req)
+		if len(fallbackImages) > 0 {
+			runCfg.InlineImages = append(runCfg.InlineImages, fallbackImages...)
+		}
+	}
+
 	// Inline pipeline-sourced images (from RC segments) when the model supports vision.
 	if usePipeline && runCfg.SupportsImageInput {
 		sessionID := strings.TrimSpace(req.SessionID)
@@ -1034,6 +1045,58 @@ func extractAttachmentPaths(attachments []any) []string {
 // extractNativeImageParts returns sdk.ImagePart entries for attachments that
 // the model can consume as inline multimodal input (vision-capable images with
 // an inline data URL or public URL payload).
+// extractImagePartsForVisionFallback extracts image parts from the original
+// request attachments when the main model does not support vision. These are
+// fed to the message pipeline where the vision fallback model describes them
+// as text for the main model.
+func extractImagePartsForVisionFallback(ctx context.Context, r *Resolver, req conversation.ChatRequest) []sdk.ImagePart {
+	var parts []sdk.ImagePart
+	for _, att := range req.Attachments {
+		if !strings.EqualFold(strings.TrimSpace(att.Type), "image") {
+			continue
+		}
+		// Base64 data from channel adapter
+		if base64 := strings.TrimSpace(att.Base64); base64 != "" {
+			mime := strings.TrimSpace(att.Mime)
+			if mime == "" || strings.EqualFold(mime, "application/octet-stream") {
+				mime = "application/octet-stream"
+			}
+			parts = append(parts, sdk.ImagePart{
+				Image:     "data:" + mime + ";base64," + base64,
+				MediaType: mime,
+			})
+			continue
+		}
+		// Data URL from URL field
+		if u := strings.TrimSpace(att.URL); strings.HasPrefix(strings.ToLower(u), "data:") {
+			parts = append(parts, sdk.ImagePart{
+				Image:     u,
+				MediaType: strings.TrimSpace(att.Mime),
+			})
+			continue
+		}
+		// Content hash — inline from media store if asset loader is available
+		if contentHash := strings.TrimSpace(att.ContentHash); contentHash != "" && r != nil && r.assetLoader != nil {
+			dataURL, mime, err := r.inlineAssetAsDataURL(ctx, req.BotID, contentHash, "image", strings.TrimSpace(att.Mime))
+			if err != nil {
+				if r.logger != nil {
+					r.logger.Warn("vision fallback: failed to inline image asset",
+						slog.String("bot_id", req.BotID),
+						slog.String("content_hash", contentHash),
+						slog.Any("error", err),
+					)
+				}
+				continue
+			}
+			parts = append(parts, sdk.ImagePart{
+				Image:     dataURL,
+				MediaType: mime,
+			})
+		}
+	}
+	return parts
+}
+
 func extractNativeImageParts(attachments []any) []sdk.ImagePart {
 	var parts []sdk.ImagePart
 	for _, att := range attachments {
