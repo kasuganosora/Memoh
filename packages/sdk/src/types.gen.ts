@@ -1758,6 +1758,7 @@ export type SettingsSettings = {
     title_model_id?: string;
     transcription_model_id?: string;
     tts_model_id?: string;
+    vision_model_id?: string;
 };
 
 export type SettingsUpsertRequest = {
@@ -1784,6 +1785,7 @@ export type SettingsUpsertRequest = {
     title_model_id?: string;
     transcription_model_id?: string;
     tts_model_id?: string;
+    vision_model_id?: string;
 };
 
 export type PostAuthLoginData = {

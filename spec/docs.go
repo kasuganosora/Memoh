@@ -6572,7 +6572,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Model type (chat, embedding)",
+                        "description": "Model type (chat, embedding, image)",
                         "name": "type",
                         "in": "query"
                     },
@@ -6656,7 +6656,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Model type (chat, embedding)",
+                        "description": "Model type (chat, embedding, image)",
                         "name": "type",
                         "in": "query"
                     }
@@ -7429,7 +7429,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Model type (chat, embedding)",
+                        "description": "Model type (chat, embedding, image)",
                         "name": "type",
                         "in": "query"
                     }
@@ -10787,6 +10787,12 @@ const docTemplate = `{
         "channel.ChannelConfig": {
             "type": "object",
             "properties": {
+                "allowed_tools": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "bot_id": {
                     "type": "string"
                 },
@@ -11140,6 +11146,12 @@ const docTemplate = `{
         "channel.UpsertConfigRequest": {
             "type": "object",
             "properties": {
+                "allowed_tools": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "credentials": {
                     "type": "object",
                     "additionalProperties": {}
@@ -13032,7 +13044,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "config": {
-                    "$ref": "#/definitions/models.ModelConfig"
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
                 "model_id": {
                     "type": "string"
@@ -13071,7 +13086,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "config": {
-                    "$ref": "#/definitions/models.ModelConfig"
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
                 "id": {
                     "type": "string"
@@ -13090,42 +13108,21 @@ const docTemplate = `{
                 }
             }
         },
-        "models.ModelConfig": {
-            "type": "object",
-            "properties": {
-                "compatibilities": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "context_window": {
-                    "type": "integer"
-                },
-                "dimensions": {
-                    "type": "integer"
-                },
-                "reasoning_efforts": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
         "models.ModelType": {
             "type": "string",
             "enum": [
                 "chat",
                 "embedding",
                 "speech",
-                "transcription"
+                "transcription",
+                "image"
             ],
             "x-enum-varnames": [
                 "ModelTypeChat",
                 "ModelTypeEmbedding",
                 "ModelTypeSpeech",
-                "ModelTypeTranscription"
+                "ModelTypeTranscription",
+                "ModelTypeImage"
             ]
         },
         "models.TestResponse": {
@@ -13164,7 +13161,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "config": {
-                    "$ref": "#/definitions/models.ModelConfig"
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
                 "model_id": {
                     "type": "string"
@@ -13726,6 +13726,59 @@ const docTemplate = `{
                 }
             }
         },
+        "settings.ChatTimingConfig": {
+            "type": "object",
+            "properties": {
+                "debounce_max_wait": {
+                    "type": "integer"
+                },
+                "debounce_quiet_period": {
+                    "type": "integer"
+                },
+                "enable_expression_learning": {
+                    "type": "boolean"
+                },
+                "enable_profile_tracking": {
+                    "type": "boolean"
+                },
+                "enable_replyer": {
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "idle_comp_enabled": {
+                    "type": "boolean"
+                },
+                "idle_comp_min_idle_before_credit": {
+                    "type": "integer"
+                },
+                "idle_comp_window_size": {
+                    "type": "integer"
+                },
+                "interrupt_enabled": {
+                    "type": "boolean"
+                },
+                "interrupt_max_consecutive": {
+                    "type": "integer"
+                },
+                "interrupt_max_rounds": {
+                    "type": "integer"
+                },
+                "memory_search_mode": {
+                    "type": "string"
+                },
+                "replyer_model_id": {
+                    "type": "string"
+                },
+                "talk_value": {
+                    "type": "number"
+                },
+                "timing_gate": {
+                    "type": "boolean"
+                }
+            }
+        },
         "settings.Settings": {
             "type": "object",
             "properties": {
@@ -13737,6 +13790,9 @@ const docTemplate = `{
                 },
                 "chat_model_id": {
                     "type": "string"
+                },
+                "chat_timing": {
+                    "$ref": "#/definitions/settings.ChatTimingConfig"
                 },
                 "compaction_enabled": {
                     "type": "boolean"
@@ -13796,6 +13852,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "tts_model_id": {
+                    "type": "string"
+                },
+                "vision_model_id": {
                     "type": "string"
                 }
             }
@@ -13812,6 +13871,9 @@ const docTemplate = `{
                 "chat_model_id": {
                     "type": "string"
                 },
+                "chat_timing": {
+                    "$ref": "#/definitions/settings.ChatTimingConfig"
+                },
                 "compaction_enabled": {
                     "type": "boolean"
                 },
@@ -13826,6 +13888,15 @@ const docTemplate = `{
                 },
                 "discuss_probe_model_id": {
                     "type": "string"
+                },
+                "enable_expression_learning": {
+                    "type": "boolean"
+                },
+                "enable_profile_tracking": {
+                    "type": "boolean"
+                },
+                "enable_replyer": {
+                    "type": "boolean"
                 },
                 "heartbeat_enabled": {
                     "type": "boolean"
@@ -13845,6 +13916,9 @@ const docTemplate = `{
                 "memory_provider_id": {
                     "type": "string"
                 },
+                "memory_search_mode": {
+                    "type": "string"
+                },
                 "persist_full_tool_results": {
                     "type": "boolean"
                 },
@@ -13853,6 +13927,9 @@ const docTemplate = `{
                 },
                 "reasoning_enabled": {
                     "type": "boolean"
+                },
+                "replyer_model_id": {
+                    "type": "string"
                 },
                 "search_provider_id": {
                     "type": "string"
@@ -13870,6 +13947,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "tts_model_id": {
+                    "type": "string"
+                },
+                "vision_model_id": {
                     "type": "string"
                 }
             }

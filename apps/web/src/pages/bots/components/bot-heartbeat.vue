@@ -343,7 +343,7 @@ watch(settings, (val: SettingsSettings | undefined) => {
     settingsForm.heartbeat_enabled = val.heartbeat_enabled ?? false
     settingsForm.heartbeat_interval = val.heartbeat_interval ?? 30
     settingsForm.heartbeat_model_id = val.heartbeat_model_id ?? ''
-    settingsForm.vision_model_id = (val as any).vision_model_id ?? ''
+    settingsForm.vision_model_id = val.vision_model_id ?? ''
   }
 }, { immediate: true })
 
@@ -353,7 +353,7 @@ const settingsChanged = computed(() => {
   return settingsForm.heartbeat_enabled !== (s.heartbeat_enabled ?? false)
     || settingsForm.heartbeat_interval !== (s.heartbeat_interval ?? 30)
     || settingsForm.heartbeat_model_id !== (s.heartbeat_model_id ?? '')
-    || settingsForm.vision_model_id !== ((s as any).vision_model_id ?? '')
+    || settingsForm.vision_model_id !== (s.vision_model_id ?? '')
 })
 
 const { mutateAsync: updateSettings, isLoading: isSaving } = useMutation({
