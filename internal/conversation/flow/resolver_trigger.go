@@ -187,6 +187,12 @@ func (r *Resolver) TriggerHeartbeat(ctx context.Context, botID string, payload h
 	//           The LLM reviews the Phase 1 analysis and decides whether and
 	//           how to send an alert. This follows the Discuss pattern where
 	//           the bot controls delivery decisions, not the analysis phase.
+	//
+	// Model selection: Phase 2 intentionally does NOT reuse heartbeatModel
+	// (the small/cheap analysis model). It falls back to the bot's main
+	// ChatModelID so the alert decision gets full intelligence. Since Phase 2
+	// only runs when an alert is warranted (rare), using the main model here
+	// saves cost overall while keeping alert quality high.
 	// ---------------------------------------------------------------------------
 
 	alertReq := conversation.ChatRequest{
@@ -196,7 +202,6 @@ func (r *Resolver) TriggerHeartbeat(ctx context.Context, botID string, payload h
 		Query:     phase1Text,
 		UserID:    payload.OwnerUserID,
 		Token:     token,
-		Model:     heartbeatModel,
 	}
 	alertRC, err := r.resolve(ctx, alertReq)
 	if err != nil {

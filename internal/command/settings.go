@@ -28,7 +28,7 @@ func (h *Handler) buildSettingsGroup() *CommandGroup {
 				{"Heartbeat Enabled", boolStr(s.HeartbeatEnabled)},
 				{"Heartbeat Interval", fmt.Sprintf("%d min", s.HeartbeatInterval)},
 				{"Chat Model", h.resolveModelName(cc, s.ChatModelID)},
-				{"Heartbeat Model", h.resolveModelName(cc, s.HeartbeatModelID)},
+				{"Heartbeat Analysis Model", h.resolveModelName(cc, s.HeartbeatModelID)},
 				{"Search Provider", h.resolveSearchProviderName(cc, s.SearchProviderID)},
 				{"Memory Provider", h.resolveMemoryProviderName(cc, s.MemoryProviderID)},
 				{"Browser Context", h.resolveBrowserContextName(cc, s.BrowserContextID)},
