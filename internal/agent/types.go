@@ -70,6 +70,11 @@ type RunConfig struct {
 	SupportsImageInput bool
 	SupportsToolCall   bool
 	InlineImages       []sdk.ImagePart
+
+	// VisionModelID is the UUID of a multimodal model to use for image
+	// description when SupportsImageInput is false but images are present.
+	// If empty, images are silently dropped (current behavior).
+	VisionModelID string
 	Identity           SessionContext
 	Skills             []SkillEntry
 	LoopDetection      LoopDetectionConfig

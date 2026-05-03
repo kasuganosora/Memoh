@@ -45,6 +45,19 @@
           />
         </div>
       </div>
+      <div class="space-y-2 md:col-span-2">
+        <Label>{{ $t('bots.settings.visionModel') }}</Label>
+        <p class="text-xs text-muted-foreground mt-0.5">
+          {{ $t('bots.settings.visionModelDescription') }}
+        </p>
+        <ModelSelect
+          v-model="settingsForm.vision_model_id"
+          :models="models"
+          :providers="providers"
+          model-type="chat"
+          :placeholder="$t('bots.settings.visionModelPlaceholder')"
+        />
+      </div>
       <div class="flex justify-end">
         <Button
           size="sm"
@@ -322,6 +335,7 @@ const settingsForm = reactive({
   heartbeat_enabled: false,
   heartbeat_interval: 30,
   heartbeat_model_id: '',
+  vision_model_id: '',
 })
 
 watch(settings, (val: SettingsSettings | undefined) => {
@@ -329,6 +343,7 @@ watch(settings, (val: SettingsSettings | undefined) => {
     settingsForm.heartbeat_enabled = val.heartbeat_enabled ?? false
     settingsForm.heartbeat_interval = val.heartbeat_interval ?? 30
     settingsForm.heartbeat_model_id = val.heartbeat_model_id ?? ''
+    settingsForm.vision_model_id = (val as any).vision_model_id ?? ''
   }
 }, { immediate: true })
 
@@ -338,6 +353,7 @@ const settingsChanged = computed(() => {
   return settingsForm.heartbeat_enabled !== (s.heartbeat_enabled ?? false)
     || settingsForm.heartbeat_interval !== (s.heartbeat_interval ?? 30)
     || settingsForm.heartbeat_model_id !== (s.heartbeat_model_id ?? '')
+    || settingsForm.vision_model_id !== ((s as any).vision_model_id ?? '')
 })
 
 const { mutateAsync: updateSettings, isLoading: isSaving } = useMutation({

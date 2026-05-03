@@ -43,6 +43,7 @@ type Bot struct {
 	CreatedAt              pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
 	AclDefaultEffect       string             `json:"acl_default_effect"`
+	VisionModelID          pgtype.UUID        `json:"vision_model_id"`
 }
 
 type BotAclRule struct {

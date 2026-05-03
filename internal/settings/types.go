@@ -23,6 +23,7 @@ type Settings struct {
 	HeartbeatInterval      int              `json:"heartbeat_interval"`
 	HeartbeatModelID       string           `json:"heartbeat_model_id"`
 	TitleModelID           string           `json:"title_model_id"`
+	VisionModelID          string           `json:"vision_model_id,omitempty"`
 	CompactionEnabled      bool             `json:"compaction_enabled"`
 	CompactionThreshold    int              `json:"compaction_threshold"`
 	CompactionRatio        int              `json:"compaction_ratio"`
@@ -50,6 +51,7 @@ type UpsertRequest struct {
 	HeartbeatInterval      *int              `json:"heartbeat_interval,omitempty"`
 	HeartbeatModelID       string            `json:"heartbeat_model_id,omitempty"`
 	TitleModelID           string            `json:"title_model_id,omitempty"`
+	VisionModelID          string            `json:"vision_model_id,omitempty"`
 	CompactionEnabled      *bool             `json:"compaction_enabled,omitempty"`
 	CompactionThreshold    *int              `json:"compaction_threshold,omitempty"`
 	CompactionRatio        *int              `json:"compaction_ratio,omitempty"`

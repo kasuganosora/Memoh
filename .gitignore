@@ -109,3 +109,5 @@ data
 _main-ref/
 .toolkit/
 /scripts/vendor
+agent.exe
+memoh.exe

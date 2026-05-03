@@ -165,6 +165,14 @@ func (s *Service) UpsertBot(ctx context.Context, botID string, req UpsertRequest
 		}
 		titleModelUUID = modelID
 	}
+	visionModelUUID := pgtype.UUID{}
+	if value := strings.TrimSpace(req.VisionModelID); value != "" {
+		modelID, err := s.resolveModelUUID(ctx, value)
+		if err != nil {
+			return Settings{}, err
+		}
+		visionModelUUID = modelID
+	}
 	imageModelUUID := pgtype.UUID{}
 	if value := strings.TrimSpace(req.ImageModelID); value != "" {
 		modelID, err := s.resolveModelUUID(ctx, value)
@@ -230,6 +238,7 @@ func (s *Service) UpsertBot(ctx context.Context, botID string, req UpsertRequest
 		HeartbeatModelID:       heartbeatModelUUID,
 		CompactionModelID:      compactionModelUUID,
 		TitleModelID:           titleModelUUID,
+		VisionModelID:          visionModelUUID,
 		ImageModelID:           imageModelUUID,
 		SearchProviderID:       searchProviderUUID,
 		MemoryProviderID:       memoryProviderUUID,
@@ -327,6 +336,7 @@ func normalizeBotSettingsReadRow(row sqlc.GetSettingsByBotIDRow) Settings {
 		row.HeartbeatModelID,
 		row.CompactionModelID,
 		row.TitleModelID,
+		row.VisionModelID,
 		row.ImageModelID,
 		row.SearchProviderID,
 		row.MemoryProviderID,
@@ -354,6 +364,7 @@ func normalizeBotSettingsWriteRow(row sqlc.UpsertBotSettingsRow) Settings {
 		row.HeartbeatModelID,
 		row.CompactionModelID,
 		row.TitleModelID,
+		row.VisionModelID,
 		row.ImageModelID,
 		row.SearchProviderID,
 		row.MemoryProviderID,
@@ -380,6 +391,7 @@ func normalizeBotSettingsFields(
 	heartbeatModelID pgtype.UUID,
 	compactionModelID pgtype.UUID,
 	titleModelID pgtype.UUID,
+	visionModelID pgtype.UUID,
 	imageModelID pgtype.UUID,
 	searchProviderID pgtype.UUID,
 	memoryProviderID pgtype.UUID,
@@ -405,6 +417,9 @@ func normalizeBotSettingsFields(
 	}
 	if titleModelID.Valid {
 		settings.TitleModelID = uuid.UUID(titleModelID.Bytes).String()
+	}
+	if visionModelID.Valid {
+		settings.VisionModelID = uuid.UUID(visionModelID.Bytes).String()
 	}
 	if imageModelID.Valid {
 		settings.ImageModelID = uuid.UUID(imageModelID.Bytes).String()
