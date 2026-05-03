@@ -97,9 +97,9 @@ func TestFilterToolCallXML(t *testing.T) {
 			want:  "Result",
 		},
 		{
-			name:  "tool_call with broken closing tag not matched",
+			name:  "tool_call with broken closing tag now stripped",
 			input: `<tool_call id="call_123" name="send">{"text":"hi"}</tool_callVisible text`,
-			want:  `<tool_call id="call_123" name="send">{"text":"hi"}</tool_callVisible text`,
+			want:  `{"text":"hi"}</tool_callVisible text`,
 		},
 		{
 			name:  "invoke and tool_result tags",
@@ -125,6 +125,41 @@ func TestFilterToolCallXML(t *testing.T) {
 			name:  "empty string",
 			input: "",
 			want:  "",
+		},
+		{
+			name:  "unclosed tool_calls wrapper tag",
+			input: "Before text<tool_calls>\n<tool_call name=\"send\">After text",
+			want:  "Before text\nAfter text",
+		},
+		{
+			name:  "unclosed tool_call tag at end",
+			input: "Here is my reply<tool_calls>\n<tool_calls>\n<tool_call name=\"send\">",
+			want:  "Here is my reply",
+		},
+		{
+			name:  "unclosed tool_call with attributes",
+			input: `<tool_call id="abc" name="send">{"text":"hello"}`,
+			want:  `{"text":"hello"}`,
+		},
+		{
+			name:  "unclosed function_call with namespace",
+			input: `<xai:function_call>{\n`,
+			want:  `{\n`,
+		},
+		{
+			name:  "unclosed invoke tag",
+			input: `Start<invoke>middle text`,
+			want:  `Startmiddle text`,
+		},
+		{
+			name:  "mixed paired and unclosed tags",
+			input: `<tool_call name="send">{"a":1}</tool_call>Good<tool_calls>` + "\n" + `<tool_call name="reply">`,
+			want:  `Good`,
+		},
+		{
+			name:  "real world example - tool_calls leaking",
+			input: "明天还有阵雨<tool_calls>\n<tool_calls>\n<tool_call name=\"send\">",
+			want:  "明天还有阵雨",
 		},
 	}
 

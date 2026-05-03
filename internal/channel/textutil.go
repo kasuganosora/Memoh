@@ -26,6 +26,13 @@ var filterToolCallXMLRe = regexp.MustCompile(`(?is)<(?:[a-z]+:)?(?:function_call
 // filterToolCallXMLSelfClosing matches self-closing tool-call XML tags.
 var filterToolCallXMLSelfClosing = regexp.MustCompile(`(?is)<(?:[a-z]+:)?(?:function_call|parameter|invoke|tool_calls?|tool_result|execute)(?:\s[^>]*)?\s*/>`)
 
+// filterToolCallXMLStandalone matches unclosed/standalone opening tags that
+// lack a matching closing tag. Some LLMs emit orphaned <tool_calls> or
+// <tool_call name="send"> tags with no </tool_call> counterpart, and the
+// paired-tag regex above cannot match them. We apply this AFTER removing
+// paired tags so it only strips leftovers.
+var filterToolCallXMLStandalone = regexp.MustCompile(`(?is)<(?:[a-z]+:)?(?:function_call|parameter|invoke|tool_calls?|tool_result|execute)(?:\s[^>]*)?\s*>`)
+
 // FilterThinkingTags strips <thinking>...</thinking> and <think\>...</think\> blocks
 // from LLM output text. These tags may appear when a model does not use structured
 // reasoning output and instead embeds thinking as raw text in the content.
@@ -40,6 +47,7 @@ func FilterThinkingTags(text string) string {
 func FilterToolCallXML(text string) string {
 	text = filterToolCallXMLRe.ReplaceAllString(text, "")
 	text = filterToolCallXMLSelfClosing.ReplaceAllString(text, "")
+	text = filterToolCallXMLStandalone.ReplaceAllString(text, "")
 	return strings.TrimSpace(text)
 }
 
@@ -84,6 +92,7 @@ func ExtractToolCallsFromText(text string) ([]ParsedToolCall, string) {
 	cleaned := toolCallXMLRe.ReplaceAllString(text, "")
 	cleaned = filterToolCallXMLSelfClosing.ReplaceAllString(cleaned, "")
 	cleaned = filterToolCallXMLRe.ReplaceAllString(cleaned, "")
+	cleaned = filterToolCallXMLStandalone.ReplaceAllString(cleaned, "")
 	cleaned = strings.TrimSpace(cleaned)
 	return calls, cleaned
 }

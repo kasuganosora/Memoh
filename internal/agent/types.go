@@ -75,10 +75,10 @@ type RunConfig struct {
 	// description when SupportsImageInput is false but images are present.
 	// If empty, images are silently dropped (current behavior).
 	VisionModelID string
-	Identity           SessionContext
-	Skills             []SkillEntry
-	LoopDetection      LoopDetectionConfig
-	Retry              RetryConfig
+	Identity      SessionContext
+	Skills        []SkillEntry
+	LoopDetection LoopDetectionConfig
+	Retry         RetryConfig
 
 	// MidTaskPruneThreshold is the minimum number of messages before mid-task
 	// pruning kicks in. When the accumulated message count reaches this

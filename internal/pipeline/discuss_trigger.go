@@ -604,7 +604,7 @@ func (d *DiscussTrigger) executeTextToolCalls(
 	ctx context.Context,
 	cfg DiscussSessionConfig,
 	calls []channel.ParsedToolCall,
-	outStream channel.OutboundStream,
+	_ channel.OutboundStream,
 	log *slog.Logger,
 ) {
 	if d.deps.ChannelSender == nil {
@@ -646,15 +646,10 @@ func (d *DiscussTrigger) executeTextToolCalls(
 			if args.ReplyTo != "" {
 				msg.Reply = &channel.ReplyRef{MessageID: strings.TrimSpace(args.ReplyTo)}
 			}
-			// Push the formatted message through the outbound stream for display,
-			// then send it directly via the reply sender.
-			if outStream != nil {
-				_ = outStream.Push(ctx, channel.StreamEvent{
-					Type:  channel.StreamEventDelta,
-					Delta: text,
-					Phase: channel.StreamPhaseText,
-				})
-			}
+			// Send the message directly via the reply sender.
+			// Note: do NOT push through outStream — sender.Send already
+			// handles IM delivery, and outStream.Push would result in a
+			// duplicate message on the same channel.
 			if err := sender.Send(ctx, channel.OutboundMessage{
 				Target:  target,
 				Message: msg,

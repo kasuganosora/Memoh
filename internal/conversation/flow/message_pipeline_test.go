@@ -102,7 +102,7 @@ func TestImageDescriptionProcessor_LLMCallError_PropagatesError(t *testing.T) {
 
 	p := NewImageDescriptionProcessor(ImageProcessorDeps{
 		VisionModelID: "vision-model-1",
-		FetchModel: func(_ context.Context, id string) (ModelProvider, error) {
+		FetchModel: func(_ context.Context, _ string) (ModelProvider, error) {
 			return ModelProvider{
 				ModelID:    "gpt-4o",
 				ClientType: "openai-completions",

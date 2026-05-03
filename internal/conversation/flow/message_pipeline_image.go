@@ -11,7 +11,6 @@ import (
 	sdk "github.com/memohai/twilight-ai/sdk"
 
 	"github.com/memohai/memoh/internal/db"
-	"github.com/memohai/memoh/internal/db/sqlc"
 	"github.com/memohai/memoh/internal/models"
 	"github.com/memohai/memoh/internal/providers"
 )
@@ -47,7 +46,7 @@ func NewImageDescriptionProcessor(deps ImageProcessorDeps) MessageProcessor {
 	return &imageDescriptionProcessor{deps: deps}
 }
 
-func (p *imageDescriptionProcessor) Name() string { return "image_description" }
+func (*imageDescriptionProcessor) Name() string { return "image_description" }
 
 func (p *imageDescriptionProcessor) Process(ctx context.Context, state *MessageState) error {
 	if p.deps.VisionModelID == "" || len(state.InlineImages) == 0 {
@@ -202,8 +201,15 @@ func (r *Resolver) buildMessagePipeline(cfg VisionConfig) []MessageProcessor {
 			}, nil
 		},
 		ResolveCredentials: func(ctx context.Context, provider Provider) (Credentials, error) {
+			// Fetch the full provider record from DB — the Provider struct from the
+			// pipeline only carries ID + ClientType and drops Config (api_key).
+			provUUID := db.ParseUUIDOrEmpty(provider.ID)
+			fullProvider, err := r.queries.GetProviderByID(ctx, provUUID)
+			if err != nil {
+				return Credentials{}, fmt.Errorf("resolve provider %s: %w", provider.ID, err)
+			}
 			authResolver := providers.NewService(nil, r.queries, "")
-			creds, err := authResolver.ResolveModelCredentials(ctx, sqlcProviderFromModelProvider(provider))
+			creds, err := authResolver.ResolveModelCredentials(ctx, fullProvider)
 			if err != nil {
 				return Credentials{}, err
 			}
@@ -216,13 +222,4 @@ func (r *Resolver) buildMessagePipeline(cfg VisionConfig) []MessageProcessor {
 		Logger:     r.logger,
 	}
 	return BuildMessagePipeline(cfg, deps)
-}
-
-// sqlcProviderFromModelProvider converts a pipeline Provider to sqlc.Provider.
-// The pipeline Provider.ID carries the provider record UUID as a string.
-func sqlcProviderFromModelProvider(p Provider) sqlc.Provider {
-	return sqlc.Provider{
-		ID:         db.ParseUUIDOrEmpty(p.ID),
-		ClientType: p.ClientType,
-	}
 }
