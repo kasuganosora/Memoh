@@ -40,7 +40,7 @@ type imageDescriptionProcessor struct {
 // NewImageDescriptionProcessor creates a processor that describes images
 // using a vision-capable fallback model. All dependencies are injected
 // via deps so the processor can be independently tested.
-func NewImageDescriptionProcessor(deps ImageProcessorDeps) *imageDescriptionProcessor {
+func NewImageDescriptionProcessor(deps ImageProcessorDeps) MessageProcessor {
 	if deps.Logger == nil {
 		deps.Logger = slog.Default()
 	}
@@ -216,42 +216,6 @@ func (r *Resolver) buildMessagePipeline(cfg VisionConfig) []MessageProcessor {
 		Logger:     r.logger,
 	}
 	return BuildMessagePipeline(cfg, deps)
-}
-
-// ---------------------------------------------------------------------------
-// Legacy method (delegates to standalone function)
-// ---------------------------------------------------------------------------
-
-// describeImagesWithVisionModel forwards images to a multimodal model
-// and returns a detailed text description. Kept as a Resolver method
-// for backward compatibility; delegates to the standalone function.
-func (r *Resolver) describeImagesWithVisionModel(ctx context.Context, modelID string, images []sdk.ImagePart) (string, error) {
-	return DescribeImagesWithVisionModel(ctx, modelID, images,
-		func(ctx context.Context, id string) (ModelProvider, error) {
-			m, p, err := r.fetchChatModel(ctx, id)
-			if err != nil {
-				return ModelProvider{}, err
-			}
-			return ModelProvider{
-				ModelID:    m.ModelID,
-				ClientType: p.ClientType,
-				ProviderID: p.ID.String(),
-				BaseURL:    providers.ProviderConfigString(p, "base_url"),
-			}, nil
-		},
-		func(ctx context.Context, provider Provider) (Credentials, error) {
-			authResolver := providers.NewService(nil, r.queries, "")
-			creds, err := authResolver.ResolveModelCredentials(ctx, sqlcProviderFromModelProvider(provider))
-			if err != nil {
-				return Credentials{}, err
-			}
-			return Credentials{
-				APIKey:         creds.APIKey,
-				CodexAccountID: creds.CodexAccountID,
-			}, nil
-		},
-		r.streamHTTPClient,
-	)
 }
 
 // sqlcProviderFromModelProvider converts a pipeline Provider to sqlc.Provider.

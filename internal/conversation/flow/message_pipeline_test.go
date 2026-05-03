@@ -97,7 +97,7 @@ func TestImageDescriptionProcessor_NoVisionModel(t *testing.T) {
 	}
 }
 
-func TestImageDescriptionProcessor_Success(t *testing.T) {
+func TestImageDescriptionProcessor_LLMCallError_PropagatesError(t *testing.T) {
 	t.Parallel()
 
 	p := NewImageDescriptionProcessor(ImageProcessorDeps{

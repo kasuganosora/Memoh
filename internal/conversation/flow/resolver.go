@@ -790,10 +790,15 @@ func (r *Resolver) prepareRunConfig(ctx context.Context, cfg agentpkg.RunConfig)
 	// of content that the main model cannot process natively (images today;
 	// video, audio, files in the future). Processors transform content into
 	// text descriptions that the main model can understand.
+	//
+	// We snapshot the original values so that a processor failure can
+	// safely fall back without observing partially-mutated state.
+	origQuery := cfg.Query
+	origImages := cfg.InlineImages
 	state := &MessageState{
 		BotID:        cfg.Identity.BotID,
 		Query:        cfg.Query,
-		InlineImages: cfg.InlineImages,
+		InlineImages: append([]sdk.ImagePart(nil), cfg.InlineImages...),
 	}
 	pipeline := r.buildMessagePipeline(VisionConfig{
 		SupportsVision: cfg.SupportsImageInput,
@@ -804,6 +809,9 @@ func (r *Resolver) prepareRunConfig(ctx context.Context, cfg agentpkg.RunConfig)
 			slog.String("bot_id", cfg.Identity.BotID),
 			slog.Any("error", err),
 		)
+		// Restore originals in case a processor partially mutated state.
+		cfg.Query = origQuery
+		cfg.InlineImages = origImages
 	} else {
 		cfg.Query = state.Query
 		cfg.InlineImages = state.InlineImages
