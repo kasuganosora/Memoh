@@ -61,7 +61,7 @@ func (h *Handler) buildModelGroup() *CommandGroup {
 	})
 	g.Register(SubCommand{
 		Name:  "current",
-		Usage: "current - Show current chat and heartbeat analysis models",
+		Usage: "current - Show current chat and budget models",
 		Handler: func(cc CommandContext) (string, error) {
 			if h.settingsService == nil {
 				return "Settings service is not available.", nil
@@ -72,7 +72,7 @@ func (h *Handler) buildModelGroup() *CommandGroup {
 			}
 			return formatKV([]kv{
 				{"Chat Model", h.resolveModelName(cc, settingsResp.ChatModelID)},
-				{"Heartbeat Analysis Model", h.resolveModelName(cc, settingsResp.HeartbeatModelID)},
+				{"Budget Model", h.resolveModelName(cc, settingsResp.HeartbeatModelID)},
 			}), nil
 		},
 	})
@@ -103,7 +103,7 @@ func (h *Handler) buildModelGroup() *CommandGroup {
 	})
 	g.Register(SubCommand{
 		Name:    "set-heartbeat",
-		Usage:   "set-heartbeat <model_id> | <provider_name> <model_name> - Set the heartbeat analysis model (recommended: small cheap model)",
+		Usage:   "set-heartbeat <model_id> | <provider_name> <model_name> - Set the budget model for background tasks (heartbeat, compaction, titles)",
 		IsWrite: true,
 		Handler: func(cc CommandContext) (string, error) {
 			if len(cc.Args) < 1 {
@@ -123,7 +123,7 @@ func (h *Handler) buildModelGroup() *CommandGroup {
 			if err != nil {
 				return "", err
 			}
-			return formatChangedValue("Heartbeat analysis model", h.resolveModelName(cc, before.HeartbeatModelID), h.resolveModelName(cc, modelResp.ID)), nil
+			return formatChangedValue("Budget model", h.resolveModelName(cc, before.HeartbeatModelID), h.resolveModelName(cc, modelResp.ID)), nil
 		},
 	})
 	return g
@@ -224,7 +224,7 @@ func modelMarkers(modelID string, settingsResp settings.Settings) []string {
 		markers = append(markers, "chat")
 	}
 	if modelID == settingsResp.HeartbeatModelID {
-		markers = append(markers, "heartbeat")
+		markers = append(markers, "budget")
 	}
 	return markers
 }

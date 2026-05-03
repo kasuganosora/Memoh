@@ -227,6 +227,10 @@ func (r *Resolver) TriggerHeartbeat(ctx context.Context, botID string, payload h
 
 	// The Phase 1 analysis text is the user message for Phase 2.
 	alertCfg.Messages = append(alertCfg.Messages, sdk.UserMessage(phase1Text))
+	// Clear query so prepareRunConfig does not append a redundant user message
+	// (the headerified version of the same text). Follows the same pattern as
+	// deliverBackgroundNotifications.
+	alertCfg.Query = ""
 	alertCfg = r.prepareRunConfig(ctx, alertCfg)
 
 	phase2Result, err := r.agent.Generate(ctx, alertCfg)

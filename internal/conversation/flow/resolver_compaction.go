@@ -107,6 +107,12 @@ func (r *Resolver) runCompactionSync(ctx context.Context, req conversation.ChatR
 func (r *Resolver) buildCompactionConfig(ctx context.Context, req conversation.ChatRequest, botSettings settings.Settings, inputTokens int) (compaction.TriggerConfig, error) {
 	modelID := botSettings.CompactionModelID
 	if modelID == "" {
+		// Fallback to the bot's small/budget model (HeartbeatModelID) so
+		// compaction can run without a dedicated model. If neither is set,
+		// compaction is silently skipped.
+		modelID = botSettings.HeartbeatModelID
+	}
+	if modelID == "" {
 		return compaction.TriggerConfig{}, nil
 	}
 

@@ -71,6 +71,11 @@ func (r *Resolver) maybeGenerateSessionTitle(ctx context.Context, req conversati
 	}
 	titleModelID := strings.TrimSpace(botSettings.TitleModelID)
 	if titleModelID == "" {
+		// Fallback to the bot's small/budget model (HeartbeatModelID) so
+		// title generation works without a dedicated title model.
+		titleModelID = strings.TrimSpace(botSettings.HeartbeatModelID)
+	}
+	if titleModelID == "" {
 		r.logger.Debug("title gen: no title model configured", slog.String("bot_id", req.BotID))
 		return
 	}
