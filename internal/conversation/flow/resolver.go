@@ -805,7 +805,6 @@ func (r *Resolver) prepareRunConfig(ctx context.Context, cfg agentpkg.RunConfig)
 	// We snapshot the original values so that a processor failure can
 	// safely fall back without observing partially-mutated state.
 	origQuery := cfg.Query
-	origImages := cfg.InlineImages
 	state := &MessageState{
 		BotID:        cfg.Identity.BotID,
 		Query:        cfg.Query,
@@ -820,9 +819,14 @@ func (r *Resolver) prepareRunConfig(ctx context.Context, cfg agentpkg.RunConfig)
 			slog.String("bot_id", cfg.Identity.BotID),
 			slog.Any("error", err),
 		)
-		// Restore originals in case a processor partially mutated state.
+		// Restore the original query but drop inline images.
+		// The main model does not support images, so sending them
+		// as-is would cause a provider error (e.g. DeepSeek rejects
+		// image_url parts). The pipeline failure means we couldn't
+		// describe them — losing the image content is better than
+		// crashing the entire request.
 		cfg.Query = origQuery
-		cfg.InlineImages = origImages
+		cfg.InlineImages = nil
 	} else {
 		cfg.Query = state.Query
 		cfg.InlineImages = state.InlineImages
