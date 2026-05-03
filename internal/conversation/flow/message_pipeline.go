@@ -90,6 +90,7 @@ type ModelProvider struct {
 	ModelID    string // The model identifier (e.g. "gpt-4o")
 	ClientType string // Provider client type (e.g. "openai-completions")
 	ProviderID string // Provider record UUID for credential lookup
+	BaseURL    string // Provider base URL for custom endpoints (empty = SDK default)
 }
 
 // Provider holds provider identifier needed for credential resolution.

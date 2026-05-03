@@ -121,6 +121,7 @@ func DescribeImagesWithVisionModel(
 		ClientType:     modelProvider.ClientType,
 		APIKey:         creds.APIKey,
 		CodexAccountID: creds.CodexAccountID,
+		BaseURL:        modelProvider.BaseURL,
 		HTTPClient:     httpClient,
 	})
 
@@ -197,6 +198,7 @@ func (r *Resolver) buildMessagePipeline(cfg VisionConfig) []MessageProcessor {
 				ModelID:    m.ModelID,
 				ClientType: p.ClientType,
 				ProviderID: p.ID.String(),
+				BaseURL:    providers.ProviderConfigString(p, "base_url"),
 			}, nil
 		},
 		ResolveCredentials: func(ctx context.Context, provider Provider) (Credentials, error) {
@@ -234,6 +236,7 @@ func (r *Resolver) describeImagesWithVisionModel(ctx context.Context, modelID st
 				ModelID:    m.ModelID,
 				ClientType: p.ClientType,
 				ProviderID: p.ID.String(),
+				BaseURL:    providers.ProviderConfigString(p, "base_url"),
 			}, nil
 		},
 		func(ctx context.Context, provider Provider) (Credentials, error) {
