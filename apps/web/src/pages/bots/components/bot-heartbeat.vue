@@ -31,19 +31,19 @@
             :aria-label="$t('bots.settings.heartbeatInterval')"
           />
         </div>
-        <div class="space-y-2 md:col-span-2">
-          <Label>{{ $t('bots.settings.heartbeatModel') }}</Label>
-          <p class="text-xs text-muted-foreground mt-0.5">
-            {{ $t('bots.settings.heartbeatModelDescription') }}
-          </p>
-          <ModelSelect
-            v-model="settingsForm.heartbeat_model_id"
-            :models="models"
-            :providers="providers"
-            model-type="chat"
-            :placeholder="$t('bots.settings.heartbeatModelPlaceholder')"
-          />
-        </div>
+      </div>
+      <div class="space-y-2 md:col-span-2">
+        <Label>{{ $t('bots.settings.heartbeatModel') }}</Label>
+        <p class="text-xs text-muted-foreground mt-0.5">
+          {{ $t('bots.settings.heartbeatModelDescription') }}
+        </p>
+        <ModelSelect
+          v-model="settingsForm.heartbeat_model_id"
+          :models="models"
+          :providers="providers"
+          model-type="chat"
+          :placeholder="$t('bots.settings.heartbeatModelPlaceholder')"
+        />
       </div>
       <div class="space-y-2 md:col-span-2">
         <Label>{{ $t('bots.settings.visionModel') }}</Label>
