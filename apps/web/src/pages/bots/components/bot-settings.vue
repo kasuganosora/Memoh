@@ -27,6 +27,36 @@
       />
     </div>
 
+    <!-- Budget Model -->
+    <div class="space-y-2">
+      <Label>{{ $t('bots.settings.heartbeatModel') }}</Label>
+      <p class="text-xs text-muted-foreground">
+        {{ $t('bots.settings.heartbeatModelDescription') }}
+      </p>
+      <ModelSelect
+        v-model="form.heartbeat_model_id"
+        :models="models"
+        :providers="providers"
+        model-type="chat"
+        :placeholder="$t('bots.settings.heartbeatModelPlaceholder')"
+      />
+    </div>
+
+    <!-- Vision Model -->
+    <div class="space-y-2">
+      <Label>{{ $t('bots.settings.visionModel') }}</Label>
+      <p class="text-xs text-muted-foreground">
+        {{ $t('bots.settings.visionModelDescription') }}
+      </p>
+      <ModelSelect
+        v-model="form.vision_model_id"
+        :models="models"
+        :providers="providers"
+        model-type="chat"
+        :placeholder="$t('bots.settings.visionModelPlaceholder')"
+      />
+    </div>
+
     <!-- Memory Provider -->
     <div class="space-y-2">
       <Label>{{ $t('bots.settings.memoryProvider') }}</Label>
@@ -534,6 +564,8 @@ const browserContexts = computed(() => browserContextData.value ?? [])
 const form = reactive({
   chat_model_id: '',
   title_model_id: '',
+  heartbeat_model_id: '',
+  vision_model_id: '',
   image_model_id: '',
   search_provider_id: '',
   memory_provider_id: '',
@@ -675,6 +707,8 @@ watch(settings, (val) => {
   if (val) {
     form.chat_model_id = val.chat_model_id ?? ''
     form.title_model_id = val.title_model_id ?? ''
+    form.heartbeat_model_id = val.heartbeat_model_id ?? ''
+    form.vision_model_id = val.vision_model_id ?? ''
     form.image_model_id = val.image_model_id ?? ''
     form.search_provider_id = val.search_provider_id ?? ''
     form.memory_provider_id = val.memory_provider_id ?? ''
@@ -699,6 +733,8 @@ const hasSettingsChanges = computed(() => {
   return (
     form.chat_model_id !== (s.chat_model_id ?? '')
     || form.title_model_id !== (s.title_model_id ?? '')
+    || form.heartbeat_model_id !== (s.heartbeat_model_id ?? '')
+    || form.vision_model_id !== (s.vision_model_id ?? '')
     || form.image_model_id !== (s.image_model_id ?? '')
     || form.search_provider_id !== (s.search_provider_id ?? '')
     || form.memory_provider_id !== (s.memory_provider_id ?? '')
