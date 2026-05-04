@@ -239,6 +239,7 @@ type ChatRequest struct {
 	UserMessagePersisted    bool   `json:"-"`
 	EventID                 string `json:"-"`
 	RawQuery                string `json:"-"`
+	ParentSessionID         string `json:"-"` // Parent session ID for context inheritance in new sessions
 
 	// DiscussLateBindingPrompt is an ephemeral user message appended to the
 	// context in discuss mode. It carries timing instructions and the current

@@ -104,8 +104,9 @@ type IMDisplayOptionsReader interface {
 
 // SessionResult carries the minimum fields needed from a session.
 type SessionResult struct {
-	ID   string
-	Type string
+	ID              string
+	Type            string
+	ParentSessionID string
 }
 
 // ChannelInboundProcessor routes channel inbound messages to the chat gateway.
@@ -447,6 +448,7 @@ func (p *ChannelInboundProcessor) HandleInbound(ctx context.Context, cfg channel
 	// Retry up to 3 times with short backoff to avoid persisting messages with NULL session_id.
 	sessionID := ""
 	sessionType := ""
+	sessionParentID := ""
 	sessionMeta := buildSessionMetadata(msg)
 
 	// Discuss mode: when the channel routing config has discuss=true and the
@@ -461,6 +463,7 @@ func (p *ChannelInboundProcessor) HandleInbound(ctx context.Context, cfg channel
 			if sessErr == nil {
 				sessionID = sess.ID
 				sessionType = sess.Type
+				sessionParentID = sess.ParentSessionID
 				break
 			}
 			if p.logger != nil {
@@ -891,6 +894,7 @@ startStream:
 		BotID:                   identity.BotID,
 		ChatID:                  activeChatID,
 		SessionID:               sessionID,
+		ParentSessionID:         sessionParentID,
 		Token:                   token,
 		UserID:                  identity.UserID,
 		SourceChannelIdentityID: identity.ChannelIdentityID,

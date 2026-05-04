@@ -636,7 +636,7 @@ func (a *sessionEnsurerAdapter) EnsureActiveSession(ctx context.Context, botID, 
 	if err != nil {
 		return inbound.SessionResult{}, err
 	}
-	return inbound.SessionResult{ID: sess.ID, Type: sess.Type}, nil
+	return inbound.SessionResult{ID: sess.ID, Type: sess.Type, ParentSessionID: sess.ParentSessionID}, nil
 }
 
 func (a *sessionEnsurerAdapter) GetActiveSession(ctx context.Context, routeID string) (inbound.SessionResult, error) {
@@ -644,7 +644,7 @@ func (a *sessionEnsurerAdapter) GetActiveSession(ctx context.Context, routeID st
 	if err != nil {
 		return inbound.SessionResult{}, err
 	}
-	return inbound.SessionResult{ID: sess.ID, Type: sess.Type}, nil
+	return inbound.SessionResult{ID: sess.ID, Type: sess.Type, ParentSessionID: sess.ParentSessionID}, nil
 }
 
 func (a *sessionEnsurerAdapter) CreateNewSession(ctx context.Context, botID, routeID, channelType, sessionType string) (inbound.SessionResult, error) {
@@ -652,7 +652,7 @@ func (a *sessionEnsurerAdapter) CreateNewSession(ctx context.Context, botID, rou
 	if err != nil {
 		return inbound.SessionResult{}, err
 	}
-	return inbound.SessionResult{ID: sess.ID, Type: sess.Type}, nil
+	return inbound.SessionResult{ID: sess.ID, Type: sess.Type, ParentSessionID: sess.ParentSessionID}, nil
 }
 
 type settingsSpeechModelResolver struct {

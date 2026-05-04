@@ -350,6 +350,13 @@ func (s *Service) EnsureActiveSession(ctx context.Context, botID, routeID, chann
 		return sess, nil
 	}
 
+	// Try to find a recent session on this route to set as parent,
+	// so the new session inherits context from the previous one.
+	var parentSessionID string
+	if recentSessions, listErr := s.ListByRoute(ctx, routeID); listErr == nil && len(recentSessions) > 0 {
+		parentSessionID = recentSessions[0].ID
+	}
+
 	// Discuss mode: enabled by timeline routes (legacy) or generic discuss routing config.
 	sessionType := ""
 	if metadataBool(metadata, "is_discuss_timeline") || metadataBool(metadata, "is_discuss") {
@@ -357,11 +364,12 @@ func (s *Service) EnsureActiveSession(ctx context.Context, botID, routeID, chann
 	}
 
 	sess, err = s.Create(ctx, CreateInput{
-		BotID:       botID,
-		RouteID:     routeID,
-		ChannelType: channelType,
-		Type:        sessionType,
-		Metadata:    metadata,
+		BotID:           botID,
+		RouteID:         routeID,
+		ChannelType:     channelType,
+		Type:            sessionType,
+		Metadata:        metadata,
+		ParentSessionID: parentSessionID,
 	})
 	if err != nil {
 		return Session{}, fmt.Errorf("auto-create session: %w", err)

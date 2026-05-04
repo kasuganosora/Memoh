@@ -250,6 +250,18 @@ func (r *Resolver) buildMessagesFromPipeline(ctx context.Context, req conversati
 		return nil
 	}
 	rc := r.pipeline.GetRC(sessionID)
+
+	// When a new session has no pipeline events yet, try to inherit context
+	// from the parent session so the bot retains awareness of prior replies.
+	parentSessionID := strings.TrimSpace(req.ParentSessionID)
+	if len(rc) == 0 && parentSessionID != "" {
+		if parentRC := r.pipeline.GetRC(parentSessionID); len(parentRC) > 0 {
+			rc = parentRC
+			// Use the parent session for turn response loading as well.
+			sessionID = parentSessionID
+		}
+	}
+
 	if len(rc) == 0 {
 		return nil
 	}
