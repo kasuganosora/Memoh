@@ -298,7 +298,10 @@ func (r *Resolver) buildMessagesFromPipeline(ctx context.Context, req conversati
 		imageRefs = append(imageRefs, seg.ImageRefs...)
 	}
 	if len(imageRefs) > 0 {
-		r.pipelineImageRefs.Store(sessionID, imageRefs)
+		// Store under the actual request session ID so resolve() can find them.
+		// When inheriting parent context, sessionID was reassigned to the parent,
+		// but image refs must be keyed by the session being resolved.
+		r.pipelineImageRefs.Store(strings.TrimSpace(req.SessionID), imageRefs)
 	}
 
 	return messages

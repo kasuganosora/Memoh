@@ -111,7 +111,11 @@ func (r *Resolver) makeSessionTurnReleaser(ctx context.Context, key, botID, sess
 			}
 
 			if becameIdle {
-				// Release the semaphore token and clean up the lock entry.
+				// Release the semaphore token back to the channel.
+				// Do NOT delete the entry from sessionTurnLocks — other
+				// goroutines may still be waiting on the same channel.
+				// The channel binary semaphore (1 token = idle, 0 tokens = busy)
+				// correctly serializes access without map cleanup.
 				if lockCh, ok := r.sessionTurnLocks[key]; ok {
 					select {
 					case lockCh <- struct{}{}:
@@ -119,7 +123,6 @@ func (r *Resolver) makeSessionTurnReleaser(ctx context.Context, key, botID, sess
 						// Token already present (should not happen), nothing to do.
 					}
 				}
-				delete(r.sessionTurnLocks, key)
 			}
 			r.sessionTurnMu.Unlock()
 
