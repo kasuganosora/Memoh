@@ -563,17 +563,12 @@ func (s *managerReplySender) Send(ctx context.Context, msg OutboundMessage) erro
 	if s.manager == nil {
 		return errors.New("channel manager not configured")
 	}
-	policy := s.manager.resolveOutboundPolicy(s.channelType)
-	outbound, err := buildOutboundMessages(msg, policy)
-	if err != nil {
-		return err
-	}
-	for _, item := range outbound {
-		if err := s.manager.sendWithConfig(ctx, s.sender, s.config, item, policy); err != nil {
-			return err
-		}
-	}
-	return nil
+	// Route through Manager.Send() for rate-limit and dedup protection,
+	// instead of calling sendWithConfig directly.
+	return s.manager.Send(ctx, s.config.BotID, s.channelType, SendRequest{
+		Target:  msg.Target,
+		Message: msg.Message,
+	})
 }
 
 func (s *managerReplySender) OpenStream(ctx context.Context, target string, opts StreamOptions) (OutboundStream, error) {

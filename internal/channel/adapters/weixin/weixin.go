@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/memohai/memoh/internal/channel"
@@ -22,6 +24,9 @@ type WeixinAdapter struct {
 	client       *Client
 	contextCache *contextTokenCache
 	assets       assetOpener
+
+	seenMessages   map[string]time.Time
+	seenMessagesMu sync.Mutex
 }
 
 // NewWeixinAdapter creates a new WeChat adapter.
@@ -33,6 +38,7 @@ func NewWeixinAdapter(log *slog.Logger) *WeixinAdapter {
 		logger:       log.With(slog.String("adapter", "weixin")),
 		client:       NewClient(log),
 		contextCache: newContextTokenCache(24 * time.Hour),
+		seenMessages: make(map[string]time.Time),
 	}
 }
 
@@ -125,6 +131,8 @@ func (a *WeixinAdapter) Connect(ctx context.Context, cfg channel.ChannelConfig, 
 		a.pollLoop(connCtx, cfg, parsed, handler)
 	}()
 
+	go a.cleanupSeenMessagesLoop(connCtx)
+
 	stop := func(context.Context) error {
 		cancel()
 		<-done
@@ -213,6 +221,10 @@ func (a *WeixinAdapter) pollLoop(ctx context.Context, cfg channel.ChannelConfig,
 		}
 
 		for _, msg := range resp.Msgs {
+			if a.seenMessage(cfg.ID, strconv.FormatInt(msg.MessageID, 10), time.Now()) {
+				continue
+			}
+
 			inbound, ok := buildInboundMessage(msg)
 			if !ok {
 				continue
@@ -514,5 +526,52 @@ func sleepCtx(ctx context.Context, d time.Duration) {
 	select {
 	case <-ctx.Done():
 	case <-t.C:
+	}
+}
+
+const weixinSeenMessageDedupeTTL = 10 * time.Minute
+
+func (a *WeixinAdapter) seenMessage(cfgID, messageID string, now time.Time) bool {
+	if a == nil || strings.TrimSpace(messageID) == "" {
+		return false
+	}
+	key := strings.TrimSpace(cfgID) + ":" + strings.TrimSpace(messageID)
+	if key == ":" {
+		return false
+	}
+	cutoff := now.Add(-weixinSeenMessageDedupeTTL)
+
+	a.seenMessagesMu.Lock()
+	defer a.seenMessagesMu.Unlock()
+
+	for seenKey, seenAt := range a.seenMessages {
+		if seenAt.Before(cutoff) {
+			delete(a.seenMessages, seenKey)
+		}
+	}
+	if _, exists := a.seenMessages[key]; exists {
+		return true
+	}
+	a.seenMessages[key] = now
+	return false
+}
+
+func (a *WeixinAdapter) cleanupSeenMessagesLoop(startCtx context.Context) {
+	ticker := time.NewTicker(weixinSeenMessageDedupeTTL)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-startCtx.Done():
+			return
+		case <-ticker.C:
+			cutoff := time.Now().Add(-weixinSeenMessageDedupeTTL)
+			a.seenMessagesMu.Lock()
+			for key, seenAt := range a.seenMessages {
+				if seenAt.Before(cutoff) {
+					delete(a.seenMessages, key)
+				}
+			}
+			a.seenMessagesMu.Unlock()
+		}
 	}
 }

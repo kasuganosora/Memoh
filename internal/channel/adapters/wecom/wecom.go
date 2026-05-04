@@ -26,6 +26,9 @@ type WeComAdapter struct {
 	cache   *callbackContextCache
 
 	newWSClient wsClientFactory
+
+	seenMessages   map[string]time.Time
+	seenMessagesMu sync.Mutex
 }
 
 func NewWeComAdapter(log *slog.Logger) *WeComAdapter {
@@ -33,11 +36,12 @@ func NewWeComAdapter(log *slog.Logger) *WeComAdapter {
 		log = slog.Default()
 	}
 	return &WeComAdapter{
-		logger:      log.With(slog.String("adapter", "wecom")),
-		clients:     make(map[string]*WSClient),
-		http:        NewHTTPClient(HTTPClientOptions{Logger: log}),
-		cache:       newCallbackContextCache(24 * time.Hour),
-		newWSClient: NewWSClient,
+		logger:       log.With(slog.String("adapter", "wecom")),
+		clients:      make(map[string]*WSClient),
+		http:         NewHTTPClient(HTTPClientOptions{Logger: log}),
+		cache:        newCallbackContextCache(24 * time.Hour),
+		newWSClient:  NewWSClient,
+		seenMessages: make(map[string]time.Time),
 	}
 }
 
@@ -144,6 +148,7 @@ func (a *WeComAdapter) Connect(ctx context.Context, cfg channel.ChannelConfig, h
 	a.mu.Unlock()
 
 	connCtx, cancel := context.WithCancel(ctx)
+	go a.cleanupSeenMessagesLoop(connCtx)
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -467,4 +472,51 @@ func secondsOrDefault(value int, fallback int) int {
 		return value
 	}
 	return fallback
+}
+
+const wecomSeenMessageDedupeTTL = 10 * time.Minute
+
+func (a *WeComAdapter) seenMessage(cfgID, messageID string, now time.Time) bool {
+	if a == nil || strings.TrimSpace(messageID) == "" {
+		return false
+	}
+	key := strings.TrimSpace(cfgID) + ":" + strings.TrimSpace(messageID)
+	if key == ":" {
+		return false
+	}
+	cutoff := now.Add(-wecomSeenMessageDedupeTTL)
+
+	a.seenMessagesMu.Lock()
+	defer a.seenMessagesMu.Unlock()
+
+	for seenKey, seenAt := range a.seenMessages {
+		if seenAt.Before(cutoff) {
+			delete(a.seenMessages, seenKey)
+		}
+	}
+	if _, exists := a.seenMessages[key]; exists {
+		return true
+	}
+	a.seenMessages[key] = now
+	return false
+}
+
+func (a *WeComAdapter) cleanupSeenMessagesLoop(startCtx context.Context) {
+	ticker := time.NewTicker(wecomSeenMessageDedupeTTL)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-startCtx.Done():
+			return
+		case <-ticker.C:
+			cutoff := time.Now().Add(-wecomSeenMessageDedupeTTL)
+			a.seenMessagesMu.Lock()
+			for key, seenAt := range a.seenMessages {
+				if seenAt.Before(cutoff) {
+					delete(a.seenMessages, key)
+				}
+			}
+			a.seenMessagesMu.Unlock()
+		}
+	}
 }

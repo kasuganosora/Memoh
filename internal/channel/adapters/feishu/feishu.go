@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,6 +31,9 @@ type assetOpener interface {
 type FeishuAdapter struct {
 	logger *slog.Logger
 	assets assetOpener
+
+	seenMessagesMu sync.Mutex
+	seenMessages   map[string]time.Time
 }
 
 const processingBusyReactionType = "Typing"
@@ -107,7 +111,8 @@ func NewFeishuAdapter(log *slog.Logger) *FeishuAdapter {
 		log = slog.Default()
 	}
 	return &FeishuAdapter{
-		logger: log.With(slog.String("adapter", "feishu")),
+		logger:       log.With(slog.String("adapter", "feishu")),
+		seenMessages: make(map[string]time.Time),
 	}
 }
 
@@ -354,6 +359,55 @@ func (*FeishuAdapter) BuildUserConfig(identity channel.Identity) map[string]any 
 	return buildUserConfig(identity)
 }
 
+const seenMessageDedupeTTL = 10 * time.Minute
+
+func (a *FeishuAdapter) seenMessage(cfgID, messageID string, now time.Time) bool {
+	if a == nil || strings.TrimSpace(messageID) == "" {
+		return false
+	}
+	key := strings.TrimSpace(cfgID) + ":" + strings.TrimSpace(messageID)
+	if key == ":" {
+		return false
+	}
+
+	cutoff := now.Add(-seenMessageDedupeTTL)
+
+	a.seenMessagesMu.Lock()
+	defer a.seenMessagesMu.Unlock()
+
+	for seenKey, seenAt := range a.seenMessages {
+		if seenAt.Before(cutoff) {
+			delete(a.seenMessages, seenKey)
+		}
+	}
+
+	if _, exists := a.seenMessages[key]; exists {
+		return true
+	}
+	a.seenMessages[key] = now
+	return false
+}
+
+func (a *FeishuAdapter) cleanupSeenMessagesLoop(startCtx context.Context) {
+	ticker := time.NewTicker(seenMessageDedupeTTL)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-startCtx.Done():
+			return
+		case <-ticker.C:
+			cutoff := time.Now().Add(-seenMessageDedupeTTL)
+			a.seenMessagesMu.Lock()
+			for key, seenAt := range a.seenMessages {
+				if seenAt.Before(cutoff) {
+					delete(a.seenMessages, key)
+				}
+			}
+			a.seenMessagesMu.Unlock()
+		}
+	}
+}
+
 // Connect establishes a WebSocket connection to Feishu and forwards inbound messages to the handler.
 func (a *FeishuAdapter) Connect(ctx context.Context, cfg channel.ChannelConfig, handler channel.InboundHandler) (channel.Connection, error) {
 	if a.logger != nil {
@@ -377,6 +431,7 @@ func (a *FeishuAdapter) Connect(ctx context.Context, cfg channel.ChannelConfig, 
 		a.logger.Info("bot identity", slog.String("config_id", cfg.ID), slog.String("bot_open_id", botOpenID))
 	}
 	connCtx, cancel := context.WithCancel(ctx)
+	go a.cleanupSeenMessagesLoop(connCtx)
 	newClient := func() *larkws.Client {
 		eventDispatcher := dispatcher.NewEventDispatcher(
 			feishuCfg.VerificationToken,
@@ -420,6 +475,15 @@ func (a *FeishuAdapter) Connect(ctx context.Context, cfg channel.ChannelConfig, 
 						slog.String("message_id", rawMessageID),
 						slog.String("message_type", rawMessageType),
 						slog.String("chat_type", msg.Conversation.Type),
+					)
+				}
+				return nil
+			}
+			if a.seenMessage(cfg.ID, rawMessageID, time.Now()) {
+				if a.logger != nil {
+					a.logger.Debug("skip duplicate feishu message",
+						slog.String("config_id", cfg.ID),
+						slog.String("message_id", rawMessageID),
 					)
 				}
 				return nil

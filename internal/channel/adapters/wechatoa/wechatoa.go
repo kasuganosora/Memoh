@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/memohai/memoh/internal/channel"
 )
@@ -18,6 +19,9 @@ type WeChatOAAdapter struct {
 
 	mu      sync.RWMutex
 	clients map[string]*apiClient
+
+	seenMessages   map[string]time.Time
+	seenMessagesMu sync.Mutex
 }
 
 func NewWeChatOAAdapter(log *slog.Logger) *WeChatOAAdapter {
@@ -25,8 +29,9 @@ func NewWeChatOAAdapter(log *slog.Logger) *WeChatOAAdapter {
 		log = slog.Default()
 	}
 	return &WeChatOAAdapter{
-		logger:  log.With(slog.String("adapter", "wechatoa")),
-		clients: make(map[string]*apiClient),
+		logger:       log.With(slog.String("adapter", "wechatoa")),
+		clients:      make(map[string]*apiClient),
+		seenMessages: make(map[string]time.Time),
 	}
 }
 
@@ -124,13 +129,18 @@ func (*WeChatOAAdapter) DiscoverSelf(ctx context.Context, credentials map[string
 	return map[string]any{"app_id": id}, id, nil
 }
 
-func (*WeChatOAAdapter) Connect(ctx context.Context, cfg channel.ChannelConfig, handler channel.InboundHandler) (channel.Connection, error) {
+func (a *WeChatOAAdapter) Connect(ctx context.Context, cfg channel.ChannelConfig, handler channel.InboundHandler) (channel.Connection, error) {
 	_ = ctx
 	_ = handler
 	if _, err := parseConfig(cfg.Credentials); err != nil {
 		return nil, err
 	}
-	return channel.NewConnection(cfg, func(context.Context) error { return nil }), nil
+	connCtx, cancel := context.WithCancel(ctx)
+	go a.cleanupSeenMessagesLoop(connCtx)
+	return channel.NewConnection(cfg, func(context.Context) error {
+		cancel()
+		return nil
+	}), nil
 }
 
 func (a *WeChatOAAdapter) HandleWebhook(ctx context.Context, cfg channel.ChannelConfig, handler channel.InboundHandler, r *http.Request, w http.ResponseWriter) error {
@@ -294,4 +304,51 @@ func logicalAttachments(attachments []channel.PreparedAttachment) []channel.Atta
 		logical = append(logical, att.Logical)
 	}
 	return logical
+}
+
+const wechatoaSeenMessageDedupeTTL = 10 * time.Minute
+
+func (a *WeChatOAAdapter) seenMessage(cfgID, messageID string, now time.Time) bool {
+	if a == nil || strings.TrimSpace(messageID) == "" {
+		return false
+	}
+	key := strings.TrimSpace(cfgID) + ":" + strings.TrimSpace(messageID)
+	if key == ":" {
+		return false
+	}
+	cutoff := now.Add(-wechatoaSeenMessageDedupeTTL)
+
+	a.seenMessagesMu.Lock()
+	defer a.seenMessagesMu.Unlock()
+
+	for seenKey, seenAt := range a.seenMessages {
+		if seenAt.Before(cutoff) {
+			delete(a.seenMessages, seenKey)
+		}
+	}
+	if _, exists := a.seenMessages[key]; exists {
+		return true
+	}
+	a.seenMessages[key] = now
+	return false
+}
+
+func (a *WeChatOAAdapter) cleanupSeenMessagesLoop(startCtx context.Context) {
+	ticker := time.NewTicker(wechatoaSeenMessageDedupeTTL)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-startCtx.Done():
+			return
+		case <-ticker.C:
+			cutoff := time.Now().Add(-wechatoaSeenMessageDedupeTTL)
+			a.seenMessagesMu.Lock()
+			for key, seenAt := range a.seenMessages {
+				if seenAt.Before(cutoff) {
+					delete(a.seenMessages, key)
+				}
+			}
+			a.seenMessagesMu.Unlock()
+		}
+	}
 }

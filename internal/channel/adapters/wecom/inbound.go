@@ -22,6 +22,9 @@ func (a *WeComAdapter) handleFrame(ctx context.Context, cfg channel.ChannelConfi
 		if !ok {
 			return nil
 		}
+		if a.seenMessage(cfg.ID, strings.TrimSpace(body.MsgID), time.Now()) {
+			return nil
+		}
 		a.rememberCallback(body.MsgID, frame.Headers.ReqID, body.ResponseURL, body.ChatID, body.From.UserID)
 		return handler(ctx, cfg, msg)
 	case WSCmdEventCallback:
@@ -34,6 +37,9 @@ func (a *WeComAdapter) handleFrame(ctx context.Context, cfg channel.ChannelConfi
 		}
 		msg, ok := buildInboundEventMessage(body, frame.Headers.ReqID)
 		if !ok {
+			return nil
+		}
+		if a.seenMessage(cfg.ID, strings.TrimSpace(body.MsgID), time.Now()) {
 			return nil
 		}
 		a.rememberCallback(body.MsgID, frame.Headers.ReqID, body.ResponseURL, body.ChatID, body.From.UserID)

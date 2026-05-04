@@ -29,6 +29,7 @@ VALUES (
   sqlc.narg(event_id)::uuid,
   sqlc.narg(display_text)::text
 )
+ON CONFLICT DO NOTHING
 RETURNING
   id,
   bot_id,

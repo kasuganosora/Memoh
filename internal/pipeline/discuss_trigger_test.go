@@ -328,6 +328,17 @@ func (f *fakeDiscussDispatcher) MarkActive(routeID string) <-chan conversation.I
 	return f.injectCh
 }
 
+func (f *fakeDiscussDispatcher) TryMarkActive(routeID string) <-chan conversation.InjectMessage {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.activeRoutes[routeID] {
+		return nil
+	}
+	f.markActiveCalled = true
+	f.activeRoutes[routeID] = true
+	return f.injectCh
+}
+
 func (f *fakeDiscussDispatcher) MarkDone(routeID string) DiscussMarkDoneResult {
 	f.mu.Lock()
 	f.markDoneCalled = true

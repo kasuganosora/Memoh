@@ -41,6 +41,11 @@ func (a *DiscussDispatcherAdapter) MarkActive(routeID string) <-chan conversatio
 	return a.dispatcher.MarkActive(routeID)
 }
 
+// TryMarkActive delegates to the underlying RouteDispatcher.
+func (a *DiscussDispatcherAdapter) TryMarkActive(routeID string) <-chan conversation.InjectMessage {
+	return a.dispatcher.TryMarkActive(routeID)
+}
+
 // MarkDone marks the route as idle in the underlying RouteDispatcher and
 // returns any queued discuss notifications. The underlying dispatcher's
 // QueuedTasks and PendingPersists are intentionally ignored here — discuss

@@ -19,6 +19,30 @@ func (r *Resolver) enterSessionTurn(ctx context.Context, botID, sessionID string
 	}
 
 	key := sessionTurnKey(botID, sessionID)
+
+	// Acquire exclusive per-session access via a channel semaphore.
+	// This prevents concurrent LLM calls for the same session.
+	r.sessionTurnMu.Lock()
+	if r.sessionTurnLocks == nil {
+		r.sessionTurnLocks = make(map[string]chan struct{})
+	}
+	lockCh, exists := r.sessionTurnLocks[key]
+	if !exists {
+		lockCh = make(chan struct{}, 1)
+		lockCh <- struct{}{} // pre-fill with one token
+		r.sessionTurnLocks[key] = lockCh
+	}
+	r.sessionTurnMu.Unlock()
+
+	// Block until we acquire the token or the context is cancelled.
+	select {
+	case <-lockCh:
+		// Acquired exclusively
+	case <-ctx.Done():
+		return func() {} // context cancelled, do not proceed
+	}
+
+	// Increment ref-count for background notification tracking.
 	r.sessionTurnMu.Lock()
 	if r.sessionTurnRefs == nil {
 		r.sessionTurnRefs = make(map[string]int)
@@ -37,15 +61,35 @@ func (r *Resolver) tryEnterIdleSessionTurn(ctx context.Context, botID, sessionID
 	}
 
 	key := sessionTurnKey(botID, sessionID)
+
+	// Non-blocking acquire of the per-session semaphore.
+	// If we fail to acquire immediately, the session is busy.
+	r.sessionTurnMu.Lock()
+	if r.sessionTurnLocks == nil {
+		r.sessionTurnLocks = make(map[string]chan struct{})
+	}
+	lockCh, exists := r.sessionTurnLocks[key]
+	if !exists {
+		lockCh = make(chan struct{}, 1)
+		lockCh <- struct{}{} // pre-fill with one token
+		r.sessionTurnLocks[key] = lockCh
+	}
+	r.sessionTurnMu.Unlock()
+
+	select {
+	case <-lockCh:
+		// Acquired — session is idle, proceed.
+	default:
+		// Session is busy, do not enter.
+		return nil, false
+	}
+
+	// Increment ref-count for background notification tracking.
 	r.sessionTurnMu.Lock()
 	if r.sessionTurnRefs == nil {
 		r.sessionTurnRefs = make(map[string]int)
 	}
-	if r.sessionTurnRefs[key] > 0 {
-		r.sessionTurnMu.Unlock()
-		return nil, false
-	}
-	r.sessionTurnRefs[key] = 1
+	r.sessionTurnRefs[key]++
 	r.sessionTurnMu.Unlock()
 
 	return r.makeSessionTurnReleaser(ctx, key, botID, sessionID), true
@@ -64,6 +108,18 @@ func (r *Resolver) makeSessionTurnReleaser(ctx context.Context, key, botID, sess
 			default:
 				delete(r.sessionTurnRefs, key)
 				becameIdle = true
+			}
+
+			if becameIdle {
+				// Release the semaphore token and clean up the lock entry.
+				if lockCh, ok := r.sessionTurnLocks[key]; ok {
+					select {
+					case lockCh <- struct{}{}:
+					default:
+						// Token already present (should not happen), nothing to do.
+					}
+				}
+				delete(r.sessionTurnLocks, key)
 			}
 			r.sessionTurnMu.Unlock()
 

@@ -23,6 +23,8 @@ const (
 	qqIntentGroupAndC2C         = 1 << 25
 )
 
+const seenMessageDedupeTTL = 10 * time.Minute
+
 var qqIntentLevels = []int{
 	qqIntentPublicGuildMessages | qqIntentGroupAndC2C,
 	qqIntentPublicGuildMessages | qqIntentGuildMembers,
@@ -121,6 +123,7 @@ func (a *QQAdapter) Connect(ctx context.Context, cfg channel.ChannelConfig, hand
 	}
 
 	connCtx, cancel := context.WithCancel(ctx)
+	go a.cleanupSeenMessagesLoop(connCtx)
 	go a.runReceiver(connCtx, cfg, parsed, handler)
 
 	return channel.NewConnection(cfg, func(context.Context) error {
@@ -284,6 +287,53 @@ func handleHello(ctx context.Context, writer *gatewayWriter, client *qqClient, s
 	})
 }
 
+func (a *QQAdapter) seenMessage(cfgID, messageID string, now time.Time) bool {
+	if a == nil || strings.TrimSpace(messageID) == "" {
+		return false
+	}
+	key := strings.TrimSpace(cfgID) + ":" + strings.TrimSpace(messageID)
+	if key == ":" {
+		return false
+	}
+
+	cutoff := now.Add(-seenMessageDedupeTTL)
+
+	a.seenMessagesMu.Lock()
+	defer a.seenMessagesMu.Unlock()
+
+	for seenKey, seenAt := range a.seenMessages {
+		if seenAt.Before(cutoff) {
+			delete(a.seenMessages, seenKey)
+		}
+	}
+
+	if _, exists := a.seenMessages[key]; exists {
+		return true
+	}
+	a.seenMessages[key] = now
+	return false
+}
+
+func (a *QQAdapter) cleanupSeenMessagesLoop(startCtx context.Context) {
+	ticker := time.NewTicker(seenMessageDedupeTTL)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-startCtx.Done():
+			return
+		case <-ticker.C:
+			cutoff := time.Now().Add(-seenMessageDedupeTTL)
+			a.seenMessagesMu.Lock()
+			for key, seenAt := range a.seenMessages {
+				if seenAt.Before(cutoff) {
+					delete(a.seenMessages, key)
+				}
+			}
+			a.seenMessagesMu.Unlock()
+		}
+	}
+}
+
 func (a *QQAdapter) handleDispatch(ctx context.Context, cfg channel.ChannelConfig, handler channel.InboundHandler, eventType string, raw json.RawMessage, session *sessionState) (bool, error) {
 	switch eventType {
 	case "READY":
@@ -326,6 +376,16 @@ func (a *QQAdapter) handleDispatch(ctx context.Context, cfg channel.ChannelConfi
 }
 
 func (a *QQAdapter) dispatchInbound(ctx context.Context, cfg channel.ChannelConfig, handler channel.InboundHandler, inbound InboundEvent) {
+	messageID := inboundEventMessageID(inbound)
+	if a.seenMessage(cfg.ID, messageID, time.Now()) {
+		if a.logger != nil {
+			a.logger.Debug("skip duplicate qq message",
+				slog.String("config_id", cfg.ID),
+				slog.String("message_id", messageID),
+			)
+		}
+		return
+	}
 	msg, ok := eventToInboundMessage(inbound, cfg.BotID)
 	if !ok {
 		return
@@ -335,6 +395,24 @@ func (a *QQAdapter) dispatchInbound(ctx context.Context, cfg channel.ChannelConf
 			a.logger.Error("qq handle inbound failed", slog.String("config_id", cfg.ID), slog.Any("error", err))
 		}
 	}()
+}
+
+func inboundEventMessageID(inbound InboundEvent) string {
+	switch inbound.Type {
+	case "C2C_MESSAGE_CREATE":
+		if inbound.C2CMessage != nil {
+			return strings.TrimSpace(inbound.C2CMessage.ID)
+		}
+	case "GROUP_AT_MESSAGE_CREATE":
+		if inbound.GroupMessage != nil {
+			return strings.TrimSpace(inbound.GroupMessage.ID)
+		}
+	case "AT_MESSAGE_CREATE":
+		if inbound.GuildMessage != nil {
+			return strings.TrimSpace(inbound.GuildMessage.ID)
+		}
+	}
+	return ""
 }
 
 func startHeartbeat(parent context.Context, writer *gatewayWriter, interval time.Duration, seqValue func() int) heartbeatHandle {

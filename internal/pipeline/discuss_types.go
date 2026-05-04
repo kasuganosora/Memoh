@@ -55,6 +55,7 @@ type DiscussReactor interface {
 type DiscussDispatcher interface {
 	IsActive(routeID string) bool
 	MarkActive(routeID string) <-chan conversation.InjectMessage
+	TryMarkActive(routeID string) <-chan conversation.InjectMessage
 	MarkDone(routeID string) DiscussMarkDoneResult
 	Inject(routeID string, msg conversation.InjectMessage) bool
 }

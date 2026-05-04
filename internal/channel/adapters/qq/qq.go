@@ -58,6 +58,9 @@ type QQAdapter struct {
 	assets   assetOpener
 	identity channelIdentityResolver
 	routes   routeResolver
+
+	seenMessagesMu sync.Mutex
+	seenMessages   map[string]time.Time
 }
 
 func NewQQAdapter(log *slog.Logger) *QQAdapter {
@@ -72,10 +75,11 @@ func NewQQAdapter(log *slog.Logger) *QQAdapter {
 		dialer: &websocket.Dialer{
 			HandshakeTimeout: 15 * time.Second,
 		},
-		apiBaseURL: defaultAPIBaseURL,
-		tokenURL:   qqOAuthEndpoint,
-		clients:    make(map[string]*qqClient),
-		sessions:   make(map[string]sessionState),
+		apiBaseURL:   defaultAPIBaseURL,
+		tokenURL:     qqOAuthEndpoint,
+		clients:      make(map[string]*qqClient),
+		sessions:     make(map[string]sessionState),
+		seenMessages: make(map[string]time.Time),
 	}
 }
 

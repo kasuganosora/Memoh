@@ -517,7 +517,12 @@ func (r *Resolver) persistFinalError(ctx context.Context, req conversation.ChatR
 		{Role: "assistant", Content: conversation.NewTextContent(syntheticMsg)},
 	})
 
-	if err := r.storeRound(ctx, req, roundMessages, rc.model.ID); err != nil {
+	// Use a copy of the request with UserMessagePersisted set so the user's
+	// original query is not persisted again (it was already stored via tryStoreStream).
+	safeReq := req
+	safeReq.UserMessagePersisted = true
+
+	if err := r.storeRound(ctx, safeReq, roundMessages, rc.model.ID); err != nil {
 		r.logger.Error("failed to persist partial result",
 			slog.String("bot_id", req.BotID),
 			slog.Any("error", err),

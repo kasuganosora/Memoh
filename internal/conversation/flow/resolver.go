@@ -93,7 +93,8 @@ type Resolver struct {
 	bgNotifDeferred   sync.Map // key: "botID:sessionID" → wake arrived while a session turn was active
 	pipelineImageRefs sync.Map // key: sessionID → []pipelinepkg.ImageAttachmentRef (transient, consumed per resolve call)
 	sessionTurnMu     sync.Mutex
-	sessionTurnRefs   map[string]int // key: "botID:sessionID" → active turn refcount
+	sessionTurnRefs   map[string]int           // key: "botID:sessionID" → active turn refcount
+	sessionTurnLocks  map[string]chan struct{} // key: "botID:sessionID" → semaphore for exclusive session access
 	timeout           time.Duration
 	clockLocation     *time.Location
 

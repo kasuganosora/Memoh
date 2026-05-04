@@ -42,6 +42,7 @@ VALUES (
   $12::uuid,
   $13::text
 )
+ON CONFLICT DO NOTHING
 RETURNING
   id,
   bot_id,

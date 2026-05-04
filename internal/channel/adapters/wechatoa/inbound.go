@@ -82,6 +82,11 @@ func (a *WeChatOAAdapter) handleInbound(ctx context.Context, verifier *securityV
 	if handler != nil {
 		msg, ok := buildInboundMessage(payload)
 		if ok {
+			if a.seenMessage(cfg.ID, strings.TrimSpace(payload.MsgID), time.Now()) {
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte("success"))
+				return nil
+			}
 			msg.BotID = cfg.BotID
 			if err := handler(ctx, cfg, msg); err != nil && a.logger != nil {
 				a.logger.Warn("handle inbound failed", slog.Any("error", err))

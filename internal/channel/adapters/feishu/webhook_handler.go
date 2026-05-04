@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	larkevent "github.com/larksuite/oapi-sdk-go/v3/event"
@@ -66,6 +67,13 @@ func (a *FeishuAdapter) HandleWebhook(ctx context.Context, cfg channel.ChannelCo
 	eventDispatcher.OnP2MessageReceiveV1(func(_ context.Context, event *larkim.P2MessageReceiveV1) error {
 		msg := extractFeishuInbound(event, botOpenID, a.logger)
 		if strings.TrimSpace(msg.Message.PlainText()) == "" && len(msg.Message.Attachments) == 0 {
+			return nil
+		}
+		rawMessageID := ""
+		if event != nil && event.Event != nil && event.Event.Message != nil && event.Event.Message.MessageId != nil {
+			rawMessageID = strings.TrimSpace(*event.Event.Message.MessageId)
+		}
+		if a.seenMessage(cfg.ID, rawMessageID, time.Now()) {
 			return nil
 		}
 		a.enrichSenderProfile(ctx, cfg, event, &msg)

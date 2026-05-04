@@ -418,6 +418,9 @@ CREATE INDEX IF NOT EXISTS idx_bot_history_messages_session_source
   ON bot_history_messages(session_id, source_message_id);
 CREATE INDEX IF NOT EXISTS idx_bot_history_messages_session_reply
   ON bot_history_messages(session_id, source_reply_to_message_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bot_history_messages_source_dedup
+  ON bot_history_messages (session_id, source_message_id)
+  WHERE source_message_id IS NOT NULL AND source_message_id != '';
 
 CREATE TABLE IF NOT EXISTS containers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

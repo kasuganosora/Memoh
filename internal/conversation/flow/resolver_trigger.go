@@ -99,6 +99,11 @@ func (r *Resolver) TriggerHeartbeat(ctx context.Context, botID string, payload h
 		return heartbeat.TriggerResult{}, errors.New("bot id is required")
 	}
 
+	// Acquire session turn lock to prevent heartbeat from overlapping with
+	// active chat sessions that share the same session ID.
+	doneTurn := r.enterSessionTurn(ctx, botID, payload.SessionID)
+	defer doneTurn()
+
 	// ---------------------------------------------------------------------------
 	// Shared setup: model selection and prompt construction.
 	// ---------------------------------------------------------------------------

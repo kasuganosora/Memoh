@@ -127,6 +127,26 @@ func (d *RouteDispatcher) MarkActive(routeID string) <-chan InjectMessage {
 	return rs.injectCh
 }
 
+// TryMarkActive atomically checks whether the route is idle and, if so,
+// marks it active and returns the inject channel. When the route is already
+// active, it returns nil. This eliminates the race window between a separate
+// IsActive() check and a subsequent MarkActive() call.
+func (d *RouteDispatcher) TryMarkActive(routeID string) <-chan InjectMessage {
+	routeID = strings.TrimSpace(routeID)
+	if routeID == "" {
+		return nil
+	}
+	rs := d.getOrCreate(routeID)
+	rs.mu.Lock()
+	defer rs.mu.Unlock()
+	if rs.active {
+		return nil
+	}
+	rs.active = true
+	rs.lastUsed = time.Now()
+	return rs.injectCh
+}
+
 // MarkDoneResult holds the data returned when a route transitions from active to idle.
 type MarkDoneResult struct {
 	PendingPersists []PersistFunc

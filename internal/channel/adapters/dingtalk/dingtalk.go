@@ -28,6 +28,9 @@ type DingTalkAdapter struct {
 
 	// webhookCache stores recent sessionWebhook contexts keyed by msgId.
 	webhookCache *sessionWebhookCache
+
+	seenMessagesMu sync.Mutex
+	seenMessages   map[string]time.Time
 }
 
 // NewDingTalkAdapter creates a new DingTalkAdapter.
@@ -40,6 +43,7 @@ func NewDingTalkAdapter(log *slog.Logger) *DingTalkAdapter {
 		clients:      make(map[string]*dtsdk.StreamClient),
 		apiClients:   make(map[string]*apiClient),
 		webhookCache: newSessionWebhookCache(30 * time.Minute),
+		seenMessages: make(map[string]time.Time),
 	}
 }
 
@@ -142,6 +146,55 @@ func (a *DingTalkAdapter) DiscoverSelf(ctx context.Context, credentials map[stri
 	}, externalID, nil
 }
 
+const seenMessageDedupeTTL = 10 * time.Minute
+
+func (a *DingTalkAdapter) seenMessage(cfgID, messageID string, now time.Time) bool {
+	if a == nil || strings.TrimSpace(messageID) == "" {
+		return false
+	}
+	key := strings.TrimSpace(cfgID) + ":" + strings.TrimSpace(messageID)
+	if key == ":" {
+		return false
+	}
+
+	cutoff := now.Add(-seenMessageDedupeTTL)
+
+	a.seenMessagesMu.Lock()
+	defer a.seenMessagesMu.Unlock()
+
+	for seenKey, seenAt := range a.seenMessages {
+		if seenAt.Before(cutoff) {
+			delete(a.seenMessages, seenKey)
+		}
+	}
+
+	if _, exists := a.seenMessages[key]; exists {
+		return true
+	}
+	a.seenMessages[key] = now
+	return false
+}
+
+func (a *DingTalkAdapter) cleanupSeenMessagesLoop(startCtx context.Context) {
+	ticker := time.NewTicker(seenMessageDedupeTTL)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-startCtx.Done():
+			return
+		case <-ticker.C:
+			cutoff := time.Now().Add(-seenMessageDedupeTTL)
+			a.seenMessagesMu.Lock()
+			for key, seenAt := range a.seenMessages {
+				if seenAt.Before(cutoff) {
+					delete(a.seenMessages, key)
+				}
+			}
+			a.seenMessagesMu.Unlock()
+		}
+	}
+}
+
 // Connect establishes a DingTalk Stream WebSocket connection and begins receiving messages.
 func (a *DingTalkAdapter) Connect(ctx context.Context, cfg channel.ChannelConfig, handler channel.InboundHandler) (channel.Connection, error) {
 	parsed, err := parseConfig(cfg.Credentials)
@@ -172,7 +225,11 @@ func (a *DingTalkAdapter) Connect(ctx context.Context, cfg channel.ChannelConfig
 		return nil, err
 	}
 
+	connCtx, connCancel := context.WithCancel(ctx)
+	go a.cleanupSeenMessagesLoop(connCtx)
+
 	stop := func(context.Context) error {
+		connCancel()
 		// Disable reconnect before closing to prevent the reconnect loop from restarting.
 		streamCli.AutoReconnect = false
 		streamCli.Close()
@@ -400,6 +457,15 @@ func (a *DingTalkAdapter) newChatBotHandler(cfg channel.ChannelConfig, handler c
 			return nil, nil
 		}
 		msg.BotID = cfg.BotID
+		if a.seenMessage(cfg.ID, strings.TrimSpace(data.MsgId), time.Now()) {
+			if a.logger != nil {
+				a.logger.Debug("skip duplicate dingtalk message",
+					slog.String("config_id", cfg.ID),
+					slog.String("message_id", strings.TrimSpace(data.MsgId)),
+				)
+			}
+			return nil, nil
+		}
 		if err := handler(ctx, cfg, msg); err != nil {
 			a.logger.Error("dingtalk: inbound handler error",
 				slog.String("config_id", cfg.ID),
