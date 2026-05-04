@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/memohai/memoh/internal/channel"
 	"github.com/memohai/memoh/internal/conversation"
 	"github.com/memohai/memoh/internal/db"
 )
@@ -21,6 +22,9 @@ func sanitizeMessages(messages []conversation.ModelMessage) []conversation.Model
 		if normalized, ok := normalizeImagePartsToDataURL(msg); ok {
 			msg = normalized
 		}
+		if msg.Role == "assistant" {
+			msg = sanitizeToolCallXMLInMessage(msg)
+		}
 		if strings.TrimSpace(msg.Role) == "" {
 			continue
 		}
@@ -30,6 +34,44 @@ func sanitizeMessages(messages []conversation.ModelMessage) []conversation.Model
 		cleaned = append(cleaned, msg)
 	}
 	return cleaned
+}
+
+// sanitizeToolCallXMLInMessage strips <tool_calls> XML from a message so the
+// LLM does not learn to reproduce the pattern from its own history.
+func sanitizeToolCallXMLInMessage(msg conversation.ModelMessage) conversation.ModelMessage {
+	if len(msg.Content) == 0 {
+		return msg
+	}
+	// Try to decode as a simple string first
+	var contentStr string
+	if err := json.Unmarshal(msg.Content, &contentStr); err == nil {
+		cleaned := channel.FilterToolCallXML(contentStr)
+		if cleaned != contentStr {
+			msg.Content = json.RawMessage(strconv.Quote(cleaned))
+		}
+		return msg
+	}
+	// Try to decode as an array of parts
+	var parts []conversation.ContentPart
+	if err := json.Unmarshal(msg.Content, &parts); err != nil {
+		return msg
+	}
+	changed := false
+	for i := range parts {
+		if parts[i].Type == "text" {
+			cleaned := channel.FilterToolCallXML(parts[i].Text)
+			if cleaned != parts[i].Text {
+				parts[i].Text = cleaned
+				changed = true
+			}
+		}
+	}
+	if changed {
+		if data, err := json.Marshal(parts); err == nil {
+			msg.Content = data
+		}
+	}
+	return msg
 }
 
 func normalizeImagePartsToDataURL(msg conversation.ModelMessage) (conversation.ModelMessage, bool) {

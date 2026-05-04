@@ -1,11 +1,14 @@
 package misskey
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
 	"regexp"
 	"strings"
 	"sync"
@@ -1246,4 +1249,48 @@ func (s *misskeyBlockStream) Close(ctx context.Context) error {
 		Target:  s.target,
 		Message: msg,
 	})
+}
+
+// ResolveAttachment implements channel.AttachmentResolver for Misskey.
+// It downloads an attachment from its URL and returns the raw bytes and MIME type.
+// This is used as a fallback when the generic URL download in the inbound
+// processor fails.
+func (*MisskeyAdapter) ResolveAttachment(ctx context.Context, _ channel.ChannelConfig, attachment channel.Attachment) (channel.AttachmentPayload, error) {
+	url := strings.TrimSpace(attachment.URL)
+	if url == "" {
+		return channel.AttachmentPayload{}, errors.New("misskey attachment url is required")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return channel.AttachmentPayload{}, fmt.Errorf("build request: %w", err)
+	}
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(req) //nolint:gosec // G704: URL is the attachment URL from the Misskey API
+	if err != nil {
+		return channel.AttachmentPayload{}, fmt.Errorf("download attachment: %w", err)
+	}
+	defer func() {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}()
+	if resp.StatusCode != http.StatusOK {
+		return channel.AttachmentPayload{}, fmt.Errorf("attachment download returned status %d", resp.StatusCode)
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return channel.AttachmentPayload{}, fmt.Errorf("read attachment body: %w", err)
+	}
+	mime := strings.TrimSpace(attachment.Mime)
+	if mime == "" {
+		mime = resp.Header.Get("Content-Type")
+		if idx := strings.Index(mime, ";"); idx >= 0 {
+			mime = strings.TrimSpace(mime[:idx])
+		}
+	}
+	return channel.AttachmentPayload{
+		Reader: io.NopCloser(bytes.NewReader(data)),
+		Mime:   mime,
+		Name:   attachment.Name,
+		Size:   int64(len(data)),
+	}, nil
 }
