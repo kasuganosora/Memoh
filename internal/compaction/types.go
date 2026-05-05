@@ -28,16 +28,17 @@ type ListLogsResponse struct {
 
 // TriggerConfig holds the parameters needed to trigger a compaction.
 type TriggerConfig struct {
-	BotID            string
-	SessionID        string
-	ModelID          string
-	ClientType       string
-	APIKey           string //nolint:gosec // runtime credential, not a hardcoded secret
-	CodexAccountID   string
-	BaseURL          string
-	HTTPClient       *http.Client
-	Ratio            int
-	TotalInputTokens int
-	MaxCompactTokens int // if > 0, cap compaction input to this many tokens (e.g. 90% of model window)
-	TargetTokens     int // if > 0, compaction goal: reduce context to this many tokens (used by sync compaction)
+	BotID               string
+	SessionID           string
+	ModelID             string
+	ClientType          string
+	APIKey              string //nolint:gosec // runtime credential, not a hardcoded secret
+	CodexAccountID      string
+	BaseURL             string
+	HTTPClient          *http.Client
+	Ratio               int
+	TotalInputTokens    int
+	MaxCompactTokens    int    // if > 0, cap compaction input to this many tokens (e.g. 90% of model window)
+	TargetTokens        int    // if > 0, compaction goal: reduce context to this many tokens (used by sync compaction)
+	IdentityDescription string // bot's identity description for personality-aware compaction summaries
 }

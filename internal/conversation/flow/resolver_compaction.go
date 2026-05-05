@@ -3,14 +3,17 @@ package flow
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"time"
 
+	agentpkg "github.com/memohai/memoh/internal/agent"
 	"github.com/memohai/memoh/internal/compaction"
 	"github.com/memohai/memoh/internal/conversation"
 	"github.com/memohai/memoh/internal/models"
 	"github.com/memohai/memoh/internal/oauthctx"
 	"github.com/memohai/memoh/internal/providers"
 	"github.com/memohai/memoh/internal/settings"
+	"github.com/memohai/memoh/internal/workspace/bridge"
 )
 
 func (r *Resolver) maybeCompact(ctx context.Context, req conversation.ChatRequest, _ resolvedContext, inputTokens int) {
@@ -153,6 +156,10 @@ func (r *Resolver) buildCompactionConfig(ctx context.Context, req conversation.C
 		HTTPClient:       r.streamHTTPClient,
 	}
 
+	// Load identity context so compaction summaries preserve the bot's personality.
+	identityDesc := loadIdentityDescription(ctx, r.agent.BridgeProvider(), req.BotID, r.logger)
+	cfg.IdentityDescription = identityDesc
+
 	// Cap compaction input to 90% of the compaction model's context window.
 	compactCfg := compactModel.ParseConfig()
 	if compactCfg.ContextWindow != nil && *compactCfg.ContextWindow > 0 {
@@ -164,4 +171,34 @@ func (r *Resolver) buildCompactionConfig(ctx context.Context, req conversation.C
 	cfg.TargetTokens = 2000
 
 	return cfg, nil
+}
+
+// loadIdentityDescription reads the bot's IDENTITY.md and SOUL.md from the
+// container filesystem and returns a concise description for use in compaction
+// prompts. Returns an empty string if the files cannot be read.
+func loadIdentityDescription(ctx context.Context, provider bridge.Provider, botID string, logger *slog.Logger) string {
+	fs := agentpkg.NewFSClient(provider, botID, nil, logger)
+	identity := fs.ReadTextSafe(ctx, "/data/IDENTITY.md")
+	soul := fs.ReadTextSafe(ctx, "/data/SOUL.md")
+
+	identity = strings.TrimSpace(identity)
+	soul = strings.TrimSpace(soul)
+
+	if identity == "" && soul == "" {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("The assistant's identity and personality:\n")
+	if identity != "" {
+		sb.WriteString("## IDENTITY\n")
+		sb.WriteString(identity)
+		sb.WriteString("\n")
+	}
+	if soul != "" {
+		sb.WriteString("## SOUL\n")
+		sb.WriteString(soul)
+		sb.WriteString("\n")
+	}
+	return sb.String()
 }

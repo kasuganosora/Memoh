@@ -158,7 +158,7 @@ func (s *Service) doCompaction(ctx context.Context, logID pgtype.UUID, sessionUU
 		messageIDs = append(messageIDs, m.ID)
 	}
 
-	userPrompt := buildUserPrompt(priorSummaries, entries)
+	userPrompt := buildUserPrompt(priorSummaries, entries, cfg.IdentityDescription)
 
 	model := models.NewSDKChatModel(models.SDKModelConfig{
 		ClientType:     cfg.ClientType,

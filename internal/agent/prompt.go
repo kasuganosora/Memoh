@@ -54,6 +54,7 @@ func init() {
 		"_identities":    mustReadPrompt("prompts/_identities.md"),
 		"_schedule_task": mustReadPrompt("prompts/_schedule_task.md"),
 		"_subagent":      mustReadPrompt("prompts/_subagent.md"),
+		"_cross_session": mustReadPrompt("prompts/_cross_session.md"),
 	}
 
 	systemChatTmpl = resolveIncludes(systemChatTmpl)
@@ -162,7 +163,7 @@ func GenerateSystemPrompt(params SystemPromptParams) string {
 
 	tmpl := selectSystemTemplate(params.SessionType)
 
-	return render(tmpl, map[string]string{
+	result := render(tmpl, map[string]string{
 		"home":                      home,
 		"currentTime":               now.Format(time.RFC3339),
 		"timezone":                  timezoneName,
@@ -171,6 +172,12 @@ func GenerateSystemPrompt(params SystemPromptParams) string {
 		"platformIdentitiesSection": strings.TrimSpace(params.PlatformIdentitiesSection),
 		"fileSections":              fileSections,
 	})
+
+	if recap := buildIdentityRecap(params.Files); recap != "" {
+		result += recap
+	}
+
+	return result
 }
 
 // SystemPromptParams holds all inputs for system prompt generation.
@@ -243,4 +250,69 @@ func buildSkillsSection(skills []SkillEntry) string {
 
 func formatSystemFile(file SystemFile) string {
 	return fmt.Sprintf("## %s\n\n%s", file.Filename, file.Content)
+}
+
+// buildIdentityRecap creates a concise identity recap from IDENTITY.md and
+// SOUL.md file content. Appended at the end of the system prompt as a "bookend"
+// to help the model maintain consistent personality in long conversations.
+func buildIdentityRecap(files []SystemFile) string {
+	var identity, soul string
+	for _, f := range files {
+		switch f.Filename {
+		case "IDENTITY.md":
+			identity = f.Content
+		case "SOUL.md":
+			soul = f.Content
+		}
+	}
+	if identity == "" && soul == "" {
+		return ""
+	}
+
+	name := extractField(identity, "Name")
+	vibe := extractField(identity, "Vibe")
+	creature := extractField(identity, "Creature")
+	emoji := extractField(identity, "Emoji")
+
+	var sb strings.Builder
+	sb.WriteString("\n\n## Identity Recap\n\n")
+
+	var parts []string
+	if name != "" {
+		parts = append(parts, "your name is **"+name+"**")
+	}
+	if creature != "" {
+		parts = append(parts, "you are a "+creature)
+	}
+	if vibe != "" {
+		parts = append(parts, "your vibe is "+vibe)
+	}
+	if emoji != "" {
+		parts = append(parts, "your emoji is "+emoji)
+	}
+
+	if len(parts) > 0 {
+		sb.WriteString("Remember your core identity: ")
+		sb.WriteString(strings.Join(parts, ", "))
+		sb.WriteString(". ")
+	}
+
+	if soul != "" {
+		sb.WriteString("Your core beliefs from SOUL.md are defined above — stay true to them.\n")
+	}
+
+	sb.WriteString("Maintain consistency with your defined personality and communication style throughout this conversation.")
+
+	return sb.String()
+}
+
+// extractField extracts a bold-marked field value from IDENTITY.md content.
+// Example: **Name:** Alice → "Alice".
+func extractField(content, field string) string {
+	fieldRe := regexp.MustCompile(`\*\*` + regexp.QuoteMeta(field) + `:\*\*\s*(.*)`)
+	matches := fieldRe.FindStringSubmatch(content)
+	if len(matches) < 2 {
+		return ""
+	}
+	return strings.TrimSpace(matches[1])
 }
