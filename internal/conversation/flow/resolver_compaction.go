@@ -174,31 +174,70 @@ func (r *Resolver) buildCompactionConfig(ctx context.Context, req conversation.C
 }
 
 // loadIdentityDescription reads the bot's IDENTITY.md and SOUL.md from the
-// container filesystem and returns a concise description for use in compaction
-// prompts. Returns an empty string if the files cannot be read.
+// container filesystem and returns a concise persona summary for use in
+// compaction prompts. The summary is capped at ~300 characters to avoid
+// bloating the compaction model's context window while still conveying
+// enough identity context to produce personality-aware summaries.
+// Returns an empty string if the files cannot be read.
 func loadIdentityDescription(ctx context.Context, provider bridge.Provider, botID string, logger *slog.Logger) string {
 	fs := agentpkg.NewFSClient(provider, botID, nil, logger)
-	identity := fs.ReadTextSafe(ctx, "/data/IDENTITY.md")
-	soul := fs.ReadTextSafe(ctx, "/data/SOUL.md")
-
-	identity = strings.TrimSpace(identity)
-	soul = strings.TrimSpace(soul)
+	identity := strings.TrimSpace(fs.ReadTextSafe(ctx, "/data/IDENTITY.md"))
+	soul := strings.TrimSpace(fs.ReadTextSafe(ctx, "/data/SOUL.md"))
 
 	if identity == "" && soul == "" {
 		return ""
 	}
 
 	var sb strings.Builder
-	sb.WriteString("The assistant's identity and personality:\n")
-	if identity != "" {
-		sb.WriteString("## IDENTITY\n")
+	sb.WriteString("The assistant's persona: ")
+
+	name := agentpkg.ExtractIdentityField(identity, "Name")
+	creature := agentpkg.ExtractIdentityField(identity, "Creature")
+	vibe := agentpkg.ExtractIdentityField(identity, "Vibe")
+	emoji := agentpkg.ExtractIdentityField(identity, "Emoji")
+
+	var parts []string
+	if name != "" {
+		parts = append(parts, "name is "+name)
+	}
+	if creature != "" {
+		parts = append(parts, "a "+creature)
+	}
+	if vibe != "" {
+		parts = append(parts, "vibe: "+vibe)
+	}
+	if emoji != "" {
+		parts = append(parts, "emoji: "+emoji)
+	}
+
+	if len(parts) == 0 {
+		// Fallback: use truncated identity content if field extraction failed.
+		if len(identity) > 200 {
+			identity = identity[:200] + "..."
+		}
 		sb.WriteString(identity)
-		sb.WriteString("\n")
+	} else {
+		sb.WriteString(strings.Join(parts, "; "))
+		sb.WriteString(".")
 	}
+
+	// Include a brief soul reference for communication style context.
 	if soul != "" {
-		sb.WriteString("## SOUL\n")
-		sb.WriteString(soul)
-		sb.WriteString("\n")
+		if sb.Len() > 200 {
+			sb.WriteString(" (soul present)")
+		} else {
+			const soulMax = 150
+			soulBrief := soul
+			if len(soulBrief) > soulMax {
+				soulBrief = soulBrief[:soulMax] + "..."
+			}
+			sb.WriteString(" Core beliefs: " + soulBrief)
+		}
 	}
-	return sb.String()
+
+	result := sb.String()
+	if len(result) > 400 {
+		result = result[:400] + "..."
+	}
+	return result
 }

@@ -269,10 +269,10 @@ func buildIdentityRecap(files []SystemFile) string {
 		return ""
 	}
 
-	name := extractField(identity, "Name")
-	vibe := extractField(identity, "Vibe")
-	creature := extractField(identity, "Creature")
-	emoji := extractField(identity, "Emoji")
+	name := ExtractIdentityField(identity, "Name")
+	vibe := ExtractIdentityField(identity, "Vibe")
+	creature := ExtractIdentityField(identity, "Creature")
+	emoji := ExtractIdentityField(identity, "Emoji")
 
 	var sb strings.Builder
 	sb.WriteString("\n\n## Identity Recap\n\n")
@@ -306,13 +306,46 @@ func buildIdentityRecap(files []SystemFile) string {
 	return sb.String()
 }
 
-// extractField extracts a bold-marked field value from IDENTITY.md content.
-// Example: **Name:** Alice → "Alice".
-func extractField(content, field string) string {
-	fieldRe := regexp.MustCompile(`\*\*` + regexp.QuoteMeta(field) + `:\*\*\s*(.*)`)
-	matches := fieldRe.FindStringSubmatch(content)
-	if len(matches) < 2 {
+// ExtractIdentityField extracts a bold-marked field value from IDENTITY.md content.
+// Supports two formats:
+//   - Same line:  **Name:** Alice
+//   - Next line:  **Name:**\n  Alice
+//
+// Returns empty string if the field is not found or contains only template placeholders.
+func ExtractIdentityField(content, field string) string {
+	// Same-line format: **Name:** value
+	if v := extractSameLine(content, field); v != "" && !templatePlaceholder(v) {
+		return v
+	}
+	// Multi-line format: **Name:**\n  value (value on next indented line)
+	if v := extractNextLine(content, field); v != "" && !templatePlaceholder(v) {
+		return v
+	}
+	return ""
+}
+
+func extractSameLine(content, field string) string {
+	re := regexp.MustCompile(`\*\*` + regexp.QuoteMeta(field) + `:\*\*[ \t]*(.+)`)
+	m := re.FindStringSubmatch(content)
+	if len(m) < 2 {
 		return ""
 	}
-	return strings.TrimSpace(matches[1])
+	return strings.TrimSpace(m[1])
+}
+
+func extractNextLine(content, field string) string {
+	// Match **Field:** at end of line, capture the first non-blank line that follows.
+	re := regexp.MustCompile(`\*\*` + regexp.QuoteMeta(field) + `:\*\*[ \t]*\n[ \t]*(\S[^\n]*)`)
+	m := re.FindStringSubmatch(content)
+	if len(m) < 2 {
+		return ""
+	}
+	return strings.TrimSpace(m[1])
+}
+
+// templatePlaceholder returns true if the value looks like an unfilled template hint.
+// Template placeholders are italicized hints like _(pick something you like)_.
+func templatePlaceholder(s string) bool {
+	s = strings.TrimSpace(s)
+	return strings.HasPrefix(s, "_(") && strings.HasSuffix(s, ")_")
 }
