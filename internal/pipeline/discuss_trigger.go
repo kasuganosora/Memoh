@@ -526,7 +526,17 @@ func (d *DiscussTrigger) consumeStream(
 					}
 				}
 				if d.deps.Broadcaster != nil {
-					d.deps.Broadcaster.PublishEvent(cfg.BotID, event)
+					broadcastEvent := event
+					// Reasoning content may contain raw XML tags (e.g. <parameter>,
+					// <function_call>) that the LLM emits as plain text inside reasoning
+					// deltas. Strip them before broadcasting to the UI to prevent tag
+					// artefacts from leaking into the user-visible thinking display.
+					if event.Phase == channel.StreamPhaseReasoning && event.Delta != "" {
+						broadcastEvent.Delta = channel.FilterThinkingTags(broadcastEvent.Delta)
+						broadcastEvent.Delta = channel.FilterReasoningArray(broadcastEvent.Delta)
+						broadcastEvent.Delta = channel.FilterToolCallXML(broadcastEvent.Delta)
+					}
+					d.deps.Broadcaster.PublishEvent(cfg.BotID, broadcastEvent)
 				}
 			}
 		case err, ok := <-errCh:
