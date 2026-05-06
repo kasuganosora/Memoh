@@ -539,7 +539,8 @@ func (a *MisskeyAdapter) handleChannelEvent(ctx context.Context, cfg channel.Cha
 	switch body.Type {
 	case "note":
 		// Timeline note events from homeTimeline or localTimeline subscriptions.
-		if body.ID != "memoh-home" && body.ID != "memoh-local" {
+		// Main channel (body.ID == "1") also sends "note" events for renotes.
+		if body.ID != "memoh-home" && body.ID != "memoh-local" && body.ID != "1" {
 			return
 		}
 		a.handleTimelineNote(ctx, cfg, me, handler, body, dedup, dedupMu, tlCfg)
