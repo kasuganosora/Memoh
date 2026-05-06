@@ -909,7 +909,15 @@ func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source stri
 		displayName = username
 	}
 	if text != "" {
-		text = fmt.Sprintf("[Timeline/%s] @%s: %s", source, username, text)
+		if renoteFallback && note.Renote != nil {
+			origUsername := note.Renote.User.Username
+			if note.Renote.User.Host != "" {
+				origUsername += "@" + note.Renote.User.Host
+			}
+			text = fmt.Sprintf("[Timeline/%s] @%s renoted @%s: %s", source, username, origUsername, text)
+		} else {
+			text = fmt.Sprintf("[Timeline/%s] @%s: %s", source, username, text)
+		}
 	} else if len(attachments) > 0 {
 		text = fmt.Sprintf("[Timeline/%s] @%s: [shared %d file(s)]", source, username, len(attachments))
 	}
