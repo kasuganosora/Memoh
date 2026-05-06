@@ -117,24 +117,21 @@ func getMe(ctx context.Context, cfg Config) (*meResponse, error) {
 	return &resp, nil
 }
 
-// fetchTimelineNotes polls the Misskey REST API for timeline notes.
-// This is used to catch renotes and @-mention posts that are not delivered
-// via the streaming API channels.
-func fetchTimelineNotes(ctx context.Context, cfg Config, endpoint string, limit int) ([]misskeyNote, error) {
-	raw, err := apiRequest(ctx, cfg, endpoint, map[string]any{
-		"i":           cfg.AccessToken,
-		"limit":       limit,
-		"withRenotes": true,
-		"withFiles":   false,
+// fetchNoteByID retrieves a single note from the Misskey REST API.
+// Used to resolve "sr" streaming events that only contain a note ID.
+func fetchNoteByID(ctx context.Context, cfg Config, noteID string) (*misskeyNote, error) {
+	raw, err := apiRequest(ctx, cfg, "notes/show", map[string]string{
+		"i":      cfg.AccessToken,
+		"noteId": noteID,
 	})
 	if err != nil {
 		return nil, err
 	}
-	var notes []misskeyNote
-	if err := json.Unmarshal(raw, &notes); err != nil {
-		return nil, fmt.Errorf("misskey %s unmarshal: %w", endpoint, err)
+	var note misskeyNote
+	if err := json.Unmarshal(raw, &note); err != nil {
+		return nil, fmt.Errorf("misskey notes/show unmarshal: %w", err)
 	}
-	return notes, nil
+	return &note, nil
 }
 
 // createReaction adds an emoji reaction to a note.
