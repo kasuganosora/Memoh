@@ -96,6 +96,7 @@ import (
 	"github.com/memohai/memoh/internal/storage/providers/localfs"
 	"github.com/memohai/memoh/internal/version"
 	"github.com/memohai/memoh/internal/workspace"
+	workflowpkg "github.com/memohai/memoh/internal/workflow"
 )
 
 func provideServerHandler(fn any) any {
@@ -267,7 +268,7 @@ func provideAgent(log *slog.Logger, manager *workspace.Manager) *agentpkg.Agent 
 	})
 }
 
-func injectToolProviders(a *agentpkg.Agent, msgService *message.DBService, settingsService *settings.Service, exprSelector *expression.Selector, providers []agenttools.ToolProvider) {
+func injectToolProviders(a *agentpkg.Agent, msgService *message.DBService, settingsService *settings.Service, exprSelector *expression.Selector, providers []agenttools.ToolProvider, scheduler *workflowpkg.Scheduler) {
 	a.SetToolProviders(providers)
 	for _, p := range providers {
 		if sp, ok := p.(*agenttools.SpawnProvider); ok {
@@ -281,6 +282,14 @@ func injectToolProviders(a *agentpkg.Agent, msgService *message.DBService, setti
 			mp.SetReplyerConfigCheck(makeReplyerConfigCheck(settingsService))
 			mp.SetReplyerSystemPrompt(agentpkg.ReplyerPrompt)
 			mp.SetExpressionSelector(exprSelector)
+		}
+		if pp, ok := p.(*agenttools.PipelineProvider); ok {
+			pp.SetAgent(agentpkg.NewSpawnAdapter(a))
+			pp.SetModelCreator(agentpkg.SpawnModelCreatorFunc())
+			pp.SetSystemPromptFunc(agentpkg.SpawnSystemPrompt)
+			pp.SetScheduler(scheduler)
+			// The PipelineProvider is also the NodeExecutor for the scheduler
+			scheduler.SetExecutor(pp)
 		}
 	}
 }
@@ -514,6 +523,14 @@ func provideBackgroundManager(log *slog.Logger) *background.Manager {
 	return background.New(log)
 }
 
+func provideWorkflowRepository(log *slog.Logger, queries *dbsqlc.Queries) *workflowpkg.SQLRepository {
+	return workflowpkg.NewSQLRepository(queries, log)
+}
+
+func provideWorkflowScheduler(repo *workflowpkg.SQLRepository, log *slog.Logger) *workflowpkg.Scheduler {
+	return workflowpkg.NewScheduler(repo, log)
+}
+
 func provideToolProviders(log *slog.Logger, cfg config.Config, channelManager *channel.Manager, registry *channel.Registry, routeService *route.DBService, scheduleService *schedule.Service, settingsService *settings.Service, searchProviderService *searchproviders.Service, manager *workspace.Manager, mediaService *media.Service, memoryRegistry *memprovider.Registry, emailService *emailpkg.Service, emailManager *emailpkg.Manager, fedGateway *handlers.MCPFederationGateway, mcpConnService *mcp.ConnectionService, modelsService *models.Service, browserContextService *browsercontexts.Service, queries *dbsqlc.Queries, audioService *audiopkg.Service, sessionService *sessionpkg.Service, bgManager *background.Manager, pool *pgxpool.Pool) []agenttools.ToolProvider {
 	var assetResolver messaging.AssetResolver
 	if mediaService != nil {
@@ -542,6 +559,7 @@ func provideToolProviders(log *slog.Logger, cfg config.Config, channelManager *c
 		agenttools.NewFederationProvider(log, fedSource),
 		agenttools.NewHistoryProvider(log, sessionService, queries),
 		agenttools.NewJargonProvider(log, jargStore),
+		agenttools.NewPipelineProvider(log, settingsService, modelsService, queries),
 	}
 	return providers
 }

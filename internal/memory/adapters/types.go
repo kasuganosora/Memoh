@@ -199,10 +199,11 @@ type DecideRequest struct {
 }
 
 type DecisionAction struct {
-	Event     string `json:"event"`
-	ID        string `json:"id,omitempty"`
-	Text      string `json:"text"`
-	OldMemory string `json:"old_memory,omitempty"`
+	Event      string `json:"event"`
+	ID         string `json:"id,omitempty"`
+	Text       string `json:"text"`
+	OldMemory  string `json:"old_memory,omitempty"`
+	Importance string `json:"importance,omitempty"` // high / medium / low
 }
 
 type DecideResponse struct {

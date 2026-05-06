@@ -174,6 +174,13 @@ func applyActions(ctx context.Context, logger *slog.Logger, runtime memoryRuntim
 
 	for _, action := range actions {
 		event := strings.ToUpper(strings.TrimSpace(action.Event))
+
+		// Enrich metadata with importance if provided by the LLM.
+		actionMeta := cloneMetadata(metadata)
+		if imp := strings.TrimSpace(action.Importance); imp != "" {
+			actionMeta["importance"] = imp
+		}
+
 		switch event {
 		case actionADD:
 			text := strings.TrimSpace(action.Text)
@@ -185,7 +192,7 @@ func applyActions(ctx context.Context, logger *slog.Logger, runtime memoryRuntim
 			if _, err := runtime.Add(ctx, adapters.AddRequest{
 				Message:  text,
 				BotID:    botID,
-				Metadata: metadata,
+				Metadata: actionMeta,
 				Filters:  filters,
 			}); err != nil {
 				logger.Warn("memory formation: ADD failed", slog.String("bot_id", botID), slog.Any("error", err))
@@ -252,4 +259,17 @@ func filterNonEmpty(ss []string) []string {
 		}
 	}
 	return out
+}
+
+// cloneMetadata shallow-copies a metadata map so each action can have
+// its own enriched copy (e.g., with importance) without mutating the shared one.
+func cloneMetadata(meta map[string]any) map[string]any {
+	if meta == nil {
+		return make(map[string]any)
+	}
+	cp := make(map[string]any, len(meta))
+	for k, v := range meta {
+		cp[k] = v
+	}
+	return cp
 }
