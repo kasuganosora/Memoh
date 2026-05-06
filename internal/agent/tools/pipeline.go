@@ -9,9 +9,8 @@ import (
 	"strings"
 	"time"
 
-	sdk "github.com/memohai/twilight-ai/sdk"
-
 	"github.com/google/uuid"
+	sdk "github.com/memohai/twilight-ai/sdk"
 
 	"github.com/memohai/memoh/internal/db/sqlc"
 	"github.com/memohai/memoh/internal/models"
@@ -202,21 +201,24 @@ func (p *PipelineProvider) execute(ctx context.Context, args map[string]any, ses
 
 	// Build result summary
 	var summary strings.Builder
-	summary.WriteString(fmt.Sprintf("Pipeline %s: %s\n", pwn.Pipeline.Status, goal))
+	fmt.Fprintf(&summary, "Pipeline %s: %s\n", pwn.Pipeline.Status, goal)
 	for _, node := range pwn.Nodes {
-		statusIcon := "✅"
-		if node.Status == workflow.StatusFailed {
+		var statusIcon string
+		switch node.Status {
+		case workflow.StatusFailed:
 			statusIcon = "❌"
-		} else if node.Status == workflow.StatusRunning {
+		case workflow.StatusRunning:
 			statusIcon = "🔄"
+		default:
+			statusIcon = "✅"
 		}
-		summary.WriteString(fmt.Sprintf("  %s %s: %s", statusIcon, node.Name, node.Status))
+		fmt.Fprintf(&summary, "  %s %s: %s", statusIcon, node.Name, node.Status)
 		if node.Error != nil {
-			summary.WriteString(fmt.Sprintf(" (error: %s)", *node.Error))
+			fmt.Fprintf(&summary, " (error: %s)", *node.Error)
 		}
 		summary.WriteString("\n")
 		if node.Output != nil {
-			summary.WriteString(fmt.Sprintf("    Output: %s\n", string(node.Output)))
+			fmt.Fprintf(&summary, "    Output: %s\n", string(node.Output))
 		}
 	}
 

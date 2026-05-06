@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"log/slog"
+	"math"
 	"net/http"
 	"strings"
 
@@ -59,6 +60,12 @@ func (h *PipelineHandler) List(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid bot id")
 	}
+	if limit > math.MaxInt32 {
+		limit = math.MaxInt32
+	}
+	if offset > math.MaxInt32 {
+		offset = math.MaxInt32
+	}
 	pipelines, err := h.scheduler.ListPipelines(c.Request().Context(), botUUID, int32(limit), int32(offset))
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
@@ -67,7 +74,7 @@ func (h *PipelineHandler) List(c echo.Context) error {
 }
 
 // Status returns the full DAG status for a pipeline.
-// GET /bots/:bot_id/pipelines/:id/status
+// GET /bots/:bot_id/pipelines/:id/status.
 func (h *PipelineHandler) Status(c echo.Context) error {
 	userID, err := h.requireUserID(c)
 	if err != nil {
@@ -92,7 +99,7 @@ func (h *PipelineHandler) Status(c echo.Context) error {
 }
 
 // Graph returns the topological structure for frontend visualization.
-// GET /bots/:bot_id/pipelines/:id/graph
+// GET /bots/:bot_id/pipelines/:id/graph.
 func (h *PipelineHandler) Graph(c echo.Context) error {
 	userID, err := h.requireUserID(c)
 	if err != nil {
@@ -117,7 +124,7 @@ func (h *PipelineHandler) Graph(c echo.Context) error {
 }
 
 // Retry retries failed nodes in a pipeline.
-// POST /bots/:bot_id/pipelines/:id/retry
+// POST /bots/:bot_id/pipelines/:id/retry.
 func (h *PipelineHandler) Retry(c echo.Context) error {
 	userID, err := h.requireUserID(c)
 	if err != nil {
@@ -148,7 +155,7 @@ func (h *PipelineHandler) Retry(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"status": "retry initiated"})
 }
 
-func (h *PipelineHandler) requireUserID(c echo.Context) (string, error) {
+func (*PipelineHandler) requireUserID(c echo.Context) (string, error) {
 	return RequireChannelIdentityID(c)
 }
 

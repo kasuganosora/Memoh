@@ -95,8 +95,8 @@ import (
 	"github.com/memohai/memoh/internal/storage/providers/fallback"
 	"github.com/memohai/memoh/internal/storage/providers/localfs"
 	"github.com/memohai/memoh/internal/version"
-	"github.com/memohai/memoh/internal/workspace"
 	workflowpkg "github.com/memohai/memoh/internal/workflow"
+	"github.com/memohai/memoh/internal/workspace"
 )
 
 func provideServerHandler(fn any) any {

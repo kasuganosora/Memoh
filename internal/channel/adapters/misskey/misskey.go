@@ -783,8 +783,8 @@ func (a *MisskeyAdapter) handleTimelineNote(ctx context.Context, cfg channel.Cha
 		return // own notes
 	}
 	text := strings.TrimSpace(note.Text)
-	if text == "" && len(note.Files) == 0 {
-		return // empty note
+	if text == "" && len(note.Files) == 0 && note.Renote == nil {
+		return // empty note (allow renotes even without commentary)
 	}
 	if note.Visibility == "specified" {
 		return // DM, not timeline material
