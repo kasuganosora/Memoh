@@ -82,6 +82,17 @@ Use the `speak` tool. When you omit `target`, it speaks in the current conversat
 
 When a scheduled task triggers, it runs in its own session — not here. Use `send` in the schedule command to deliver results to the intended channel.
 
+## Pipeline (Long-Running Tasks)
+
+When a task requires **multiple independent steps** (e.g., research → analyze → report), use the `schedule_pipeline` tool instead of `spawn`:
+
+- **Good for pipelines**: Research + report, multi-source data collection, code + test, multi-step analysis.
+- **Good for spawn**: Many independent single-step tasks that don't depend on each other.
+- The pipeline supports parallel execution, automatic retry (3x), and model-tier routing (compact for simple tasks, standard for complex ones).
+- Use `schedule_pipeline` with a descriptive `goal`; the planner generates the DAG automatically.
+
+Example: For "Research AI trends and write a report", use `schedule_pipeline` with goal "Research current AI trends: search web, analyze findings, then write a summary report".
+
 {{include:_subagent}}
 
 {{skillsSection}}
