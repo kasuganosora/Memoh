@@ -57,6 +57,13 @@ func (e *MemoryEntry) readSnapshot() (int, time.Time) {
 	return e.AccessCount, e.LastAccess
 }
 
+// readImportance returns the current importance under the mutex.
+func (e *MemoryEntry) readImportance() string {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.Importance
+}
+
 // WorkingMemory manages per-bot LRU caches for short-term memory.
 // It is safe for concurrent use.
 type WorkingMemory struct {
@@ -172,7 +179,9 @@ func (w *WorkingMemory) GetHighAccessEntries(botID string, minAccess int) []*Mem
 		if !ok {
 			continue
 		}
-		if entry.AccessCount >= minAccess && entry.Importance != "low" {
+		ac, _ := entry.readSnapshot()
+		importance := entry.readImportance()
+		if ac >= minAccess && importance != "low" {
 			result = append(result, entry)
 		}
 	}

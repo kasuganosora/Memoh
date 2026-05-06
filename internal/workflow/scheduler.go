@@ -151,7 +151,7 @@ func (s *Scheduler) Resume(ctx context.Context, pipeline *PipelineWithNodes) err
 		}
 
 		// Execute all nodes in this level concurrently
-		if err := s.executeLevel(ctx, levelNodes, nodeByID); err != nil {
+		if err := s.executeLevel(ctx, levelNodes); err != nil {
 			return err
 		}
 
@@ -181,7 +181,7 @@ func (s *Scheduler) Resume(ctx context.Context, pipeline *PipelineWithNodes) err
 }
 
 // executeLevel runs all nodes in a level concurrently.
-func (s *Scheduler) executeLevel(ctx context.Context, nodes []*Node, _ map[uuid.UUID]*Node) error {
+func (s *Scheduler) executeLevel(ctx context.Context, nodes []*Node) error {
 	var wg sync.WaitGroup
 	errCh := make(chan error, len(nodes))
 
@@ -270,13 +270,17 @@ func (s *Scheduler) executeNode(ctx context.Context, node *Node) error {
 		)
 	}
 
-	// All retries exhausted
+	// All retries exhausted — mark the node as failed in memory FIRST
+	// so that the pipeline detects the failure even if the DB write fails.
 	errMsg := lastErr.Error()
-	if _, err := s.repo.UpdateNodeError(ctx, node.ID, errMsg); err != nil {
-		return err
-	}
 	node.Status = StatusFailed
 	node.Error = &errMsg
+	if _, err := s.repo.UpdateNodeError(ctx, node.ID, errMsg); err != nil {
+		s.logger.Warn("failed to persist node error to DB",
+			slog.String("node_id", node.ID.String()),
+			slog.Any("db_error", err),
+		)
+	}
 	return lastErr
 }
 

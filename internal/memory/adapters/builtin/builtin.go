@@ -375,13 +375,6 @@ func (p *BuiltinProvider) promoteWorkingMemory(ctx context.Context, botID string
 	}
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // --- MCP Tools ---
 
 func (p *BuiltinProvider) ListTools(_ context.Context, _ mcp.ToolSessionContext) ([]mcp.ToolDescriptor, error) {
