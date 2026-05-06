@@ -73,6 +73,7 @@ func adaptMessage(msg channel.InboundMessage, sessionID, channelIdentityID, disp
 			Target:           strings.TrimSpace(msg.ReplyTarget),
 		},
 		IsTimeline: metadataBool(msg.Metadata, "is_timeline"),
+		MentionsMe: metadataBool(msg.Metadata, "is_mentioned"),
 	}
 }
 

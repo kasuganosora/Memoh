@@ -86,6 +86,7 @@ type MessageEvent struct {
 	Attachments      []Attachment     `json:"attachments"`
 	IsSelfSent       bool             `json:"is_self_sent,omitempty"`
 	IsTimeline       bool             `json:"is_timeline,omitempty"`
+	MentionsMe       bool             `json:"mentions_me,omitempty"`
 	Conversation     ConversationMeta `json:"conversation"`
 }
 

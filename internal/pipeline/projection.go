@@ -21,6 +21,7 @@ type ICMessage struct {
 	Deleted          bool             `json:"deleted,omitempty"`
 	IsSelfSent       bool             `json:"is_self_sent,omitempty"`
 	IsTimeline       bool             `json:"is_timeline,omitempty"`
+	MentionsMe       bool             `json:"mentions_me,omitempty"`
 	Conversation     ConversationMeta `json:"conversation"`
 }
 
@@ -199,6 +200,7 @@ func reduceMessage(ic *IntermediateContext, event MessageEvent) {
 		Attachments:  event.Attachments,
 		IsSelfSent:   event.IsSelfSent,
 		IsTimeline:   event.IsTimeline,
+		MentionsMe:   event.MentionsMe,
 		Conversation: event.Conversation,
 	}
 
