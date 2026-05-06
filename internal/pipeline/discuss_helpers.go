@@ -96,7 +96,7 @@ func buildLateBindingPrompt(isMentioned bool) string {
 	sb.WriteString("\n\nException: For image generation requests, call the `generate_image` tool directly — do NOT describe images via `send`.")
 
 	if isMentioned {
-		sb.WriteString("\n\nYou were mentioned or replied to. You should respond by calling the `send` tool now.")
+		sb.WriteString("\n\nATTENTION: You were directly @mentioned or replied to. Someone is explicitly calling for you. You MUST call the `send` tool to respond immediately. Staying silent when mentioned is NOT acceptable. Call `send` NOW.")
 	}
 
 	return sb.String()
