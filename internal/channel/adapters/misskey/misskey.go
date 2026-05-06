@@ -33,6 +33,12 @@ const (
 	misskeyDedupTTL             = 2 * time.Minute  // TTL for timeline note dedup cache
 	misskeyDedupCleanupInterval = 30 * time.Second // cleanup interval for dedup cache
 	misskeyMentionCacheMax      = 500              // max cached mention entries before eviction
+
+	pollTimelineInterval     = 10 * time.Second // REST API polling interval
+	pollTimelineIntervalMax  = 5 * time.Minute  // max backoff interval
+	pollTimelineDedupTTL     = 5 * time.Minute  // TTL for polling seen-note dedup
+	pollTimelineDedupCleanup = 30 * time.Second // cleanup interval for polling dedup
+	pollTimelineFetchLimit   = 30               // max notes per fetch
 )
 
 // mentionRe matches @user or @user@host handles in note text.
@@ -352,6 +358,14 @@ func (a *MisskeyAdapter) runStream(ctx context.Context, cfg channel.ChannelConfi
 	}()
 	defer close(pingDone)
 
+	// Start timeline polling to catch renotes and @-mentions
+	// not delivered via the streaming API channels.
+	pollStop := make(chan struct{})
+	defer close(pollStop)
+	if tlCfg.Home || tlCfg.Local {
+		go a.pollTimeline(ctx, cfg, mkCfg, me, handler, tlCfg, pollStop)
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -508,21 +522,7 @@ func (a *MisskeyAdapter) getMentions(noteID string) []string {
 func (a *MisskeyAdapter) handleStreamMessage(ctx context.Context, cfg channel.ChannelConfig, me *meResponse, handler channel.InboundHandler, raw []byte, dedup map[string]time.Time, dedupMu *sync.Mutex, tlCfg timelineConfig) {
 	var msg streamMessage
 	if err := json.Unmarshal(raw, &msg); err != nil {
-		if a.logger != nil {
-			a.logger.Warn("stream message unmarshal failed",
-				slog.String("config_id", cfg.ID),
-				slog.Any("error", err),
-				slog.String("raw", string(raw)),
-			)
-		}
 		return
-	}
-
-	if a.logger != nil {
-		a.logger.Info("stream message received",
-			slog.String("config_id", cfg.ID),
-			slog.String("msg_type", msg.Type),
-		)
 	}
 
 	if msg.Type == "channel" {
@@ -535,13 +535,6 @@ func (a *MisskeyAdapter) handleStreamMessage(ctx context.Context, cfg channel.Ch
 }
 
 func (a *MisskeyAdapter) handleChannelEvent(ctx context.Context, cfg channel.ChannelConfig, me *meResponse, handler channel.InboundHandler, body streamChannelBody, dedup map[string]time.Time, dedupMu *sync.Mutex, tlCfg timelineConfig) {
-	if a.logger != nil {
-		a.logger.Info("channel event received",
-			slog.String("config_id", cfg.ID),
-			slog.String("event_type", body.Type),
-			slog.String("channel_id", body.ID),
-		)
-	}
 	switch body.Type {
 	case "note":
 		// Timeline note events from homeTimeline or localTimeline subscriptions.
@@ -909,6 +902,161 @@ func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source stri
 			"note_id":             note.ID,
 		},
 	}
+}
+
+// pollTimeline periodically fetches timeline notes via REST API to catch
+// renotes and @-mention posts that Misskey's streaming API does not deliver
+// through the homeTimeline/localTimeline channels.
+//
+// Polling runs every 10s with exponential backoff on errors (max 5 min).
+// A dedup cache prevents re-processing notes already seen in previous fetches.
+func (a *MisskeyAdapter) pollTimeline(ctx context.Context, cfg channel.ChannelConfig, mkCfg Config, me *meResponse, handler channel.InboundHandler, tlCfg timelineConfig, stop <-chan struct{}) {
+	if a.logger != nil {
+		a.logger.Info("poll timeline started", slog.String("config_id", cfg.ID))
+	}
+
+	seen := make(map[string]time.Time)
+	var seenMu sync.Mutex
+
+	// Periodic cleanup of expired entries.
+	go func() {
+		ticker := time.NewTicker(pollTimelineDedupCleanup)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stop:
+				return
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				seenMu.Lock()
+				now := time.Now()
+				for id, ts := range seen {
+					if now.Sub(ts) > pollTimelineDedupTTL {
+						delete(seen, id)
+					}
+				}
+				seenMu.Unlock()
+			}
+		}
+	}()
+
+	interval := pollTimelineInterval
+	// Do an initial poll immediately.
+	a.pollOnce(ctx, cfg, mkCfg, me, handler, tlCfg, seen, &seenMu)
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-stop:
+			return
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			ok := a.pollOnce(ctx, cfg, mkCfg, me, handler, tlCfg, seen, &seenMu)
+			if !ok {
+				// API error — exponential backoff.
+				interval *= 2
+				if interval > pollTimelineIntervalMax {
+					interval = pollTimelineIntervalMax
+				}
+			} else if interval != pollTimelineInterval {
+				// Recovered from backoff.
+				interval = pollTimelineInterval
+			}
+			ticker.Reset(interval)
+		}
+	}
+}
+
+// pollOnce fetches timeline notes and processes new ones.
+// Returns false on API error (caller should back off).
+func (a *MisskeyAdapter) pollOnce(ctx context.Context, cfg channel.ChannelConfig, mkCfg Config, me *meResponse, handler channel.InboundHandler, tlCfg timelineConfig, seen map[string]time.Time, seenMu *sync.Mutex) bool {
+	notes, err := a.fetchPollNotes(ctx, mkCfg, tlCfg)
+	if err != nil {
+		if a.logger != nil {
+			a.logger.Warn("poll timeline failed", slog.String("config_id", cfg.ID), slog.Any("error", err))
+		}
+		return false
+	}
+
+	for _, note := range notes {
+		seenMu.Lock()
+		if _, exists := seen[note.ID]; exists {
+			seenMu.Unlock()
+			continue
+		}
+		seen[note.ID] = time.Now()
+		seenMu.Unlock()
+
+		// Skip own notes.
+		if note.UserID == me.ID {
+			continue
+		}
+
+		// Skip empty notes.
+		text := strings.TrimSpace(note.Text)
+		if text == "" && len(note.Files) == 0 && note.Renote == nil {
+			continue
+		}
+		// Skip DMs.
+		if note.Visibility == "specified" {
+			continue
+		}
+
+		source := "home"
+		if tlCfg.Home && tlCfg.Local {
+			source = "timeline"
+		} else if tlCfg.Local {
+			source = "local"
+		}
+
+		inbound := a.buildTimelineInboundMessage(note, source, tlCfg.Discuss)
+		a.logInbound(cfg.ID, inbound)
+		go func() {
+			if err := handler(ctx, cfg, inbound); err != nil && a.logger != nil {
+				a.logger.Error("poll timeline handle failed", slog.String("config_id", cfg.ID), slog.Any("error", err))
+			}
+		}()
+	}
+	return true
+}
+
+// fetchPollNotes calls the Misskey REST API for timeline notes.
+// It fetches from home and/or local timelines based on the config.
+func (*MisskeyAdapter) fetchPollNotes(ctx context.Context, mkCfg Config, tlCfg timelineConfig) ([]misskeyNote, error) {
+	var allNotes []misskeyNote
+	seenIDs := make(map[string]bool)
+
+	if tlCfg.Home {
+		notes, err := fetchTimelineNotes(ctx, mkCfg, "notes/timeline", pollTimelineFetchLimit)
+		if err != nil {
+			return nil, fmt.Errorf("home timeline: %w", err)
+		}
+		for _, n := range notes {
+			if !seenIDs[n.ID] {
+				seenIDs[n.ID] = true
+				allNotes = append(allNotes, n)
+			}
+		}
+	}
+
+	if tlCfg.Local {
+		notes, err := fetchTimelineNotes(ctx, mkCfg, "notes/local-timeline", pollTimelineFetchLimit)
+		if err != nil {
+			return nil, fmt.Errorf("local timeline: %w", err)
+		}
+		for _, n := range notes {
+			if !seenIDs[n.ID] {
+				seenIDs[n.ID] = true
+				allNotes = append(allNotes, n)
+			}
+		}
+	}
+
+	return allNotes, nil
 }
 
 // collectMisskeyAttachments extracts channel.Attachment slice from a Misskey note's files.
