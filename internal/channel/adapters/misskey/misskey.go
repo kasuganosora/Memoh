@@ -30,7 +30,6 @@ const (
 	misskeyWriteTimeout         = 10 * time.Second
 	misskeyReadBufferSize       = 1 << 16
 	misskeyWriteBufferSize      = 1 << 16
-	misskeyTimelineMinTextLen   = 5                // minimum text length for timeline notes
 	misskeyDedupTTL             = 2 * time.Minute  // TTL for timeline note dedup cache
 	misskeyDedupCleanupInterval = 30 * time.Second // cleanup interval for dedup cache
 	misskeyMentionCacheMax      = 500              // max cached mention entries before eviction
@@ -783,16 +782,9 @@ func (a *MisskeyAdapter) handleTimelineNote(ctx context.Context, cfg channel.Cha
 	if note.UserID == me.ID {
 		return // own notes
 	}
-	// Skip pure renotes (reposts without commentary).
-	if note.RenoteID != "" && strings.TrimSpace(note.Text) == "" {
-		return
-	}
 	text := strings.TrimSpace(note.Text)
 	if text == "" && len(note.Files) == 0 {
 		return // empty note
-	}
-	if text != "" && len([]rune(text)) < misskeyTimelineMinTextLen {
-		return // too short (but allow file-only notes through)
 	}
 	if note.Visibility == "specified" {
 		return // DM, not timeline material
@@ -815,6 +807,15 @@ func (a *MisskeyAdapter) handleTimelineNote(ctx context.Context, cfg channel.Cha
 // buildTimelineInboundMessage creates an InboundMessage from a timeline note.
 func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source string, discuss bool) channel.InboundMessage {
 	text := strings.TrimSpace(note.Text)
+
+	// If this is a renote without commentary, fall back to the renoted text
+	// so the bot sees the quoted content (same behavior as buildInboundMessage).
+	if text == "" && note.Renote != nil {
+		if rt := strings.TrimSpace(note.Renote.Text); rt != "" {
+			text = rt
+		}
+	}
+
 	attachments := collectMisskeyAttachments(note)
 
 	// Prefix with timeline context so the LLM understands where this came from.
