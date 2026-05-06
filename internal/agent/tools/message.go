@@ -197,8 +197,18 @@ func (p *MessageProvider) reactTool(session SessionContext) sdk.Tool {
 }
 
 func (p *MessageProvider) execSend(ctx context.Context, session SessionContext, args map[string]any) (any, error) {
+	p.logger.Info("send tool called",
+		slog.String("bot_id", session.BotID),
+		slog.String("session_id", session.SessionID),
+		slog.String("session_type", session.SessionType),
+		slog.String("text", truncateForLog(StringArg(args, "text"), 100)),
+		slog.String("reply_to", StringArg(args, "reply_to")),
+		slog.String("platform", session.CurrentPlatform),
+		slog.String("target", session.ReplyTarget))
+
 	// Per-turn send limit: prevent the LLM from calling send/reply/speak excessively.
 	if err := CheckSendLimit(session); err != nil {
+		p.logger.Warn("send tool: send limit exceeded", slog.Any("error", err))
 		return nil, err
 	}
 
@@ -211,8 +221,14 @@ func (p *MessageProvider) execSend(ctx context.Context, session SessionContext, 
 	if result.Local && session.SessionType == "discuss" {
 		sendResult, err := p.exec.SendDirect(ctx, toMessagingSession(session), result.Target, args)
 		if err != nil {
+			p.logger.Warn("send tool: SendDirect failed",
+				slog.String("bot_id", session.BotID),
+				slog.Any("error", err))
 			return p.handleSendError(err)
 		}
+		p.logger.Info("send tool: message delivered via SendDirect",
+			slog.String("bot_id", session.BotID),
+			slog.String("message_id", sendResult.MessageID))
 		resp := map[string]any{
 			"ok": true, "bot_id": sendResult.BotID, "platform": sendResult.Platform, "target": sendResult.Target,
 			"delivered": "current_conversation",
@@ -223,6 +239,9 @@ func (p *MessageProvider) execSend(ctx context.Context, session SessionContext, 
 		return resp, nil
 	}
 	if result.Local && session.Emitter != nil {
+		p.logger.Info("send tool: message delivered via emitter",
+			slog.String("bot_id", session.BotID),
+			slog.String("session_type", session.SessionType))
 		atts := channelAttachmentsToToolAttachments(result.LocalAttachments)
 		if len(atts) > 0 {
 			session.Emitter(ToolStreamEvent{
@@ -393,4 +412,11 @@ func toMessagingSession(s SessionContext) messaging.SessionContext {
 		CurrentPlatform: s.CurrentPlatform,
 		ReplyTarget:     s.ReplyTarget,
 	}
+}
+
+func truncateForLog(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "..."
 }
