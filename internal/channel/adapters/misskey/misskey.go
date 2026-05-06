@@ -831,7 +831,7 @@ func (a *MisskeyAdapter) handleTimelineNote(ctx context.Context, cfg channel.Cha
 		source = "local"
 	}
 
-	inbound := a.buildTimelineInboundMessage(note, source, tlCfg.Discuss)
+	inbound := a.buildTimelineInboundMessage(note, source, tlCfg.Discuss, me)
 	a.logInbound(cfg.ID, inbound)
 	go func() {
 		if err := handler(ctx, cfg, inbound); err != nil && a.logger != nil {
@@ -877,7 +877,7 @@ func (a *MisskeyAdapter) handleSrNote(ctx context.Context, cfg channel.ChannelCo
 	}
 
 	// Use "timeline" as source since sr events don't distinguish home vs local.
-	inbound := a.buildTimelineInboundMessage(*note, "timeline", tlCfg.Discuss)
+	inbound := a.buildTimelineInboundMessage(*note, "timeline", tlCfg.Discuss, me)
 	a.logInbound(cfg.ID, inbound)
 	go func() {
 		if err := handler(ctx, cfg, inbound); err != nil && a.logger != nil {
@@ -887,7 +887,7 @@ func (a *MisskeyAdapter) handleSrNote(ctx context.Context, cfg channel.ChannelCo
 }
 
 // buildTimelineInboundMessage creates an InboundMessage from a timeline note.
-func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source string, discuss bool) channel.InboundMessage {
+func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source string, discuss bool, me *meResponse) channel.InboundMessage {
 	text := strings.TrimSpace(note.Text)
 
 	// If this is a renote without commentary, fall back to the renoted text
@@ -941,6 +941,19 @@ func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source stri
 	// All timeline notes aggregate into a single conversation.
 	convID := "timeline"
 
+	// Detect whether the bot is @-mentioned in the timeline note text
+	// or the renoted text. Misskey timeline events don't populate the
+	// Mentions[] array for timeline notes, so we check the raw text.
+	isMentioned := false
+	if me != nil && me.Username != "" {
+		needle := "@" + me.Username
+		if strings.Contains(note.Text, needle) {
+			isMentioned = true
+		} else if note.Renote != nil && strings.Contains(note.Renote.Text, needle) {
+			isMentioned = true
+		}
+	}
+
 	return channel.InboundMessage{
 		Channel: Type,
 		Message: channel.Message{
@@ -964,7 +977,7 @@ func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source stri
 		Source:     "misskey",
 		Metadata: map[string]any{
 			"is_timeline":         true,
-			"is_mentioned":        false,
+			"is_mentioned":        isMentioned,
 			"is_discuss_timeline": discuss,
 			"timeline_source":     source,
 			"visibility":          note.Visibility,
