@@ -1,3 +1,0 @@
-level=error msg="[linters_context] typechecking error: D:\\code\\Memoh\\internal\\handlers\\pipeline.go:57:19: undefined: parseOffsetLimit"
-level=error msg="[linters_context] typechecking error: D:\\code\\Memoh\\internal\\handlers\\pipeline.go:152:9: undefined: RequireChannelIdentityID"
-level=error msg="[linters_context] typechecking error: D:\\code\\Memoh\\internal\\handlers\\pipeline.go:156:9: undefined: AuthorizeBotAccess"

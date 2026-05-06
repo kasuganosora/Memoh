@@ -1,3 +1,0 @@
-internal\memory\working\working_test.go:176:49: G115: integer overflow conversion int -> byte (gosec)
-			wm.Add(botID, fmt.Sprintf("fact-%c", 'A'+byte(id)), "medium", nil)
-			                                             ^
