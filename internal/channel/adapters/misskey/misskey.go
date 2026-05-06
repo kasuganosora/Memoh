@@ -521,6 +521,13 @@ func (a *MisskeyAdapter) handleStreamMessage(ctx context.Context, cfg channel.Ch
 }
 
 func (a *MisskeyAdapter) handleChannelEvent(ctx context.Context, cfg channel.ChannelConfig, me *meResponse, handler channel.InboundHandler, body streamChannelBody, dedup map[string]time.Time, dedupMu *sync.Mutex, tlCfg timelineConfig) {
+	if a.logger != nil {
+		a.logger.Info("channel event received",
+			slog.String("config_id", cfg.ID),
+			slog.String("event_type", body.Type),
+			slog.String("channel_id", body.ID),
+		)
+	}
 	switch body.Type {
 	case "note":
 		// Timeline note events from homeTimeline or localTimeline subscriptions.
