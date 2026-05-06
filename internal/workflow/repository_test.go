@@ -9,16 +9,16 @@ import (
 )
 
 func TestStatusConstants(t *testing.T) {
-	assert.Equal(t, Status("pending"), StatusPending)
-	assert.Equal(t, Status("running"), StatusRunning)
-	assert.Equal(t, Status("completed"), StatusCompleted)
-	assert.Equal(t, Status("failed"), StatusFailed)
-	assert.Equal(t, Status("cancelled"), StatusCancelled)
+	assert.Equal(t, StatusPending, Status("pending"))
+	assert.Equal(t, StatusRunning, Status("running"))
+	assert.Equal(t, StatusCompleted, Status("completed"))
+	assert.Equal(t, StatusFailed, Status("failed"))
+	assert.Equal(t, StatusCancelled, Status("cancelled"))
 }
 
 func TestModelTierConstants(t *testing.T) {
-	assert.Equal(t, ModelTier("standard"), ModelTierStandard)
-	assert.Equal(t, ModelTier("compact"), ModelTierCompact)
+	assert.Equal(t, ModelTierStandard, ModelTier("standard"))
+	assert.Equal(t, ModelTierCompact, ModelTier("compact"))
 }
 
 func TestCreatePipelineInput_Validation(t *testing.T) {
@@ -43,6 +43,7 @@ func TestCreatePipelineInput_Validation(t *testing.T) {
 	}
 
 	assert.Equal(t, botID, input.BotID)
+	assert.Equal(t, "Research and summarize LLM trends for 2025", input.Goal)
 	assert.Len(t, input.Nodes, 2)
 	assert.Equal(t, "search", input.Nodes[0].Name)
 	assert.Equal(t, ModelTierCompact, input.Nodes[0].ModelTier)

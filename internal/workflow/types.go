@@ -91,21 +91,21 @@ type DAGTopology struct {
 
 // CreatePipelineInput is used when a pipeline is first created.
 type CreatePipelineInput struct {
-	BotID uuid.UUID          `json:"bot_id"`
-	Goal  string             `json:"goal"`
-	Nodes []CreateNodeInput  `json:"nodes"`
+	BotID uuid.UUID         `json:"bot_id"`
+	Goal  string            `json:"goal"`
+	Nodes []CreateNodeInput `json:"nodes"`
 }
 
 // CreateNodeInput is a single node definition during pipeline creation.
 type CreateNodeInput struct {
-	Name           string      `json:"name"`
-	Description    *string     `json:"description,omitempty"`
-	DependsOn      []uuid.UUID `json:"depends_on"`
-	ModelTier      ModelTier   `json:"model_tier"`
+	Name           string          `json:"name"`
+	Description    *string         `json:"description,omitempty"`
+	DependsOn      []uuid.UUID     `json:"depends_on"`
+	ModelTier      ModelTier       `json:"model_tier"`
 	Input          json.RawMessage `json:"input,omitempty"`
-	MaxRetries     int32          `json:"max_retries"`
-	TimeoutSeconds int32          `json:"timeout_seconds"`
-	NeedsReview    bool           `json:"needs_review"`
+	MaxRetries     int32           `json:"max_retries"`
+	TimeoutSeconds int32           `json:"timeout_seconds"`
+	NeedsReview    bool            `json:"needs_review"`
 }
 
 // PlannerOutput is the LLM-generated DAG structure.
@@ -117,7 +117,7 @@ type PlannerOutput struct {
 type PlannerNode struct {
 	Name           string    `json:"name"`
 	Description    string    `json:"description,omitempty"`
-	DependsOn      []int     `json:"depends_on"`       // indices into the planner output node list
+	DependsOn      []int     `json:"depends_on"` // indices into the planner output node list
 	ModelTier      ModelTier `json:"model_tier"`
 	MaxRetries     int32     `json:"max_retries"`
 	TimeoutSeconds int32     `json:"timeout_seconds"`

@@ -94,7 +94,7 @@ func (a *PromptBasedDreamLLM) FindAssociations(ctx context.Context, memories []s
 	sb.WriteString("For each related pair, output the 0-based indices and a short label.\n\n")
 	sb.WriteString("Memories:\n")
 	for i, m := range memories {
-		sb.WriteString(fmt.Sprintf("%d: %s\n", i, strings.TrimSpace(m)))
+		fmt.Fprintf(&sb, "%d: %s\n", i, strings.TrimSpace(m))
 	}
 	sb.WriteString("\nOutput JSON array: [{\"a\": 0, \"b\": 1, \"label\": \"same_topic\"}, ...]\n")
 	sb.WriteString("Labels: same_topic, contradicts, supports, prerequisite, example_of, part_of\n")
@@ -156,9 +156,11 @@ type NoOpDreamLLM struct{}
 func (NoOpDreamLLM) ShouldMerge(context.Context, string, string) (bool, string, error) {
 	return false, "", nil
 }
+
 func (NoOpDreamLLM) IsHarmful(context.Context, string) (bool, error) {
 	return false, nil
 }
+
 func (NoOpDreamLLM) FindAssociations(context.Context, []string) ([]MemoryAssociation, error) {
 	return nil, errors.New("dream LLM not configured")
 }

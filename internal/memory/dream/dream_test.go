@@ -29,11 +29,11 @@ func newFakeDreamRuntime(items ...MemoryItem) *fakeDreamRuntime {
 	return rt
 }
 
-func (r *fakeDreamRuntime) Search(_ context.Context, _ SearchRequest) (SearchResponse, error) {
+func (*fakeDreamRuntime) Search(_ context.Context, _ SearchRequest) (SearchResponse, error) {
 	return SearchResponse{}, nil
 }
 
-func (r *fakeDreamRuntime) GetAll(_ context.Context, req GetAllRequest) (GetAllResponse, error) {
+func (r *fakeDreamRuntime) GetAll(_ context.Context, _ GetAllRequest) (GetAllResponse, error) {
 	// Return in deterministic order by ID so indices are stable.
 	ids := make([]string, 0, len(r.items))
 	for id := range r.items {
@@ -94,8 +94,8 @@ func TestStrengthenAssociations_Success(t *testing.T) {
 
 	llm := &fakeDreamLLM{
 		associations: []MemoryAssociation{
-			{IndexA: 0, IndexB: 1, Label: "same_topic"},  // dark mode ↔ high contrast
-			{IndexA: 2, IndexB: 3, Label: "related"},      // Berlin ↔ remote work
+			{IndexA: 0, IndexB: 1, Label: "same_topic"}, // dark mode ↔ high contrast
+			{IndexA: 2, IndexB: 3, Label: "related"},    // Berlin ↔ remote work
 		},
 	}
 
@@ -182,7 +182,7 @@ func TestStrengthenAssociations_CrossReferenceContent(t *testing.T) {
 	assert.Contains(t, updated0, "[↗ example_of:")
 	assert.Contains(t, updated0, "[↗ supports:")
 	assert.Contains(t, updated0, "prefers Asian") // preview of memory 1
-	assert.Contains(t, updated0, "visits tea")     // preview of memory 2
+	assert.Contains(t, updated0, "visits tea")    // preview of memory 2
 }
 
 func TestStrengthenAssociations_PreviewLength(t *testing.T) {
@@ -222,22 +222,22 @@ func TestMergeResult_IncludesAssociations(t *testing.T) {
 	result := svc.Run(context.Background(), "bot-1")
 
 	require.NotNil(t, result)
-	assert.Greater(t, result.Associations, 0)
+	assert.Positive(t, result.Associations)
 }
 
 func TestNoOpDreamLLM(t *testing.T) {
 	noop := NoOpDreamLLM{}
 
 	should, text, err := noop.ShouldMerge(context.Background(), "a", "b")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, should)
 	assert.Empty(t, text)
 
 	harmful, err := noop.IsHarmful(context.Background(), "test")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, harmful)
 
 	assocs, err := noop.FindAssociations(context.Background(), []string{"a", "b"})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, assocs)
 }

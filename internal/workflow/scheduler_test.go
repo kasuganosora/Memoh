@@ -45,7 +45,7 @@ func TestTopologicalSort_ParallelDAG(t *testing.T) {
 
 func TestTopologicalSort_EmptyNodes(t *testing.T) {
 	levels, err := topologicalSort([]Node{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Nil(t, levels)
 }
 
@@ -79,7 +79,7 @@ func TestTopologicalSort_CycleDetection(t *testing.T) {
 	nodeA.DependsOn = []uuid.UUID{nodeC.ID} // creates cycle
 
 	levels, err := topologicalSort([]Node{nodeA, nodeB, nodeC})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, levels)
 	assert.Contains(t, err.Error(), "cycle")
 }
@@ -276,10 +276,10 @@ func TestMockNodeExecutor_ErrorThenSuccess(t *testing.T) {
 	node := Node{ID: uuid.New(), Name: "test-node", PipelineID: uuid.New()}
 
 	_, err := executor.Execute(context.Background(), node)
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	output, err := executor.Execute(context.Background(), node)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, output)
 	assert.Equal(t, 2, executor.GetCallCount("test-node"))
 }

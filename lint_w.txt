@@ -1,0 +1,3 @@
+internal\memory\working\working_test.go:175:29: G115: integer overflow conversion int -> rune (gosec)
+			wm.Add(botID, string(rune('A'+id)), "medium", nil)
+			                         ^

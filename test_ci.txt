@@ -1,0 +1,3 @@
+ok  	github.com/memohai/memoh/internal/workflow	0.713s
+ok  	github.com/memohai/memoh/internal/memory/working	0.650s
+ok  	github.com/memohai/memoh/internal/memory/dream	0.688s

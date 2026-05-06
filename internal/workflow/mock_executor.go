@@ -65,7 +65,7 @@ func (m *MockNodeExecutor) Execute(_ context.Context, node Node) (json.RawMessag
 	return json.RawMessage(msg), nil
 }
 
-// Ensure mock satisfies interface
+// Ensure mock satisfies interface.
 var _ NodeExecutor = (*MockNodeExecutor)(nil)
 
 // errNodeExecutor is a simple error-returning executor for failure tests.

@@ -1,6 +1,7 @@
 package working
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -172,7 +173,7 @@ func TestConcurrentAccess(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		go func(id int) {
 			botID := "bot-concurrent"
-			wm.Add(botID, string(rune('A'+id)), "medium", nil)
+			wm.Add(botID, fmt.Sprintf("fact-%d", id), "medium", nil)
 			wm.Search(botID, "", 10)
 			done <- true
 		}(i)

@@ -3,7 +3,7 @@ package workflow
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 
 	"github.com/google/uuid"
 )
@@ -36,7 +36,7 @@ func (m *MockRepository) CreatePipeline(_ context.Context, botID uuid.UUID, goal
 	return p, nil
 }
 
-var errNotFound = fmt.Errorf("not found")
+var errNotFound = errors.New("not found")
 
 func (m *MockRepository) GetPipeline(_ context.Context, id uuid.UUID) (Pipeline, error) {
 	p, ok := m.Pipelines[id]

@@ -1,0 +1,1 @@
+level=error msg="[linters_context] typechecking error: named files must all be in one directory; have internal\\agent\\tools and internal\\handlers"

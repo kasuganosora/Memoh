@@ -1,0 +1,24 @@
+internal\memory\dream\llm_adapter.go:158:1: File is not properly formatted (gofumpt)
+}
+^
+internal\memory\dream\dream_test.go:32:7: unused-receiver: method receiver 'r' is not referenced in method's body, consider removing or renaming it as _ (revive)
+func (r *fakeDreamRuntime) Search(_ context.Context, _ SearchRequest) (SearchResponse, error) {
+      ^
+internal\memory\dream\dream_test.go:36:54: unused-parameter: parameter 'req' seems to be unused, consider removing or renaming it as _ (revive)
+func (r *fakeDreamRuntime) GetAll(_ context.Context, req GetAllRequest) (GetAllResponse, error) {
+                                                     ^
+internal\memory\dream\llm_adapter.go:97:3: QF1012: Use fmt.Fprintf(...) instead of WriteString(fmt.Sprintf(...)) (staticcheck)
+		sb.WriteString(fmt.Sprintf("%d: %s\n", i, strings.TrimSpace(m)))
+		^
+internal\memory\dream\dream_test.go:225:2: negative-positive: use assert.Positive (testifylint)
+	assert.Greater(t, result.Associations, 0)
+	^
+internal\memory\dream\dream_test.go:232:2: require-error: for error assertions use require (testifylint)
+	assert.NoError(t, err)
+	^
+internal\memory\dream\dream_test.go:237:2: require-error: for error assertions use require (testifylint)
+	assert.NoError(t, err)
+	^
+internal\memory\dream\dream_test.go:241:2: require-error: for error assertions use require (testifylint)
+	assert.Error(t, err)
+	^

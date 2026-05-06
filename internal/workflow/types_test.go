@@ -45,21 +45,26 @@ func TestStatus_IsRunning(t *testing.T) {
 }
 
 func TestModelTier_Values(t *testing.T) {
-	assert.Equal(t, ModelTier("standard"), ModelTierStandard)
-	assert.Equal(t, ModelTier("compact"), ModelTierCompact)
+	assert.Equal(t, ModelTierStandard, ModelTier("standard"))
+	assert.Equal(t, ModelTierCompact, ModelTier("compact"))
 }
 
 func TestReviewResult_Values(t *testing.T) {
-	assert.Equal(t, ReviewResult("pass"), ReviewPass)
-	assert.Equal(t, ReviewResult("fail"), ReviewFail)
-	assert.Equal(t, ReviewResult("needs_revision"), ReviewNeedsRevision)
+	assert.Equal(t, ReviewPass, ReviewResult("pass"))
+	assert.Equal(t, ReviewFail, ReviewResult("fail"))
+	assert.Equal(t, ReviewNeedsRevision, ReviewResult("needs_revision"))
 }
 
 func TestCreateNodeInput_Defaults(t *testing.T) {
 	input := CreateNodeInput{
-		Name:      "test-node",
-		ModelTier: ModelTierStandard,
+		Name:           "test-node",
+		ModelTier:      ModelTierStandard,
+		MaxRetries:     0,
+		TimeoutSeconds: 0,
+		NeedsReview:    false,
 	}
+	assert.Equal(t, "test-node", input.Name)
+	assert.Equal(t, ModelTierStandard, input.ModelTier)
 	assert.Equal(t, int32(0), input.MaxRetries)
 	assert.Equal(t, int32(0), input.TimeoutSeconds)
 	assert.False(t, input.NeedsReview)
