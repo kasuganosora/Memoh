@@ -517,7 +517,7 @@ func (a *MisskeyAdapter) handleStreamMessage(ctx context.Context, cfg channel.Ch
 		if err := json.Unmarshal(msg.Body, &body); err != nil {
 			return
 		}
-		a.handleChannelEvent(ctx, cfg, me, handler, body, dedup, dedupMu, tlCfg)
+		a.handleChannelEvent(ctx, cfg, mkCfg, me, handler, body, dedup, dedupMu, tlCfg)
 	case "sr":
 		// Misskey sends "sr" (server request) events for renotes and other
 		// timeline entries that are not full "note" events. The body contains
@@ -535,12 +535,27 @@ func (a *MisskeyAdapter) handleStreamMessage(ctx context.Context, cfg channel.Ch
 	}
 }
 
-func (a *MisskeyAdapter) handleChannelEvent(ctx context.Context, cfg channel.ChannelConfig, me *meResponse, handler channel.InboundHandler, body streamChannelBody, dedup map[string]time.Time, dedupMu *sync.Mutex, tlCfg timelineConfig) {
+func (a *MisskeyAdapter) handleChannelEvent(ctx context.Context, cfg channel.ChannelConfig, mkCfg Config, me *meResponse, handler channel.InboundHandler, body streamChannelBody, dedup map[string]time.Time, dedupMu *sync.Mutex, tlCfg timelineConfig) {
 	switch body.Type {
 	case "note":
 		// Timeline note events from homeTimeline or localTimeline subscriptions.
-		// Main channel (body.ID == "1") also sends "note" events for renotes.
+		// Main channel (body.ID == "1") also sends "note" events for renotes,
+		// but without the full renote data — only a renoteId. Fetch the note
+		// via REST API to get the complete data.
 		if body.ID != "memoh-home" && body.ID != "memoh-local" && body.ID != "1" {
+			return
+		}
+		if body.ID == "1" {
+			var note misskeyNote
+			if err := json.Unmarshal(body.Body, &note); err != nil {
+				return
+			}
+			// For main channel notes, the streaming data may lack the full
+			// renote object. Use notes/show to get the complete note with
+			// embedded renote content.
+			if note.ID != "" {
+				a.handleSrNote(ctx, cfg, mkCfg, me, handler, note.ID, dedup, dedupMu, tlCfg)
+			}
 			return
 		}
 		a.handleTimelineNote(ctx, cfg, me, handler, body, dedup, dedupMu, tlCfg)
