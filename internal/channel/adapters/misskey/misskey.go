@@ -508,7 +508,21 @@ func (a *MisskeyAdapter) getMentions(noteID string) []string {
 func (a *MisskeyAdapter) handleStreamMessage(ctx context.Context, cfg channel.ChannelConfig, me *meResponse, handler channel.InboundHandler, raw []byte, dedup map[string]time.Time, dedupMu *sync.Mutex, tlCfg timelineConfig) {
 	var msg streamMessage
 	if err := json.Unmarshal(raw, &msg); err != nil {
+		if a.logger != nil {
+			a.logger.Warn("stream message unmarshal failed",
+				slog.String("config_id", cfg.ID),
+				slog.Any("error", err),
+				slog.String("raw", string(raw)),
+			)
+		}
 		return
+	}
+
+	if a.logger != nil {
+		a.logger.Info("stream message received",
+			slog.String("config_id", cfg.ID),
+			slog.String("msg_type", msg.Type),
+		)
 	}
 
 	if msg.Type == "channel" {
