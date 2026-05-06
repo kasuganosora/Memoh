@@ -621,9 +621,11 @@ func (*MisskeyAdapter) buildInboundMessage(me *meResponse, note misskeyNote) (ch
 	attachments := collectMisskeyAttachments(note)
 
 	// If this is a quote/renote without commentary, fall back to the quoted text so we don't drop it.
+	renoteFallback := false
 	if text == "" && note.Renote != nil {
 		if rt := strings.TrimSpace(note.Renote.Text); rt != "" {
 			text = rt
+			renoteFallback = true
 		}
 	}
 
@@ -643,6 +645,7 @@ func (*MisskeyAdapter) buildInboundMessage(me *meResponse, note misskeyNote) (ch
 	if text == "" && note.Renote != nil {
 		if rt := strings.TrimSpace(note.Renote.Text); rt != "" {
 			text = rt
+			renoteFallback = true
 		}
 	}
 
@@ -651,7 +654,7 @@ func (*MisskeyAdapter) buildInboundMessage(me *meResponse, note misskeyNote) (ch
 	}
 
 	// Prepend reply/renote context so the bot sees what the user is replying to or quoting.
-	text = noteReplyContext(note, text)
+	text = noteReplyContext(note, text, renoteFallback)
 
 	senderID := note.UserID
 	displayName := note.User.Name
@@ -728,7 +731,9 @@ func (*MisskeyAdapter) buildInboundMessage(me *meResponse, note misskeyNote) (ch
 // noteReplyContext prepends reply and renote context to the given text so the
 // bot can see what the user is replying to or quoting. Both fields are truncated
 // to 200 runes to keep prompts concise.
-func noteReplyContext(note misskeyNote, text string) string {
+// When skipRenote is true, the renote context is omitted because the renoted
+// text was already used as the main text (e.g. pure renote without commentary).
+func noteReplyContext(note misskeyNote, text string, skipRenote bool) string {
 	// Build quoted context for replies.
 	if note.Reply != nil && note.Reply.Text != "" {
 		quotedText := strings.TrimSpace(note.Reply.Text)
@@ -749,7 +754,7 @@ func noteReplyContext(note misskeyNote, text string) string {
 	}
 
 	// Build quoted context for renotes (quote posts).
-	if note.Renote != nil && note.Renote.Text != "" {
+	if !skipRenote && note.Renote != nil && note.Renote.Text != "" {
 		quotedText := strings.TrimSpace(note.Renote.Text)
 		if len([]rune(quotedText)) > 200 {
 			quotedText = string([]rune(quotedText)[:200]) + "..."
@@ -824,9 +829,11 @@ func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source stri
 
 	// If this is a renote without commentary, fall back to the renoted text
 	// so the bot sees the quoted content (same behavior as buildInboundMessage).
+	renoteFallback := false
 	if text == "" && note.Renote != nil {
 		if rt := strings.TrimSpace(note.Renote.Text); rt != "" {
 			text = rt
+			renoteFallback = true
 		}
 	}
 
@@ -845,8 +852,7 @@ func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source stri
 	}
 
 	// Prepend reply/renote context so the bot sees what the note is replying to or quoting.
-	text = noteReplyContext(note, text)
-
+	text = noteReplyContext(note, text, renoteFallback)
 	var replyRef *channel.ReplyRef
 	if note.ReplyID != "" {
 		replyRef = &channel.ReplyRef{
