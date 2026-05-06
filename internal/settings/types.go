@@ -1,5 +1,7 @@
 package settings
 
+import "encoding/json"
+
 const (
 	DefaultLanguage          = "auto"
 	DefaultReasoningEffort   = "medium"
@@ -32,6 +34,7 @@ type Settings struct {
 	PersistFullToolResults bool             `json:"persist_full_tool_results"`
 	ShowToolCallsInIM      bool             `json:"show_tool_calls_in_im"`
 	ChatTiming             ChatTimingConfig `json:"chat_timing"`
+	Persona                json.RawMessage  `json:"persona,omitempty"`
 }
 
 type UpsertRequest struct {
@@ -65,6 +68,7 @@ type UpsertRequest struct {
 	EnableExpressionLearn  *bool             `json:"enable_expression_learning,omitempty"`
 	EnableProfileTracking  *bool             `json:"enable_profile_tracking,omitempty"`
 	MemorySearchMode       *string           `json:"memory_search_mode,omitempty"`
+	Persona                *json.RawMessage  `json:"persona,omitempty"`
 }
 
 type ChatTimingConfig struct {

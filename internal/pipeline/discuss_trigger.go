@@ -179,7 +179,8 @@ func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 		}
 
 		// Smart timing: debounce — wait for quiet period before processing.
-		if sess.debounce != nil {
+		// @-mentions bypass debounce so users get immediate responses.
+		if sess.debounce != nil && !wasRecentlyMentioned(latestRC, sess.lastProcessedMs) {
 			sess.debounce.Reset()
 			if err := sess.debounce.Wait(ctx); err != nil {
 				continue

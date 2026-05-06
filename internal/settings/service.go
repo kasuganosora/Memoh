@@ -123,6 +123,12 @@ func (s *Service) UpsertBot(ctx context.Context, botID string, req UpsertRequest
 	if req.MemorySearchMode != nil {
 		current.ChatTiming.MemorySearchMode = *req.MemorySearchMode
 	}
+	if req.Persona != nil {
+		// Merge persona: if request provides new persona, use it; otherwise keep existing.
+		if len(*req.Persona) > 0 && json.Valid(*req.Persona) {
+			current.Persona = *req.Persona
+		}
+	}
 	timezoneValue := pgtype.Text{}
 	if req.Timezone != nil {
 		normalized, err := normalizeOptionalTimezone(*req.Timezone)
@@ -248,6 +254,7 @@ func (s *Service) UpsertBot(ctx context.Context, botID string, req UpsertRequest
 		PersistFullToolResults: current.PersistFullToolResults,
 		ShowToolCallsInIm:      current.ShowToolCallsInIM,
 		ChatTiming:             marshalChatTiming(current.ChatTiming),
+		Persona:                []byte(current.Persona),
 	})
 	if err != nil {
 		return Settings{}, err
@@ -346,6 +353,7 @@ func normalizeBotSettingsReadRow(row sqlc.GetSettingsByBotIDRow) Settings {
 		row.PersistFullToolResults,
 		row.ShowToolCallsInIm,
 		row.ChatTiming,
+		row.Persona,
 	)
 }
 
@@ -374,6 +382,7 @@ func normalizeBotSettingsWriteRow(row sqlc.UpsertBotSettingsRow) Settings {
 		row.PersistFullToolResults,
 		row.ShowToolCallsInIm,
 		row.ChatTiming,
+		row.Persona,
 	)
 }
 
@@ -401,6 +410,7 @@ func normalizeBotSettingsFields(
 	persistFullToolResults bool,
 	showToolCallsInIM bool,
 	chatTimingRaw []byte,
+	personaRaw []byte,
 ) Settings {
 	settings := normalizeBotSetting(language, "", reasoningEnabled, reasoningEffort, heartbeatEnabled, heartbeatInterval, compactionEnabled, compactionThreshold, compactionRatio)
 	if timezone.Valid {
@@ -442,7 +452,19 @@ func normalizeBotSettingsFields(
 	settings.PersistFullToolResults = persistFullToolResults
 	settings.ShowToolCallsInIM = showToolCallsInIM
 	settings.ChatTiming = unmarshalChatTiming(chatTimingRaw)
+	settings.Persona = unmarshalJSONBRaw(personaRaw)
 	return settings
+}
+
+// unmarshalJSONBRaw returns a json.RawMessage from raw bytes, defaulting to {}.
+func unmarshalJSONBRaw(raw []byte) json.RawMessage {
+	if len(raw) == 0 {
+		return json.RawMessage("{}")
+	}
+	if json.Valid(raw) {
+		return json.RawMessage(raw)
+	}
+	return json.RawMessage("{}")
 }
 
 func marshalChatTiming(cfg ChatTimingConfig) []byte {

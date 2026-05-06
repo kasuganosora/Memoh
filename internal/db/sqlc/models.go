@@ -43,6 +43,7 @@ type Bot struct {
 	CreatedAt              pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
 	AclDefaultEffect       string             `json:"acl_default_effect"`
+	Persona                []byte             `json:"persona"`
 	VisionModelID          pgtype.UUID        `json:"vision_model_id"`
 }
 
@@ -413,6 +414,38 @@ type ModelVariant struct {
 	Metadata  []byte             `json:"metadata"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type Pipeline struct {
+	ID        pgtype.UUID        `json:"id"`
+	BotID     pgtype.UUID        `json:"bot_id"`
+	Goal      string             `json:"goal"`
+	Status    string             `json:"status"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type PipelineNode struct {
+	ID             pgtype.UUID        `json:"id"`
+	PipelineID     pgtype.UUID        `json:"pipeline_id"`
+	Name           string             `json:"name"`
+	Description    pgtype.Text        `json:"description"`
+	DependsOn      []pgtype.UUID      `json:"depends_on"`
+	ModelTier      string             `json:"model_tier"`
+	Status         string             `json:"status"`
+	Input          []byte             `json:"input"`
+	Output         []byte             `json:"output"`
+	Error          pgtype.Text        `json:"error"`
+	RetryCount     int32              `json:"retry_count"`
+	MaxRetries     int32              `json:"max_retries"`
+	TimeoutSeconds int32              `json:"timeout_seconds"`
+	NeedsReview    bool               `json:"needs_review"`
+	ReviewResult   pgtype.Text        `json:"review_result"`
+	ReviewFeedback pgtype.Text        `json:"review_feedback"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	StartedAt      pgtype.Timestamptz `json:"started_at"`
+	CompletedAt    pgtype.Timestamptz `json:"completed_at"`
 }
 
 type Provider struct {

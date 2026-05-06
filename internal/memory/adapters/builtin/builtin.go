@@ -6,10 +6,12 @@ import (
 	"log/slog"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/memohai/memoh/internal/conversation"
 	"github.com/memohai/memoh/internal/mcp"
 	adapters "github.com/memohai/memoh/internal/memory/adapters"
+	"github.com/memohai/memoh/internal/memory/working"
 )
 
 const (
@@ -28,6 +30,7 @@ type BuiltinProvider struct {
 	llm          adapters.LLM
 	chatAccessor conversation.Accessor
 	adminChecker AdminChecker
+	workingMem   *working.WorkingMemory
 	logger       *slog.Logger
 	packer       contextPackerConfig
 }
@@ -76,6 +79,11 @@ func NewBuiltinProvider(log *slog.Logger, service any, chatAccessor conversation
 // SetLLM injects the LLM client used for Extract/Decide in memory formation.
 func (p *BuiltinProvider) SetLLM(llm adapters.LLM) {
 	p.llm = llm
+}
+
+// SetWorkingMemory injects the working memory cache for short-term recall.
+func (p *BuiltinProvider) SetWorkingMemory(wm *working.WorkingMemory) {
+	p.workingMem = wm
 }
 
 // SetPackerConfig overrides the default context packing configuration.
@@ -166,6 +174,28 @@ func (p *BuiltinProvider) OnBeforeChat(ctx context.Context, req adapters.BeforeC
 		return nil, nil
 	}
 
+	var contextParts []string
+
+	// 1. Working memory (short-term, recent facts from LRU).
+	if p.workingMem != nil {
+		wmEntries := p.workingMem.Search(req.BotID, req.Query, 5)
+		if len(wmEntries) > 0 {
+			var wmSB strings.Builder
+			wmSB.WriteString("<working-memory>\n")
+			for _, e := range wmEntries {
+				wmSB.WriteString("- ")
+				wmSB.WriteString(e.Content)
+				if e.Importance == "high" {
+					wmSB.WriteString(" [important]")
+				}
+				wmSB.WriteString("\n")
+			}
+			wmSB.WriteString("</working-memory>")
+			contextParts = append(contextParts, wmSB.String())
+		}
+	}
+
+	// 2. Long-term memory from Qdrant.
 	fetchLimit := overfetchLimit(p.packer)
 	resp, err := p.service.Search(ctx, adapters.SearchRequest{
 		Query: req.Query,
@@ -180,37 +210,33 @@ func (p *BuiltinProvider) OnBeforeChat(ctx context.Context, req adapters.BeforeC
 	})
 	if err != nil {
 		p.logger.Warn("memory search for context failed", slog.Any("error", err))
-		return nil, nil
-	}
-
-	candidates := deduplicateAndSort(resp.Results)
-	if len(candidates) == 0 {
-		return nil, nil
-	}
-
-	packed := packContext(candidates, p.packer)
-	if len(packed.Items) == 0 {
-		return nil, nil
-	}
-
-	var sb strings.Builder
-	sb.WriteString("<memory-context>\nRelevant memory context (use when helpful):\n")
-	for _, entry := range packed.Items {
-		sb.WriteString("- ")
-		if label := memorySourceLabel(entry.Item); label != "" {
-			sb.WriteString("[")
-			sb.WriteString(label)
-			sb.WriteString("] ")
+	} else {
+		candidates := deduplicateAndSort(resp.Results)
+		if len(candidates) > 0 {
+			packed := packContext(candidates, p.packer)
+			if len(packed.Items) > 0 {
+				var sb strings.Builder
+				sb.WriteString("<memory-context>\nRelevant memory context (use when helpful):\n")
+				for _, entry := range packed.Items {
+					sb.WriteString("- ")
+					if label := memorySourceLabel(entry.Item); label != "" {
+						sb.WriteString("[")
+						sb.WriteString(label)
+						sb.WriteString("] ")
+					}
+					sb.WriteString(entry.Snippet)
+					sb.WriteString("\n")
+				}
+				sb.WriteString("</memory-context>")
+				contextParts = append(contextParts, sb.String())
+			}
 		}
-		sb.WriteString(entry.Snippet)
-		sb.WriteString("\n")
 	}
-	sb.WriteString("</memory-context>")
-	payload := strings.TrimSpace(sb.String())
-	if payload == "" {
+
+	if len(contextParts) == 0 {
 		return nil, nil
 	}
-	return &adapters.BeforeChatResult{ContextText: payload}, nil
+	return &adapters.BeforeChatResult{ContextText: strings.Join(contextParts, "\n")}, nil
 }
 
 func (p *BuiltinProvider) OnAfterChat(ctx context.Context, req adapters.AfterChatRequest) error {
@@ -235,6 +261,11 @@ func (p *BuiltinProvider) OnAfterChat(ctx context.Context, req adapters.AfterCha
 			slog.Int("deleted", result.Deleted),
 			slog.Int("skipped", result.Skipped),
 		)
+
+		// Sync extracted facts to working memory for short-term recall.
+		p.syncToWorkingMemory(botID, req)
+		// Promote high-access working memory entries to long-term Qdrant.
+		p.promoteWorkingMemory(ctx, botID)
 		return nil
 	}
 
@@ -265,6 +296,83 @@ func (p *BuiltinProvider) OnAfterChat(ctx context.Context, req adapters.AfterCha
 		p.logger.Warn("store memory failed", slog.String("bot_id", botID), slog.Any("error", err))
 	}
 	return nil
+}
+
+// syncToWorkingMemory extracts the latest user/assistant messages and adds
+// them to the working memory cache for short-term recall.
+func (p *BuiltinProvider) syncToWorkingMemory(botID string, req adapters.AfterChatRequest) {
+	if p.workingMem == nil {
+		return
+	}
+	for _, msg := range req.Messages {
+		content := strings.TrimSpace(msg.Content)
+		if content == "" {
+			continue
+		}
+		// Use basic importance: assistant messages are higher priority
+		importance := "medium"
+		if msg.Role == "assistant" {
+			importance = "low" // assistant output is less important for memory
+		}
+		p.workingMem.Add(botID, content, importance, map[string]any{
+			"role": msg.Role,
+		})
+	}
+}
+
+// promoteWorkingMemory scans the working memory for entries with high access
+// counts and non-low importance, then promotes them to long-term Qdrant storage.
+func (p *BuiltinProvider) promoteWorkingMemory(ctx context.Context, botID string) {
+	if p.workingMem == nil {
+		return
+	}
+	const minAccess = 3
+	entries := p.workingMem.GetHighAccessEntries(botID, minAccess)
+	if len(entries) == 0 {
+		return
+	}
+
+	filters := map[string]any{
+		"namespace": sharedMemoryNamespace,
+		"scopeId":   botID,
+		"bot_id":    botID,
+	}
+
+	promotedCount := 0
+	for _, entry := range entries {
+		meta := make(map[string]any)
+		if entry.Metadata != nil {
+			for k, v := range entry.Metadata {
+				meta[k] = v
+			}
+		}
+		meta["source"] = "working_memory"
+		meta["promoted_at"] = time.Now().UTC().Format(time.RFC3339)
+		meta["access_count"] = entry.AccessCount
+		meta["importance"] = entry.Importance
+
+		if _, err := p.service.Add(ctx, adapters.AddRequest{
+			Message:  entry.Content,
+			BotID:    botID,
+			Metadata: meta,
+			Filters:  filters,
+		}); err != nil {
+			p.logger.Warn("promote working memory to Qdrant failed",
+				slog.String("bot_id", botID),
+				slog.String("content", entry.Content[:min(len(entry.Content), 50)]),
+				slog.Any("error", err),
+			)
+			continue
+		}
+		promotedCount++
+	}
+
+	if promotedCount > 0 {
+		p.logger.Info("promoted working memory entries to long-term storage",
+			slog.String("bot_id", botID),
+			slog.Int("promoted", promotedCount),
+		)
+	}
 }
 
 // --- MCP Tools ---

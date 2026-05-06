@@ -24,7 +24,8 @@ SELECT
   browser_contexts.id AS browser_context_id,
   bots.persist_full_tool_results,
   bots.chat_timing,
-  bots.show_tool_calls_in_im
+  bots.show_tool_calls_in_im,
+  bots.persona
 FROM bots
 LEFT JOIN models AS chat_models ON chat_models.id = bots.chat_model_id
 LEFT JOIN models AS heartbeat_models ON heartbeat_models.id = bots.heartbeat_model_id
@@ -66,9 +67,10 @@ WITH updated AS (
       persist_full_tool_results = sqlc.arg(persist_full_tool_results),
       chat_timing = COALESCE(sqlc.narg(chat_timing)::jsonb, bots.chat_timing),
       show_tool_calls_in_im = sqlc.arg(show_tool_calls_in_im),
+      persona = COALESCE(sqlc.narg(persona)::jsonb, bots.persona),
       updated_at = now()
   WHERE bots.id = sqlc.arg(id)
-  RETURNING bots.id, bots.language, bots.reasoning_enabled, bots.reasoning_effort, bots.heartbeat_enabled, bots.heartbeat_interval, bots.heartbeat_prompt, bots.compaction_enabled, bots.compaction_threshold, bots.compaction_ratio, bots.timezone, bots.chat_model_id, bots.heartbeat_model_id, bots.compaction_model_id, bots.title_model_id, bots.vision_model_id, bots.image_model_id, bots.search_provider_id, bots.memory_provider_id, bots.tts_model_id, bots.transcription_model_id, bots.browser_context_id, bots.persist_full_tool_results, bots.chat_timing, bots.show_tool_calls_in_im
+  RETURNING bots.id, bots.language, bots.reasoning_enabled, bots.reasoning_effort, bots.heartbeat_enabled, bots.heartbeat_interval, bots.heartbeat_prompt, bots.compaction_enabled, bots.compaction_threshold, bots.compaction_ratio, bots.timezone, bots.chat_model_id, bots.heartbeat_model_id, bots.compaction_model_id, bots.title_model_id, bots.vision_model_id, bots.image_model_id, bots.search_provider_id, bots.memory_provider_id, bots.tts_model_id, bots.transcription_model_id, bots.browser_context_id, bots.persist_full_tool_results, bots.chat_timing, bots.show_tool_calls_in_im, bots.persona
 )
 SELECT
   updated.id AS bot_id,
@@ -95,7 +97,8 @@ SELECT
   browser_contexts.id AS browser_context_id,
   updated.persist_full_tool_results,
   updated.chat_timing,
-  updated.show_tool_calls_in_im
+  updated.show_tool_calls_in_im,
+  updated.persona
 FROM updated
 LEFT JOIN models AS chat_models ON chat_models.id = updated.chat_model_id
 LEFT JOIN models AS heartbeat_models ON heartbeat_models.id = updated.heartbeat_model_id
@@ -134,5 +137,6 @@ SET language = 'auto',
     persist_full_tool_results = false,
     chat_timing = '{}'::jsonb,
     show_tool_calls_in_im = false,
+    persona = '{}'::jsonb,
     updated_at = now()
 WHERE id = $1;
