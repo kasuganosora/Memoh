@@ -931,9 +931,10 @@ func pruneOldToolResults(p *sdk.GenerateParams, keepSteps, threshold int) *sdk.G
 	}
 
 	// Build a new slice so the original messages can be GC'd.
+	// Messages at indices [0..cutoffIdx] are "old" — prune large tool results.
+	// Messages at indices (cutoffIdx..end] are the recent keepSteps — keep intact.
 	pruned := make([]sdk.Message, 0, len(msgs))
-	pruned = append(pruned, msgs[:cutoffIdx]...)
-	for i := cutoffIdx; i < len(msgs); i++ {
+	for i := 0; i <= cutoffIdx; i++ {
 		if msgs[i].Role != sdk.MessageRoleTool {
 			pruned = append(pruned, msgs[i])
 			continue
@@ -968,6 +969,8 @@ func pruneOldToolResults(p *sdk.GenerateParams, keepSteps, threshold int) *sdk.G
 			pruned = append(pruned, msgs[i])
 		}
 	}
+	// Keep recent tool-call cycles intact (the "keep zone").
+	pruned = append(pruned, msgs[cutoffIdx+1:]...)
 
 	p.Messages = pruned
 	return p

@@ -117,7 +117,7 @@ func (a *PromptBasedDreamLLM) FindAssociations(ctx context.Context, memories []s
 		}
 		if err2 := json.Unmarshal([]byte(cleanText), &wrapped); err2 != nil {
 			a.logger.Debug("FindAssociations parse failed",
-				slog.String("text", text[:minDream(len(text), 200)]),
+				slog.String("text", text[:min(len(text), 200)]),
 			)
 			return nil, nil // graceful degradation: no associations is not an error
 		}

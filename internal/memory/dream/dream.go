@@ -197,7 +197,7 @@ func (s *Service) mergeSimilar(ctx context.Context, botID string, filters map[st
 
 			// Quick pre-filter: if content significantly differs in length, skip
 			l1, l2 := len(m1), len(m2)
-			if float64(minDream(l1, l2))/float64(maxDream(l1, l2)) < 0.5 {
+			if float64(min(l1, l2))/float64(max(l1, l2)) < 0.5 {
 				continue
 			}
 
@@ -439,18 +439,4 @@ func (s *Service) strengthenAssociations(ctx context.Context, botID string, filt
 	}
 
 	return res
-}
-
-func minDream(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func maxDream(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

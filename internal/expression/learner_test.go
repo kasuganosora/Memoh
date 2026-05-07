@@ -225,6 +225,7 @@ func TestLearner_AccumulateSessionID(t *testing.T) {
 	learner := NewLearner("bot-learn", llm, exprRepo, jargRepo, slog.Default())
 	if learner == nil {
 		t.Fatal("expected non-nil learner")
+		return
 	}
 
 	// Accumulate enough messages to trigger learning with a session ID.
