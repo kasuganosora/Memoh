@@ -442,7 +442,7 @@ func (d *DiscussTrigger) handleReplyWithAgent(ctx context.Context, sess *discuss
 		chunkCh, errCh := d.deps.ChatRunner.StreamChat(agentCtx, chatReq)
 
 		outStream := d.openOutboundStream(agentCtx, cfg, log)
-		hadOutput, finalMessages, streamErr := d.consumeStream(agentCtx, cfg, chunkCh, errCh, outStream, log, isMentioned)
+		hadOutput, finalMessages, streamErr := d.consumeStream(agentCtx, cfg, chunkCh, errCh, outStream, log)
 		d.finalizeOutboundStream(agentCtx, ctx, cfg, outStream, finalMessages, log)
 
 		agentCancel()
@@ -523,10 +523,8 @@ func (d *DiscussTrigger) consumeStream(
 	errCh <-chan error,
 	outStream channel.OutboundStream,
 	log *slog.Logger,
-	isMentioned bool,
 ) (hadOutput bool, finalMessages []conversation.ModelMessage, streamErr error) {
 	var textBuf strings.Builder
-	var hadMessageTool bool
 	for chunkCh != nil || errCh != nil {
 		select {
 		case chunk, ok := <-chunkCh:
@@ -557,9 +555,6 @@ func (d *DiscussTrigger) consumeStream(
 				log.Info("discuss: tool call detected in stream",
 					slog.String("tool_name", event.ToolCall.Name),
 					slog.String("tool_call_id", event.ToolCall.CallID))
-				if event.ToolCall.Name == "send" || event.ToolCall.Name == "reply" {
-					hadMessageTool = true
-				}
 			case event.Type == channel.StreamEventToolCallEnd && event.ToolCall != nil && event.ToolCall.Name == "send":
 				log.Info("discuss: send tool completed in stream",
 					slog.String("tool_call_id", event.ToolCall.CallID),
@@ -606,28 +601,6 @@ func (d *DiscussTrigger) consumeStream(
 		}
 		if streamErr != nil {
 			break
-		}
-	}
-
-	// Fallback: if LLM didn't call any messaging tool but produced text,
-	// auto-send the text as a standalone message. Only trigger when the bot
-	// was explicitly @mentioned — unmuted internal monologue should stay silent.
-	if textBuf.Len() > 0 && !hadMessageTool {
-		acc := textBuf.String()
-
-		if !isMentioned {
-			log.Debug("discuss: text monologue without tool calls, but bot not mentioned — staying silent",
-				slog.String("bot_id", cfg.BotID),
-				slog.Int("text_len", len(acc)),
-				slog.String("preview", truncateStr(acc, 100)),
-			)
-		} else {
-			log.Warn("discuss: LLM produced text but no tool calls while @mentioned, auto-sending fallback",
-				slog.String("bot_id", cfg.BotID),
-				slog.Int("text_len", len(acc)),
-				slog.String("preview", truncateStr(acc, 100)),
-			)
-			d.deliverMessage(ctx, cfg, channel.ChannelType(cfg.CurrentPlatform), acc, cfg.ReplyTarget, log)
 		}
 	}
 

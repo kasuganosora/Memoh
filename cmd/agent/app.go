@@ -298,9 +298,8 @@ type agentTextGenerator struct {
 	agent *agentpkg.Agent
 }
 
-func (g *agentTextGenerator) GenerateText(ctx context.Context, systemPrompt string, messages []sdk.Message, model *sdk.Model) (string, error) {
+func (g *agentTextGenerator) GenerateText(ctx context.Context, systemPrompt string, messages []sdk.Message) (string, error) {
 	result, err := g.agent.Generate(ctx, agentpkg.RunConfig{
-		Model:    model,
 		System:   systemPrompt,
 		Messages: messages,
 	})

@@ -707,7 +707,6 @@ func (a *Agent) assembleTools(ctx context.Context, cfg RunConfig, emitter tools.
 		TimezoneLocation:   cfg.Identity.TimezoneLocation,
 		Emitter:            emitter,
 		SendCount:          new(atomic.Int32),
-		ReplyerModel:       cfg.Model,
 	}
 
 	allowedSet := make(map[string]struct{})

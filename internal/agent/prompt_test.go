@@ -61,7 +61,7 @@ func TestGenerateSystemPromptIncludesImageGenerationRulesInDiscuss(t *testing.T)
 	if !strings.Contains(prompt, "Important exception") {
 		t.Fatalf("expected important exception note for image generation in discuss prompt")
 	}
-	if !strings.Contains(prompt, "`reply`/`send` requirement does NOT apply to image generation") {
+	if !strings.Contains(prompt, "`send` tool requirement does NOT apply to image generation") {
 		t.Fatalf("expected clarification about send tool exception for image generation")
 	}
 }
