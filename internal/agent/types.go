@@ -91,6 +91,10 @@ type RunConfig struct {
 	// MidTaskPruneKeepStepsDefault (4).
 	MidTaskPruneKeepSteps int
 
+	// Persona is an optional JSON blob that overrides the bot's
+	// IDENTITY.md / SOUL.md personality configuration.
+	Persona json.RawMessage
+
 	// InjectCh receives user messages to inject between tool rounds.
 	// When non-nil, a PrepareStep hook drains this channel and appends
 	// user messages to the conversation before the next LLM call.

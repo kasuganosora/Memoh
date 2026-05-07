@@ -583,6 +583,7 @@ export type ChannelChannelCapabilities = {
 };
 
 export type ChannelChannelConfig = {
+    allowed_tools?: Array<string>;
     bot_id?: string;
     channel_type?: ChannelChannelType;
     created_at?: string;
@@ -705,6 +706,7 @@ export type ChannelUpsertChannelIdentityConfigRequest = {
 };
 
 export type ChannelUpsertConfigRequest = {
+    allowed_tools?: Array<string>;
     credentials?: {
         [key: string]: unknown;
     };
@@ -1462,7 +1464,7 @@ export type MessageMessageAsset = {
 };
 
 export type ModelsAddRequest = {
-    config?: ModelsModelConfig;
+    config?: Array<number>;
     model_id?: string;
     name?: string;
     provider_id?: string;
@@ -1479,7 +1481,7 @@ export type ModelsCountResponse = {
 };
 
 export type ModelsGetResponse = {
-    config?: ModelsModelConfig;
+    config?: Array<number>;
     id?: string;
     model_id?: string;
     name?: string;
@@ -1487,14 +1489,7 @@ export type ModelsGetResponse = {
     type?: ModelsModelType;
 };
 
-export type ModelsModelConfig = {
-    compatibilities?: Array<string>;
-    context_window?: number;
-    dimensions?: number;
-    reasoning_efforts?: Array<string>;
-};
-
-export type ModelsModelType = 'chat' | 'embedding' | 'speech' | 'transcription';
+export type ModelsModelType = 'chat' | 'embedding' | 'speech' | 'transcription' | 'image';
 
 export type ModelsTestResponse = {
     latency_ms?: number;
@@ -1506,7 +1501,7 @@ export type ModelsTestResponse = {
 export type ModelsTestStatus = 'ok' | 'auth_error' | 'model_not_supported' | 'error';
 
 export type ModelsUpdateRequest = {
-    config?: ModelsModelConfig;
+    config?: Array<number>;
     model_id?: string;
     name?: string;
     provider_id?: string;
@@ -1734,10 +1729,30 @@ export type SessionSession = {
     updated_at?: string;
 };
 
+export type SettingsChatTimingConfig = {
+    debounce_max_wait?: number;
+    debounce_quiet_period?: number;
+    enable_expression_learning?: boolean;
+    enable_profile_tracking?: boolean;
+    enable_replyer?: boolean;
+    enabled?: boolean;
+    idle_comp_enabled?: boolean;
+    idle_comp_min_idle_before_credit?: number;
+    idle_comp_window_size?: number;
+    interrupt_enabled?: boolean;
+    interrupt_max_consecutive?: number;
+    interrupt_max_rounds?: number;
+    memory_search_mode?: string;
+    replyer_model_id?: string;
+    talk_value?: number;
+    timing_gate?: boolean;
+};
+
 export type SettingsSettings = {
     acl_default_effect?: string;
     browser_context_id?: string;
     chat_model_id?: string;
+    chat_timing?: SettingsChatTimingConfig;
     compaction_enabled?: boolean;
     compaction_model_id?: string;
     compaction_ratio?: number;
@@ -1750,6 +1765,7 @@ export type SettingsSettings = {
     language?: string;
     memory_provider_id?: string;
     persist_full_tool_results?: boolean;
+    persona?: Array<number>;
     reasoning_effort?: string;
     reasoning_enabled?: boolean;
     search_provider_id?: string;
@@ -1765,20 +1781,27 @@ export type SettingsUpsertRequest = {
     acl_default_effect?: string;
     browser_context_id?: string;
     chat_model_id?: string;
+    chat_timing?: SettingsChatTimingConfig;
     compaction_enabled?: boolean;
     compaction_model_id?: string;
     compaction_ratio?: number;
     compaction_threshold?: number;
     discuss_probe_model_id?: string;
+    enable_expression_learning?: boolean;
+    enable_profile_tracking?: boolean;
+    enable_replyer?: boolean;
     heartbeat_enabled?: boolean;
     heartbeat_interval?: number;
     heartbeat_model_id?: string;
     image_model_id?: string;
     language?: string;
     memory_provider_id?: string;
+    memory_search_mode?: string;
     persist_full_tool_results?: boolean;
+    persona?: Array<number>;
     reasoning_effort?: string;
     reasoning_enabled?: boolean;
+    replyer_model_id?: string;
     search_provider_id?: string;
     show_tool_calls_in_im?: boolean;
     timezone?: string;
@@ -7166,7 +7189,7 @@ export type GetModelsData = {
     path?: never;
     query?: {
         /**
-         * Model type (chat, embedding)
+         * Model type (chat, embedding, image)
          */
         type?: string;
         /**
@@ -7236,7 +7259,7 @@ export type GetModelsCountData = {
     path?: never;
     query?: {
         /**
-         * Model type (chat, embedding)
+         * Model type (chat, embedding, image)
          */
         type?: string;
     };
@@ -7866,7 +7889,7 @@ export type GetProvidersByIdModelsData = {
     };
     query?: {
         /**
-         * Model type (chat, embedding)
+         * Model type (chat, embedding, image)
          */
         type?: string;
     };

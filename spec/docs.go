@@ -13830,6 +13830,12 @@ const docTemplate = `{
                 "persist_full_tool_results": {
                     "type": "boolean"
                 },
+                "persona": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
                 "reasoning_effort": {
                     "type": "string"
                 },
@@ -13921,6 +13927,12 @@ const docTemplate = `{
                 },
                 "persist_full_tool_results": {
                     "type": "boolean"
+                },
+                "persona": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
                 "reasoning_effort": {
                     "type": "string"

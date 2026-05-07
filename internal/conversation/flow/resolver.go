@@ -772,6 +772,7 @@ func (r *Resolver) buildBaseRunConfig(ctx context.Context, p baseRunConfigParams
 			SessionToken:      p.SessionToken,
 		},
 		Skills:            agentSkills,
+		Persona:           botSettings.Persona,
 		LoopDetection:     agentpkg.LoopDetectionConfig{Enabled: loopDetectionEnabled},
 		BackgroundManager: r.bgManager,
 	}
@@ -877,6 +878,7 @@ func (r *Resolver) prepareRunConfig(ctx context.Context, cfg agentpkg.RunConfig)
 		Timezone:                  cfg.Identity.Timezone,
 		SupportsImageInput:        supportsImageInput,
 		PlatformIdentitiesSection: platformIdentitiesSection,
+		Persona:                   cfg.Persona,
 	})
 
 	// Run the message processing pipeline. Each processor handles one type

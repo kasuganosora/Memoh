@@ -1,7 +1,9 @@
 package agent
 
 import (
+	"bytes"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"slices"
@@ -151,9 +153,20 @@ func GenerateSystemPrompt(params SystemPromptParams) string {
 
 	skillsSection := buildSkillsSection(params.Skills)
 
+	// If persona is set, prepend it as the highest-priority identity file.
+	// It overrides the IDENTITY.md / SOUL.md loaded from the container.
+	var allFiles []SystemFile
+	if len(params.Persona) > 0 && !bytes.Equal(params.Persona, []byte("{}")) {
+		allFiles = append(allFiles, SystemFile{
+			Filename: "PERSONA.md (overrides IDENTITY.md + SOUL.md)",
+			Content:  formatPersona(params.Persona),
+		})
+	}
+	allFiles = append(allFiles, params.Files...)
+
 	fileSections := ""
 	var fileSectionsSb strings.Builder
-	for _, f := range params.Files {
+	for _, f := range allFiles {
 		if f.Content == "" {
 			continue
 		}
@@ -189,6 +202,9 @@ type SystemPromptParams struct {
 	Timezone                  string
 	SupportsImageInput        bool
 	PlatformIdentitiesSection string
+	// Persona is an optional JSON blob that overrides IDENTITY.md/SOUL.md
+	// personality configuration. When non-empty, it takes precedence.
+	Persona json.RawMessage
 }
 
 // GenerateSchedulePrompt builds the user message for a scheduled task trigger.
@@ -304,6 +320,20 @@ func buildIdentityRecap(files []SystemFile) string {
 	sb.WriteString("Maintain consistency with your defined personality and communication style throughout this conversation.")
 
 	return sb.String()
+}
+
+// formatPersona renders the persona JSON blob as a Markdown identity block.
+// It pretty-prints the JSON for readability and wraps it in the standard
+// SystemFile format so it flows naturally into the system prompt.
+func formatPersona(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var pretty bytes.Buffer
+	if err := json.Indent(&pretty, raw, "", "  "); err != nil {
+		return string(raw)
+	}
+	return pretty.String()
 }
 
 // ExtractIdentityField extracts a bold-marked field value from IDENTITY.md content.

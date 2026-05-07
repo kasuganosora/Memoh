@@ -2979,6 +2979,10 @@ definitions:
         type: string
       persist_full_tool_results:
         type: boolean
+      persona:
+        items:
+          type: integer
+        type: array
       reasoning_effort:
         type: string
       reasoning_enabled:
@@ -3040,6 +3044,10 @@ definitions:
         type: string
       persist_full_tool_results:
         type: boolean
+      persona:
+        items:
+          type: integer
+        type: array
       reasoning_effort:
         type: string
       reasoning_enabled:
