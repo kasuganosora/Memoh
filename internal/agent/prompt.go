@@ -155,8 +155,10 @@ func GenerateSystemPrompt(params SystemPromptParams) string {
 
 	// If persona is set, prepend it as the highest-priority identity file.
 	// It overrides the IDENTITY.md / SOUL.md loaded from the container.
+	// Also used to decide whether to skip the identity recap below.
+	hasPersona := len(params.Persona) > 0 && !bytes.Equal(params.Persona, []byte("{}"))
 	var allFiles []SystemFile
-	if len(params.Persona) > 0 && !bytes.Equal(params.Persona, []byte("{}")) {
+	if hasPersona {
 		allFiles = append(allFiles, SystemFile{
 			Filename: "PERSONA.md (overrides IDENTITY.md + SOUL.md)",
 			Content:  formatPersona(params.Persona),
@@ -186,8 +188,12 @@ func GenerateSystemPrompt(params SystemPromptParams) string {
 		"fileSections":              fileSections,
 	})
 
-	if recap := buildIdentityRecap(params.Files); recap != "" {
-		result += recap
+	// Skip identity recap when persona is active — the persona content
+	// already provides the complete identity and overrides container files.
+	if !hasPersona {
+		if recap := buildIdentityRecap(params.Files); recap != "" {
+			result += recap
+		}
 	}
 
 	return result
