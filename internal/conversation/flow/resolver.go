@@ -36,9 +36,52 @@ import (
 	"github.com/memohai/memoh/internal/settings"
 )
 
-const (
+	const (
 	defaultMaxContextMinutes = 24 * 60
+	// discussContextTokenCap is the maximum token budget for discuss mode
+	// context. DeepSeek models perform best with tool calling when context
+	// stays well below capacity. Exceeding this degrades tool-call reliability.
+	discussContextTokenCap = 65536 // 64K tokens
 )
+
+// discussTrimMessages trims messages from the oldest end so the total context
+// stays within discussContextTokenCap. Uses character-based estimation.
+func discussTrimMessages(messages []conversation.ModelMessage, log *slog.Logger, botID string) []conversation.ModelMessage {
+	if len(messages) == 0 {
+		return messages
+	}
+	totalTokens := 0
+	for _, m := range messages {
+		totalTokens += estimateMessageTokens(m)
+	}
+	if totalTokens <= discussContextTokenCap {
+		return messages
+	}
+
+	// Trim from oldest while keeping pairs (user + assistant) intact.
+	cutoff := 0
+	runningTokens := 0
+	for i := len(messages) - 1; i >= 0; i-- {
+		runningTokens += estimateMessageTokens(messages[i])
+		if runningTokens > discussContextTokenCap {
+			cutoff = i + 1
+			break
+		}
+	}
+
+	kept := messages[cutoff:]
+	if log != nil {
+		log.Info("discussTrimMessages: trimmed discuss context",
+			slog.String("bot_id", botID),
+			slog.Int("original_messages", len(messages)),
+			slog.Int("kept_messages", len(kept)),
+			slog.Int("cutoff_index", cutoff),
+			slog.Int("total_tokens", totalTokens),
+			slog.Int("cap", discussContextTokenCap),
+		)
+	}
+	return kept
+}
 
 // SkillEntry represents a skill loaded from the container.
 type SkillEntry struct {
@@ -289,6 +332,13 @@ type resolvedContext struct {
 
 func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (resolvedContext, error) {
 	isDiscuss := req.SessionType == "discuss"
+	r.logger.Info("resolve: starting context resolution",
+		slog.String("bot_id", req.BotID),
+		slog.String("session_id", req.SessionID),
+		slog.String("session_type", req.SessionType),
+		slog.Bool("is_discuss", isDiscuss),
+		slog.Int("attachments", len(req.Attachments)),
+	)
 	// Discuss mode gets its context from the pipeline RC; no explicit query is needed.
 	if !isDiscuss && strings.TrimSpace(req.Query) == "" && len(req.Attachments) == 0 {
 		return resolvedContext{}, errors.New("query or attachments is required")
@@ -343,6 +393,12 @@ func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (r
 			usePipeline = false
 		}
 	}
+	r.logger.Info("resolve: pipeline decision",
+		slog.String("bot_id", req.BotID),
+		slog.String("session_id", req.SessionID),
+		slog.Bool("use_pipeline", usePipeline),
+		slog.Bool("is_discuss", isDiscuss),
+	)
 
 	contextTokenBudget := 0
 	chatCfg := chatModel.ParseConfig()
@@ -367,15 +423,20 @@ func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (r
 		loaded = dedupePersistedCurrentUserMessage(loaded, req)
 		loaded = r.replaceCompactedMessages(ctx, loaded)
 		messages, estimatedTokens = trimMessagesByTokens(r.logger, loaded, contextTokenBudget)
-		// When context reaches 70% of the contextTokenBudget (the user-configured
-		// budget cap), run synchronous compaction before sending the request.
-		// contextTokenBudget is the authoritative limit for how much context
-		// the user wants to send to the LLM. We compact at 70% to keep the
-		// context healthy and avoid edge-case timeouts.
-		compactionThreshold := 0
-		if contextTokenBudget > 0 {
-			compactionThreshold = contextTokenBudget * 70 / 100
+	// Pre-round compaction threshold: uses the model's 30% context window
+	// as a default cap. When a stricter compaction_threshold is configured
+	// in bot settings (UI), that value takes precedence.
+	compactionThreshold := 0
+	if contextTokenBudget > 0 {
+		compactionThreshold = contextTokenBudget * 20 / 100
+	}
+	if r.settingsService != nil {
+		if botSettings, err := r.settingsService.GetBot(ctx, req.BotID); err == nil && botSettings.CompactionThreshold > 0 {
+			if compactionThreshold == 0 || botSettings.CompactionThreshold < compactionThreshold {
+				compactionThreshold = botSettings.CompactionThreshold
+			}
 		}
+	}
 		if compactionThreshold > 0 && estimatedTokens >= compactionThreshold {
 			r.logger.Warn("resolve: context reached compaction threshold, running synchronous compaction",
 				slog.String("bot_id", req.BotID),
@@ -418,6 +479,13 @@ func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (r
 		messages = stripToolMessages(messages)
 	}
 	messages = repairToolCallClosures(messages, syntheticToolClosureError)
+
+	// Discuss mode safeguard: trim context to a reasonable cap so the LLM
+	// reliably uses tool calling. DeepSeek models degrade tool call behavior
+	// with excessive context even within their nominal window.
+	if isDiscuss {
+		messages = discussTrimMessages(messages, r.logger, req.BotID)
+	}
 
 	displayName := r.resolveDisplayName(ctx, req)
 	mergedAttachments := r.routeAndMergeAttachments(ctx, chatModel, req)
@@ -714,6 +782,19 @@ func (r *Resolver) buildBaseRunConfig(ctx context.Context, p baseRunConfigParams
 			cfg.AllowedTools = chCfg.AllowedTools
 		}
 	}
+
+	r.logger.Info("buildBaseRunConfig: run config built",
+		slog.String("bot_id", p.BotID),
+		slog.String("session_id", p.SessionID),
+		slog.String("session_type", p.SessionType),
+		slog.String("model", chatModel.ModelID),
+		slog.String("client_type", provider.ClientType),
+		slog.Bool("supports_tool_call", cfg.SupportsToolCall),
+		slog.Bool("supports_image_input", cfg.SupportsImageInput),
+		slog.Int("skills_count", len(agentSkills)),
+		slog.Int("allowed_tools_count", len(cfg.AllowedTools)),
+		slog.Any("allowed_tools", cfg.AllowedTools),
+	)
 
 	return cfg, chatModel, provider, nil
 }

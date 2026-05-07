@@ -92,11 +92,28 @@ func (a *Agent) runStream(ctx context.Context, cfg RunConfig, ch chan<- StreamEv
 	var sdkTools []sdk.Tool
 	if cfg.SupportsToolCall {
 		var err error
+		a.logger.Info("runStream: assembling tools",
+			slog.String("bot_id", cfg.Identity.BotID),
+			slog.String("session_type", cfg.SessionType),
+			slog.String("session_id", cfg.Identity.SessionID),
+			slog.Bool("supports_tool_call", cfg.SupportsToolCall),
+		)
 		sdkTools, err = a.assembleTools(streamCtx, cfg, streamEmitter)
 		if err != nil {
 			sendEvent(ctx, ch, StreamEvent{Type: EventError, Error: fmt.Sprintf("assemble tools: %v", err)})
 			return
 		}
+		a.logger.Info("runStream: tools assembled",
+			slog.String("bot_id", cfg.Identity.BotID),
+			slog.String("session_type", cfg.SessionType),
+			slog.Int("final_tool_count", len(sdkTools)),
+		)
+	} else {
+		a.logger.Warn("runStream: tool calling disabled for this run",
+			slog.String("bot_id", cfg.Identity.BotID),
+			slog.String("session_type", cfg.SessionType),
+			slog.String("model", cfg.Model.ID),
+		)
 	}
 	sdkTools, readMediaState := decorateReadMediaTools(cfg.Model, sdkTools)
 
@@ -483,10 +500,27 @@ func (a *Agent) runGenerate(ctx context.Context, cfg RunConfig) (*GenerateResult
 	var sdkTools []sdk.Tool
 	if cfg.SupportsToolCall {
 		var err error
+		a.logger.Info("runGenerate: assembling tools",
+			slog.String("bot_id", cfg.Identity.BotID),
+			slog.String("session_type", cfg.SessionType),
+			slog.String("session_id", cfg.Identity.SessionID),
+			slog.Bool("supports_tool_call", cfg.SupportsToolCall),
+		)
 		sdkTools, err = a.assembleTools(genCtx, cfg, collectEmitter)
 		if err != nil {
 			return nil, fmt.Errorf("assemble tools: %w", err)
 		}
+		a.logger.Info("runGenerate: tools assembled",
+			slog.String("bot_id", cfg.Identity.BotID),
+			slog.String("session_type", cfg.SessionType),
+			slog.Int("final_tool_count", len(sdkTools)),
+		)
+	} else {
+		a.logger.Warn("runGenerate: tool calling disabled for this run",
+			slog.String("bot_id", cfg.Identity.BotID),
+			slog.String("session_type", cfg.SessionType),
+			slog.String("model", cfg.Model.ID),
+		)
 	}
 	sdkTools, readMediaState := decorateReadMediaTools(cfg.Model, sdkTools)
 
@@ -645,6 +679,9 @@ func (*Agent) buildGenerateOptions(cfg RunConfig, tools []sdk.Tool, prepareStep 
 // speech) directly into the agent stream.
 func (a *Agent) assembleTools(ctx context.Context, cfg RunConfig, emitter tools.StreamEmitter) ([]sdk.Tool, error) {
 	if len(a.toolProviders) == 0 {
+		a.logger.Debug("assembleTools: no tool providers registered",
+			slog.String("bot_id", cfg.Identity.BotID),
+			slog.String("session_type", cfg.SessionType))
 		return nil, nil
 	}
 	skillsMap := make(map[string]tools.SkillDetail, len(cfg.Skills))
@@ -670,7 +707,24 @@ func (a *Agent) assembleTools(ctx context.Context, cfg RunConfig, emitter tools.
 		TimezoneLocation:   cfg.Identity.TimezoneLocation,
 		Emitter:            emitter,
 		SendCount:          new(atomic.Int32),
+		ReplyerModel:       cfg.Model,
 	}
+
+	allowedSet := make(map[string]struct{})
+	hasAllowed := len(cfg.AllowedTools) > 0
+	for _, name := range cfg.AllowedTools {
+		allowedSet[name] = struct{}{}
+	}
+
+	a.logger.Info("assembleTools: starting tool assembly",
+		slog.String("bot_id", cfg.Identity.BotID),
+		slog.String("session_id", cfg.Identity.SessionID),
+		slog.String("session_type", cfg.SessionType),
+		slog.Int("provider_count", len(a.toolProviders)),
+		slog.Bool("supports_tool_call", cfg.SupportsToolCall),
+		slog.Int("allowed_tools_count", len(cfg.AllowedTools)),
+		slog.Any("allowed_tools", cfg.AllowedTools),
+	)
 
 	var allTools []sdk.Tool
 	for _, provider := range a.toolProviders {
@@ -681,6 +735,47 @@ func (a *Agent) assembleTools(ctx context.Context, cfg RunConfig, emitter tools.
 		}
 		allTools = append(allTools, providerTools...)
 	}
+
+	// Log tool names before filtering.
+	var beforeNames []string
+	for _, t := range allTools {
+		beforeNames = append(beforeNames, t.Name)
+	}
+
+	// Apply AllowedTools filter if configured.
+	if hasAllowed {
+		filtered := make([]sdk.Tool, 0, len(allTools))
+		for _, t := range allTools {
+			if _, ok := allowedSet[t.Name]; ok {
+				filtered = append(filtered, t)
+			}
+		}
+		var afterNames []string
+		for _, t := range filtered {
+			afterNames = append(afterNames, t.Name)
+		}
+		a.logger.Info("assembleTools: AllowedTools filter applied",
+			slog.String("bot_id", cfg.Identity.BotID),
+			slog.String("session_id", cfg.Identity.SessionID),
+			slog.String("session_type", cfg.SessionType),
+			slog.Any("before", beforeNames),
+			slog.Any("after", afterNames),
+		)
+		allTools = filtered
+	} else {
+		var names []string
+		for _, t := range allTools {
+			names = append(names, t.Name)
+		}
+		a.logger.Info("assembleTools: final tools (no filter)",
+			slog.String("bot_id", cfg.Identity.BotID),
+			slog.String("session_id", cfg.Identity.SessionID),
+			slog.String("session_type", cfg.SessionType),
+			slog.Int("tool_count", len(allTools)),
+			slog.Any("tools", names),
+		)
+	}
+
 	return allTools, nil
 }
 

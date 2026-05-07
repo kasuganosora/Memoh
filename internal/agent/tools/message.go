@@ -21,9 +21,8 @@ import (
 type ReplyerConfigProvider func(ctx context.Context, botID string) (enabled bool, modelID string)
 
 // TextGenerator is the interface for replyer LLM text generation.
-// It takes a system prompt and user message and returns generated text.
 type TextGenerator interface {
-	GenerateText(ctx context.Context, systemPrompt string, messages []sdk.Message) (string, error)
+	GenerateText(ctx context.Context, systemPrompt string, messages []sdk.Message, model *sdk.Model) (string, error)
 }
 
 // replyerSystemPrompt is the default system prompt for the replyer LLM.
@@ -96,12 +95,16 @@ func (p *MessageProvider) SetExpressionSelector(sel *expression.Selector) {
 
 func (p *MessageProvider) Tools(ctx context.Context, session SessionContext) ([]sdk.Tool, error) {
 	if session.IsSubagent {
+		p.logger.Debug("message tools: skipped for subagent",
+			slog.String("bot_id", session.BotID))
 		return nil, nil
 	}
 	// Heartbeat analysis phase (phase 1): the LLM should only inspect and
 	// report — no send/reply/react tools. Alert delivery is handled by
 	// the resolver in a separate phase 2 call (heartbeat_alert).
 	if session.SessionType == "heartbeat" {
+		p.logger.Debug("message tools: skipped for heartbeat phase 1",
+			slog.String("bot_id", session.BotID))
 		return nil, nil
 	}
 	var tools []sdk.Tool
@@ -109,12 +112,29 @@ func (p *MessageProvider) Tools(ctx context.Context, session SessionContext) ([]
 
 	useReplyer := p.shouldUseReplyer(ctx, session)
 
+	p.logger.Info("message tools: sending tool definitions",
+		slog.String("bot_id", session.BotID),
+		slog.String("session_id", session.SessionID),
+		slog.String("session_type", session.SessionType),
+		slog.String("platform", session.CurrentPlatform),
+		slog.Bool("can_send", p.exec.CanSend()),
+		slog.Bool("can_react", p.exec.CanReact()),
+		slog.Bool("use_replyer", useReplyer),
+	)
+
 	if p.exec.CanSend() {
-		if useReplyer {
-			tools = append(tools, p.replyTool(sess))
-		} else {
-			tools = append(tools, p.sendTool(sess))
-		}
+		tools = append(tools, p.sendTool(sess))
+		p.logger.Info("message tools: providing send tool",
+			slog.String("bot_id", session.BotID))
+	}
+	if useReplyer {
+		tools = append(tools, p.replyTool(sess))
+		p.logger.Info("message tools: providing reply tool (replyer enabled)",
+			slog.String("bot_id", session.BotID))
+	} else if !p.exec.CanSend() {
+		p.logger.Warn("message tools: send tool NOT provided — CanSend is false",
+			slog.String("bot_id", session.BotID),
+			slog.String("session_type", session.SessionType))
 	}
 	if p.exec.CanReact() {
 		tools = append(tools, p.reactTool(sess))
@@ -159,7 +179,7 @@ func (p *MessageProvider) sendTool(session SessionContext) sdk.Tool {
 func (p *MessageProvider) replyTool(session SessionContext) sdk.Tool {
 	return sdk.Tool{
 		Name:        "reply",
-		Description: "Generate and send a visible reply. Provide your reasoning summary; it will be polished into natural conversational language by a replyer. Use this instead of send.",
+		Description: "Reply in the current conversation. Provide a reasoning summary of what you want to express — a replyer (small LLM) will polish it into natural conversational language before sending. Use this for responding to the ongoing chat. For cross-conversation sends, file attachments, or explicit markdown messages, use `send` instead.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -357,15 +377,37 @@ func (p *MessageProvider) execReply(ctx context.Context, session SessionContext,
 	reasoning := StringArg(args, "reasoning")
 	replyTo := StringArg(args, "reply_to")
 
+	p.logger.Info("reply tool called",
+		slog.String("bot_id", session.BotID),
+		slog.String("session_id", session.SessionID),
+		slog.String("session_type", session.SessionType),
+		slog.Int("reasoning_len", len(reasoning)),
+		slog.String("reasoning_preview", truncateForLog(reasoning, 200)),
+		slog.String("reply_to", replyTo),
+	)
+
 	replyText, err := p.generateReply(ctx, session, reasoning)
 	if err != nil {
 		// Fallback: send the raw reasoning text directly
-		replyText = reasoning
 		p.logger.Warn("replyer generation failed, falling back to raw reasoning",
 			slog.String("bot_id", session.BotID),
+			slog.String("session_id", session.SessionID),
+			slog.String("session_type", session.SessionType),
+			slog.Int("reasoning_len", len(reasoning)),
+			slog.String("reasoning_preview", truncateForLog(reasoning, 100)),
 			slog.Any("error", err),
 		)
+		replyText = reasoning
 	}
+
+	p.logger.Info("replyer: generated reply text",
+		slog.String("bot_id", session.BotID),
+		slog.String("session_id", session.SessionID),
+		slog.Int("reasoning_len", len(reasoning)),
+		slog.Int("reply_text_len", len(replyText)),
+		slog.String("reply_text_preview", truncateForLog(replyText, 200)),
+		slog.Bool("is_same_as_reasoning", replyText == reasoning),
+	)
 
 	// Use the existing send path with the reply text
 	sendArgs := map[string]any{"text": replyText}
@@ -398,7 +440,7 @@ func (p *MessageProvider) generateReply(ctx context.Context, session SessionCont
 
 	result, err := p.textGen.GenerateText(ctx, systemPrompt, []sdk.Message{
 		sdk.UserMessage(reasoning),
-	})
+	}, session.ReplyerModel)
 	if err != nil {
 		return "", fmt.Errorf("replyer generate: %w", err)
 	}

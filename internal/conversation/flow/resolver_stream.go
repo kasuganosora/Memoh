@@ -100,6 +100,15 @@ func (r *Resolver) StreamChat(ctx context.Context, req conversation.ChatRequest)
 		doneTurn := r.enterSessionTurn(ctx, streamReq.BotID, streamReq.SessionID)
 		defer doneTurn()
 
+		r.logger.Info("StreamChat: starting agent stream",
+			slog.String("bot_id", streamReq.BotID),
+			slog.String("session_id", streamReq.SessionID),
+			slog.String("session_type", streamReq.SessionType),
+			slog.String("platform", streamReq.CurrentChannel),
+			slog.String("conversation_type", streamReq.ConversationType),
+			slog.Bool("user_message_persisted", streamReq.UserMessagePersisted),
+		)
+
 		if streamReq.RawQuery == "" {
 			streamReq.RawQuery = strings.TrimSpace(streamReq.Query)
 		}

@@ -90,6 +90,10 @@ type SessionContext struct {
 	// Shared via pointer so that the counter survives value copies of SessionContext.
 	// Nil means no limit is enforced.
 	SendCount *atomic.Int32
+
+	// ReplyerModel is the model to use for the replyer when reply tool is called.
+	// Set by the agent during tool assembly; nil means replyer is unavailable.
+	ReplyerModel *sdk.Model
 }
 
 // IsSameConversation reports whether the given platform+target pair refers to

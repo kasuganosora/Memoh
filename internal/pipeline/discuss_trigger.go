@@ -65,9 +65,11 @@ func (d *DiscussTrigger) SetDispatcher(disp DiscussDispatcher)       { d.deps.Di
 // NotifyRC pushes a new RenderedContext to the discuss session.
 // If the session goroutine is not running, it starts one.
 func (d *DiscussTrigger) NotifyRC(ctx context.Context, sessionID string, rc RenderedContext, config DiscussSessionConfig) {
+	isNew := false
 	d.mu.Lock()
 	sess, ok := d.sessions[sessionID]
 	if !ok {
+		isNew = true
 		sessCtx, cancel := context.WithCancel(d.parentCtx) //nolint:gosec // G118: cancel is stored in sess.cancel
 		sess = &discussSession{
 			config: config,
@@ -80,6 +82,15 @@ func (d *DiscussTrigger) NotifyRC(ctx context.Context, sessionID string, rc Rend
 		go d.runSession(sessCtx, sess) //nolint:contextcheck // long-lived goroutine
 	}
 	d.mu.Unlock()
+
+	d.logger.Info("discuss: NotifyRC received",
+		slog.String("session_id", sessionID),
+		slog.String("bot_id", config.BotID),
+		slog.String("platform", config.CurrentPlatform),
+		slog.Bool("new_session", isNew),
+		slog.Int("rc_segments", len(rc)),
+		slog.Int("rc_channel_depth", len(sess.rcCh)),
+	)
 
 	// Attempt interrupt if the session is actively generating a response.
 	if ok && sess.interrupt != nil && sess.chatTimingCfg != nil && sess.chatTimingCfg.Enabled {
@@ -175,6 +186,9 @@ func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 			return
 		case rc := <-sess.rcCh:
 			latestRC = rc
+			log.Info("discuss: received new RC in session loop",
+				slog.Int("rc_segments", len(rc)),
+				slog.Int("queue_depth", len(sess.rcCh)))
 			idle.Reset(discussIdleTimeout)
 		}
 
@@ -224,6 +238,13 @@ func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 func (d *DiscussTrigger) handleReply(ctx context.Context, sess *discussSession, rc RenderedContext, log *slog.Logger) {
 	isMentioned := wasRecentlyMentioned(rc, sess.lastProcessedMs)
 	newMsgCount := countNewMessages(rc, sess.lastProcessedMs)
+
+	log.Info("discuss: evaluating reply",
+		slog.String("session_id", sess.config.SessionID),
+		slog.Bool("is_mentioned", isMentioned),
+		slog.Int("new_msg_count", newMsgCount),
+		slog.Bool("timing_enabled", sess.chatTimingCfg != nil && sess.chatTimingCfg.Enabled),
+	)
 
 	// Minimum cooldown between agent calls (mentions bypass).
 	const minAgentCooldown = 15 * time.Second
@@ -403,10 +424,25 @@ func (d *DiscussTrigger) handleReplyWithAgent(ctx context.Context, sess *discuss
 			InjectCh:                 injectCh,
 		}
 
+		log.Info("discuss: dispatching StreamChat",
+			slog.String("bot_id", cfg.BotID),
+			slog.String("session_id", cfg.SessionID),
+			slog.String("platform", cfg.CurrentPlatform),
+			slog.String("reply_target", cfg.ReplyTarget),
+			slog.Bool("is_mentioned", isMentioned),
+			slog.Int("inject_ch_available", func() int {
+				if injectCh != nil {
+					return 1
+				}
+				return 0
+			}()),
+			slog.Int("late_binding_prompt_len", len(chatReq.DiscussLateBindingPrompt)),
+		)
+
 		chunkCh, errCh := d.deps.ChatRunner.StreamChat(agentCtx, chatReq)
 
 		outStream := d.openOutboundStream(agentCtx, cfg, log)
-		hadOutput, finalMessages, streamErr := d.consumeStream(agentCtx, cfg, chunkCh, errCh, outStream, log)
+		hadOutput, finalMessages, streamErr := d.consumeStream(agentCtx, cfg, chunkCh, errCh, outStream, log, isMentioned)
 		d.finalizeOutboundStream(agentCtx, ctx, cfg, outStream, finalMessages, log)
 
 		agentCancel()
@@ -487,8 +523,10 @@ func (d *DiscussTrigger) consumeStream(
 	errCh <-chan error,
 	outStream channel.OutboundStream,
 	log *slog.Logger,
+	isMentioned bool,
 ) (hadOutput bool, finalMessages []conversation.ModelMessage, streamErr error) {
 	var textBuf strings.Builder
+	var hadMessageTool bool
 	for chunkCh != nil || errCh != nil {
 		select {
 		case chunk, ok := <-chunkCh:
@@ -513,6 +551,23 @@ func (d *DiscussTrigger) consumeStream(
 					d.dispatchDiscussReactions(ctx, cfg, event.Reactions, log)
 					continue
 				}
+			// Log tool-call and send-related events for debugging.
+			switch {
+			case event.Type == channel.StreamEventToolCallStart && event.ToolCall != nil:
+				log.Info("discuss: tool call detected in stream",
+					slog.String("tool_name", event.ToolCall.Name),
+					slog.String("tool_call_id", event.ToolCall.CallID))
+				if event.ToolCall.Name == "send" || event.ToolCall.Name == "reply" {
+					hadMessageTool = true
+				}
+			case event.Type == channel.StreamEventToolCallEnd && event.ToolCall != nil && event.ToolCall.Name == "send":
+				log.Info("discuss: send tool completed in stream",
+					slog.String("tool_call_id", event.ToolCall.CallID),
+					slog.Bool("has_error", event.Error != ""))
+			case event.Type == channel.StreamEventAttachment:
+				log.Info("discuss: attachment event in stream",
+					slog.Int("attachment_count", len(event.Attachments)))
+			}
 				// In discuss mode, text deltas are internal monologue —
 				// only the send/reply tool delivers visible messages.
 				// Skip text-phase deltas to prevent leaking monologue to the channel.
@@ -554,16 +609,25 @@ func (d *DiscussTrigger) consumeStream(
 		}
 	}
 
-	// Detect text-based tool calls the LLM emitted as plain text instead of
-	// using the native tool-call API. Attempt to execute them to avoid silently
-	// dropping tool calls (e.g. send) that the user expects to be delivered.
-	if textBuf.Len() > 0 && outStream != nil {
+	// Fallback: if LLM didn't call any messaging tool but produced text,
+	// auto-send the text as a standalone message. Only trigger when the bot
+	// was explicitly @mentioned — unmuted internal monologue should stay silent.
+	if textBuf.Len() > 0 && !hadMessageTool {
 		acc := textBuf.String()
-		if calls, _ := channel.ExtractToolCallsFromText(acc); len(calls) > 0 {
-			log.Warn("discuss: detected text-based tool calls in monologue",
-				slog.Int("count", len(calls)),
-				slog.String("bot_id", cfg.BotID))
-			d.executeTextToolCalls(ctx, cfg, calls, outStream, log)
+
+		if !isMentioned {
+			log.Debug("discuss: text monologue without tool calls, but bot not mentioned — staying silent",
+				slog.String("bot_id", cfg.BotID),
+				slog.Int("text_len", len(acc)),
+				slog.String("preview", truncateStr(acc, 100)),
+			)
+		} else {
+			log.Warn("discuss: LLM produced text but no tool calls while @mentioned, auto-sending fallback",
+				slog.String("bot_id", cfg.BotID),
+				slog.Int("text_len", len(acc)),
+				slog.String("preview", truncateStr(acc, 100)),
+			)
+			d.deliverMessage(ctx, cfg, channel.ChannelType(cfg.CurrentPlatform), acc, cfg.ReplyTarget, log)
 		}
 	}
 
@@ -604,80 +668,6 @@ func (d *DiscussTrigger) drainDiscussQueue(ctx context.Context, routeID string, 
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Text-based tool call execution
-// ---------------------------------------------------------------------------
-
-// executeTextToolCalls executes tool calls that were embedded as XML text in the
-// LLM's monologue (when the model fails to use the native tool-call API).
-// Currently handles "send" and "reply" tools directly via the channel sender.
-func (d *DiscussTrigger) executeTextToolCalls(
-	ctx context.Context,
-	cfg DiscussSessionConfig,
-	calls []channel.ParsedToolCall,
-	_ channel.OutboundStream,
-	log *slog.Logger,
-) {
-	if d.deps.ChannelSender == nil {
-		return
-	}
-	chType := channel.ChannelType(cfg.CurrentPlatform)
-	sender, err := d.deps.ChannelSender.GetReplySender(cfg.BotID, chType)
-	if err != nil {
-		log.Warn("discuss: failed to get reply sender for text tool calls",
-			slog.Any("error", err))
-		return
-	}
-
-	for _, call := range calls {
-		switch call.Name {
-		case "send", "reply":
-			var args struct {
-				Text    string `json:"text"`
-				ReplyTo string `json:"reply_to"`
-				Target  string `json:"target"`
-			}
-			if err := json.Unmarshal(call.Input, &args); err != nil {
-				log.Warn("discuss: failed to parse text tool call args",
-					slog.String("tool", call.Name), slog.Any("error", err))
-				continue
-			}
-			text := strings.TrimSpace(args.Text)
-			if text == "" {
-				continue
-			}
-			target := strings.TrimSpace(args.Target)
-			if target == "" {
-				target = cfg.ReplyTarget
-			}
-			msg := channel.Message{
-				Text:   text,
-				Format: channel.MessageFormatPlain,
-			}
-			if args.ReplyTo != "" {
-				msg.Reply = &channel.ReplyRef{MessageID: strings.TrimSpace(args.ReplyTo)}
-			}
-			// Send the message directly via the reply sender.
-			// Note: do NOT push through outStream — sender.Send already
-			// handles IM delivery, and outStream.Push would result in a
-			// duplicate message on the same channel.
-			if err := sender.Send(ctx, channel.OutboundMessage{
-				Target:  target,
-				Message: msg,
-			}); err != nil {
-				log.Error("discuss: text tool call send failed",
-					slog.String("tool", call.Name), slog.Any("error", err))
-			} else {
-				log.Info("discuss: executed text-based tool call",
-					slog.String("tool", call.Name),
-					slog.Int("text_len", len(text)))
-			}
-		default:
-			log.Warn("discuss: unsupported text-based tool call",
-				slog.String("tool", call.Name))
-		}
-	}
-}
 
 func (d *DiscussTrigger) dispatchDiscussReactions(ctx context.Context, cfg DiscussSessionConfig, reactions []channel.ReactRequest, log *slog.Logger) {
 	if d.deps.Reactor == nil || cfg.CurrentPlatform == "" || cfg.ReplyTarget == "" {

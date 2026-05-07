@@ -91,12 +91,12 @@ func buildLateBindingPrompt(isMentioned bool) string {
 	sb.WriteString("Current time: ")
 	sb.WriteString(now)
 	sb.WriteString("\n\n")
-	sb.WriteString("Reminder: Your text output is internal monologue — invisible to everyone. To speak, call the `send` tool. ")
-	sb.WriteString("Call `send` at most ONCE per turn. Do NOT send multiple messages with similar content.")
-	sb.WriteString("\n\nException: For image generation requests, call the `generate_image` tool directly — do NOT describe images via `send`.")
+	sb.WriteString("REMEMBER: End your response with a <DECISION> block. This is the ONLY way to be heard.\n")
+	sb.WriteString("<DECISION>\n<ACTION>reply</ACTION>\n<CONTENT>your reasoning, the replyer will polish it</CONTENT>\n</DECISION>\n")
+	sb.WriteString("Text outside the block is invisible. No block = silent.")
 
 	if isMentioned {
-		sb.WriteString("\n\nATTENTION: You were directly @mentioned or replied to. Someone is explicitly calling for you. You MUST call the `send` tool to respond immediately. Staying silent when mentioned is NOT acceptable. Call `send` NOW.")
+		sb.WriteString("\n\nURGENT: You were @mentioned. You MUST include a <DECISION> block. Silent is not acceptable.")
 	}
 
 	return sb.String()
