@@ -7,6 +7,7 @@ import (
 	"context"
 	"log/slog"
 	"strings"
+	"time"
 )
 
 // MemoryRuntime is the subset of the memory service needed for dream tasks.
@@ -35,6 +36,11 @@ type GetAllRequest struct {
 	BotID   string
 	Limit   int
 	Filters map[string]any
+
+	// Since filters to memories created or updated after this time.
+	// Zero value means no filter (full scan). Set to time.Now().Add(-24h)
+	// for incremental daily scans.
+	Since time.Time
 }
 
 // GetAllResponse wraps all-fetch results.
@@ -49,9 +55,10 @@ type DeleteResponse struct {
 
 // MemoryItem is a single memory from storage.
 type MemoryItem struct {
-	ID       string         `json:"id"`
-	Memory   string         `json:"memory"`
-	Metadata map[string]any `json:"metadata,omitempty"`
+	ID        string         `json:"id"`
+	Memory    string         `json:"memory"`
+	CreatedAt time.Time      `json:"created_at"`
+	Metadata  map[string]any `json:"metadata,omitempty"`
 }
 
 // DreamLLM is the LLM interface needed for merging decisions.
@@ -110,8 +117,17 @@ type MergeResult struct {
 	Associations int `json:"associations"` // Task 3: number of cross-references written
 }
 
+// RunOptions controls incremental scan behavior.
+type RunOptions struct {
+	// Since limits processing to memories created or updated after this time.
+	// Zero means full scan. Pass time.Now().Add(-24 * time.Hour) for daily.
+	Since time.Time
+}
+
 // Run executes the full dream cycle for a bot.
-func (s *Service) Run(ctx context.Context, botID string) MergeResult {
+// If opts.Since is set, only memories created/updated after that time
+// are processed (incremental mode). Otherwise, all memories are processed.
+func (s *Service) Run(ctx context.Context, botID string, opts RunOptions) MergeResult {
 	result := MergeResult{}
 
 	filters := map[string]any{
@@ -119,17 +135,17 @@ func (s *Service) Run(ctx context.Context, botID string) MergeResult {
 	}
 
 	// Task 1: Merge similar memories
-	mergeRes := s.mergeSimilar(ctx, botID, filters, defaultMergeConfig)
+	mergeRes := s.mergeSimilar(ctx, botID, filters, opts.Since, defaultMergeConfig)
 	result.Scanned = mergeRes.Scanned
 	result.Merged = mergeRes.Merged
 
 	// Task 2: Mark harmful/outdated memories
-	harmRes := s.cleanHarmful(ctx, botID, filters)
+	harmRes := s.cleanHarmful(ctx, botID, filters, opts.Since)
 	result.Deleted += harmRes.Deleted
 	result.HarmCount += harmRes.HarmCount
 
 	// Task 3: Strengthen cross-memory associations (compact model)
-	assocRes := s.strengthenAssociations(ctx, botID, filters)
+	assocRes := s.strengthenAssociations(ctx, botID, filters, opts.Since)
 	result.Associations = assocRes.Written
 
 	s.logger.Info("dream cycle complete",
@@ -149,7 +165,7 @@ type mergeTaskResult struct {
 }
 
 // mergeSimilar finds and merges near-duplicate memories.
-func (s *Service) mergeSimilar(ctx context.Context, botID string, filters map[string]any, cfg MemoryMergeConfig) mergeTaskResult {
+func (s *Service) mergeSimilar(ctx context.Context, botID string, filters map[string]any, since time.Time, cfg MemoryMergeConfig) mergeTaskResult {
 	res := mergeTaskResult{}
 
 	// Fetch all memories for this bot
@@ -157,6 +173,7 @@ func (s *Service) mergeSimilar(ctx context.Context, botID string, filters map[st
 		BotID:   botID,
 		Limit:   200,
 		Filters: filters,
+		Since:   since,
 	})
 	if err != nil {
 		s.logger.Warn("dream: getAll failed", slog.String("bot_id", botID), slog.Any("error", err))
@@ -227,13 +244,14 @@ type harmTaskResult struct {
 }
 
 // cleanHarmful identifies and removes harmful/outdated memories.
-func (s *Service) cleanHarmful(ctx context.Context, botID string, filters map[string]any) harmTaskResult {
+func (s *Service) cleanHarmful(ctx context.Context, botID string, filters map[string]any, since time.Time) harmTaskResult {
 	res := harmTaskResult{}
 
 	allResp, err := s.runtime.GetAll(ctx, GetAllRequest{
 		BotID:   botID,
 		Limit:   100,
 		Filters: filters,
+		Since:   since,
 	})
 	if err != nil {
 		s.logger.Warn("dream: getAll for cleanup failed", slog.String("bot_id", botID), slog.Any("error", err))
@@ -293,13 +311,14 @@ const associationBatchSize = 15
 // strengthenAssociations sends all memories in batches to a compact LLM,
 // collects association pairs, and writes cross-reference tags back into
 // each memory's text so that semantic search naturally picks up the links.
-func (s *Service) strengthenAssociations(ctx context.Context, botID string, filters map[string]any) assocTaskResult {
+func (s *Service) strengthenAssociations(ctx context.Context, botID string, filters map[string]any, since time.Time) assocTaskResult {
 	res := assocTaskResult{}
 
 	allResp, err := s.runtime.GetAll(ctx, GetAllRequest{
 		BotID:   botID,
 		Limit:   200,
 		Filters: filters,
+		Since:   since,
 	})
 	if err != nil {
 		s.logger.Warn("dream: getAll for associations failed", slog.String("bot_id", botID), slog.Any("error", err))
@@ -434,4 +453,21 @@ func maxDream(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// filterByTime filters MemoryItems to only those created/updated after since.
+// Zero since is a no-op (return all items). This is an in-memory fallback
+// for providers that don't support native time filtering via GetAllRequest.Since.
+// When the provider implements Since natively, this is a no-op.
+func filterByTime(items []MemoryItem, since time.Time) []MemoryItem {
+	if since.IsZero() || len(items) == 0 {
+		return items
+	}
+	filtered := make([]MemoryItem, 0, len(items))
+	for _, item := range items {
+		if !item.CreatedAt.Before(since) {
+			filtered = append(filtered, item)
+		}
+	}
+	return filtered
 }

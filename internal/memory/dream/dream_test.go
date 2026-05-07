@@ -100,7 +100,7 @@ func TestStrengthenAssociations_Success(t *testing.T) {
 	}
 
 	svc := New(rt, llm, slog.Default())
-	result := svc.Run(context.Background(), "bot-1")
+	result := svc.Run(context.Background(), "bot-1", RunOptions{})
 
 	assert.Equal(t, 2, result.Associations)
 
@@ -127,7 +127,7 @@ func TestStrengthenAssociations_Idempotent(t *testing.T) {
 	}
 
 	svc := New(rt, llm, slog.Default())
-	svc.Run(context.Background(), "bot-1")
+	svc.Run(context.Background(), "bot-1", RunOptions{})
 
 	// Memory 1 should NOT have a second set of tags
 	updated := rt.updates["1"]
@@ -141,7 +141,7 @@ func TestStrengthenAssociations_NoLLM(t *testing.T) {
 	)
 
 	svc := New(rt, nil, slog.Default())
-	result := svc.Run(context.Background(), "bot-1")
+	result := svc.Run(context.Background(), "bot-1", RunOptions{})
 
 	assert.Equal(t, 0, result.Associations)
 }
@@ -153,7 +153,7 @@ func TestStrengthenAssociations_TooFewMemories(t *testing.T) {
 
 	llm := &fakeDreamLLM{}
 	svc := New(rt, llm, slog.Default())
-	result := svc.Run(context.Background(), "bot-1")
+	result := svc.Run(context.Background(), "bot-1", RunOptions{})
 
 	assert.Equal(t, 0, result.Associations)
 }
@@ -173,7 +173,7 @@ func TestStrengthenAssociations_CrossReferenceContent(t *testing.T) {
 	}
 
 	svc := New(rt, llm, slog.Default())
-	result := svc.Run(context.Background(), "bot-1")
+	result := svc.Run(context.Background(), "bot-1", RunOptions{})
 
 	assert.Equal(t, 2, result.Associations)
 
@@ -198,7 +198,7 @@ func TestStrengthenAssociations_PreviewLength(t *testing.T) {
 	}
 
 	svc := New(rt, llm, slog.Default())
-	svc.Run(context.Background(), "bot-1")
+	svc.Run(context.Background(), "bot-1", RunOptions{})
 
 	updated := rt.updates["1"]
 	// Preview should be truncated to 40 chars + "…"
@@ -219,7 +219,7 @@ func TestMergeResult_IncludesAssociations(t *testing.T) {
 	}
 
 	svc := New(rt, llm, slog.Default())
-	result := svc.Run(context.Background(), "bot-1")
+	result := svc.Run(context.Background(), "bot-1", RunOptions{})
 
 	require.NotNil(t, result)
 	assert.Positive(t, result.Associations)
