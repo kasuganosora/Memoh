@@ -1,5 +1,5 @@
 name: xAI (Grok)
-client_type: openai-responses
+client_type: openai-completions
 icon: xai
 base_url: https://api.x.ai/v1
 
