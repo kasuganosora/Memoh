@@ -471,17 +471,17 @@ const visibleSecrets = reactive<Record<string, boolean>>({})
 // ---- Tool whitelist ----
 
 const toolGroups = [
-  { label: 'Messaging', tools: ['send', 'react', 'get_contacts', 'speak'] },
-  { label: 'Memory', tools: ['memory_read', 'memory_write'] },
+  { label: 'Messaging', tools: ['send', 'reply', 'react', 'get_contacts', 'speak'] },
+  { label: 'Memory', tools: ['search_memory'] },
   { label: 'Web', tools: ['web_search', 'web_fetch'] },
-  { label: 'Schedule', tools: ['schedule_list', 'schedule_create', 'schedule_delete'] },
+  { label: 'Schedule', tools: ['list_schedule', 'get_schedule', 'create_schedule', 'update_schedule', 'delete_schedule'] },
   { label: 'Container', tools: ['read', 'write', 'list', 'edit', 'exec', 'bg_status'] },
-  { label: 'Email', tools: ['send_email'] },
-  { label: 'Agent', tools: ['spawn'] },
+  { label: 'Email', tools: ['list_email_accounts', 'send_email', 'list_email', 'read_email'] },
+  { label: 'Agent', tools: ['spawn', 'use_skill', 'schedule_pipeline'] },
   { label: 'History', tools: ['list_sessions', 'search_messages'] },
-  { label: 'Browser', tools: ['browser_action', 'browser_screenshot'] },
+  { label: 'Browser', tools: ['browser_action', 'browser_observe', 'browser_remote_session'] },
   { label: 'Media', tools: ['generate_image'] },
-  { label: 'Utility', tools: ['prune_text'] },
+  { label: 'Utility', tools: ['prune_text', 'query_jargon'] },
 ]
 
 const allToolNames = toolGroups.flatMap(g => g.tools)
