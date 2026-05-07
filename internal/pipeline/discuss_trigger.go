@@ -549,20 +549,20 @@ func (d *DiscussTrigger) consumeStream(
 					d.dispatchDiscussReactions(ctx, cfg, event.Reactions, log)
 					continue
 				}
-			// Log tool-call and send-related events for debugging.
-			switch {
-			case event.Type == channel.StreamEventToolCallStart && event.ToolCall != nil:
-				log.Info("discuss: tool call detected in stream",
-					slog.String("tool_name", event.ToolCall.Name),
-					slog.String("tool_call_id", event.ToolCall.CallID))
-			case event.Type == channel.StreamEventToolCallEnd && event.ToolCall != nil && event.ToolCall.Name == "send":
-				log.Info("discuss: send tool completed in stream",
-					slog.String("tool_call_id", event.ToolCall.CallID),
-					slog.Bool("has_error", event.Error != ""))
-			case event.Type == channel.StreamEventAttachment:
-				log.Info("discuss: attachment event in stream",
-					slog.Int("attachment_count", len(event.Attachments)))
-			}
+				// Log tool-call and send-related events for debugging.
+				switch {
+				case event.Type == channel.StreamEventToolCallStart && event.ToolCall != nil:
+					log.Info("discuss: tool call detected in stream",
+						slog.String("tool_name", event.ToolCall.Name),
+						slog.String("tool_call_id", event.ToolCall.CallID))
+				case event.Type == channel.StreamEventToolCallEnd && event.ToolCall != nil && event.ToolCall.Name == "send":
+					log.Info("discuss: send tool completed in stream",
+						slog.String("tool_call_id", event.ToolCall.CallID),
+						slog.Bool("has_error", event.Error != ""))
+				case event.Type == channel.StreamEventAttachment:
+					log.Info("discuss: attachment event in stream",
+						slog.Int("attachment_count", len(event.Attachments)))
+				}
 				// In discuss mode, text deltas are internal monologue —
 				// only the send/reply tool delivers visible messages.
 				// Skip text-phase deltas to prevent leaking monologue to the channel.
@@ -640,7 +640,6 @@ func (d *DiscussTrigger) drainDiscussQueue(ctx context.Context, routeID string, 
 		d.NotifyRC(ctx, notif.SessionID, notif.RC, notif.Config)
 	}
 }
-
 
 func (d *DiscussTrigger) dispatchDiscussReactions(ctx context.Context, cfg DiscussSessionConfig, reactions []channel.ReactRequest, log *slog.Logger) {
 	if d.deps.Reactor == nil || cfg.CurrentPlatform == "" || cfg.ReplyTarget == "" {

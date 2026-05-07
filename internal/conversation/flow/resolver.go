@@ -36,7 +36,7 @@ import (
 	"github.com/memohai/memoh/internal/settings"
 )
 
-	const (
+const (
 	defaultMaxContextMinutes = 24 * 60
 	// discussContextTokenCap is the maximum token budget for discuss mode
 	// context. DeepSeek models perform best with tool calling when context
@@ -423,20 +423,20 @@ func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (r
 		loaded = dedupePersistedCurrentUserMessage(loaded, req)
 		loaded = r.replaceCompactedMessages(ctx, loaded)
 		messages, estimatedTokens = trimMessagesByTokens(r.logger, loaded, contextTokenBudget)
-	// Pre-round compaction threshold: uses the model's 30% context window
-	// as a default cap. When a stricter compaction_threshold is configured
-	// in bot settings (UI), that value takes precedence.
-	compactionThreshold := 0
-	if contextTokenBudget > 0 {
-		compactionThreshold = contextTokenBudget * 20 / 100
-	}
-	if r.settingsService != nil {
-		if botSettings, err := r.settingsService.GetBot(ctx, req.BotID); err == nil && botSettings.CompactionThreshold > 0 {
-			if compactionThreshold == 0 || botSettings.CompactionThreshold < compactionThreshold {
-				compactionThreshold = botSettings.CompactionThreshold
+		// Pre-round compaction threshold: uses the model's 30% context window
+		// as a default cap. When a stricter compaction_threshold is configured
+		// in bot settings (UI), that value takes precedence.
+		compactionThreshold := 0
+		if contextTokenBudget > 0 {
+			compactionThreshold = contextTokenBudget * 20 / 100
+		}
+		if r.settingsService != nil {
+			if botSettings, err := r.settingsService.GetBot(ctx, req.BotID); err == nil && botSettings.CompactionThreshold > 0 {
+				if compactionThreshold == 0 || botSettings.CompactionThreshold < compactionThreshold {
+					compactionThreshold = botSettings.CompactionThreshold
+				}
 			}
 		}
-	}
 		if compactionThreshold > 0 && estimatedTokens >= compactionThreshold {
 			r.logger.Warn("resolve: context reached compaction threshold, running synchronous compaction",
 				slog.String("bot_id", req.BotID),

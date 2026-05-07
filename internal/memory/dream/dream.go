@@ -454,20 +454,3 @@ func maxDream(a, b int) int {
 	}
 	return b
 }
-
-// filterByTime filters MemoryItems to only those created/updated after since.
-// Zero since is a no-op (return all items). This is an in-memory fallback
-// for providers that don't support native time filtering via GetAllRequest.Since.
-// When the provider implements Since natively, this is a no-op.
-func filterByTime(items []MemoryItem, since time.Time) []MemoryItem {
-	if since.IsZero() || len(items) == 0 {
-		return items
-	}
-	filtered := make([]MemoryItem, 0, len(items))
-	for _, item := range items {
-		if !item.CreatedAt.Before(since) {
-			filtered = append(filtered, item)
-		}
-	}
-	return filtered
-}

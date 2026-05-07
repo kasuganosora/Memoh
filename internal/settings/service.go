@@ -72,6 +72,16 @@ func (s *Service) UpsertBot(ctx context.Context, botID string, req UpsertRequest
 		return Settings{}, err
 	}
 	current := normalizeBotSetting(botRow.Language, aclDefaultEffect, botRow.ReasoningEnabled, botRow.ReasoningEffort, botRow.HeartbeatEnabled, botRow.HeartbeatInterval, botRow.CompactionEnabled, botRow.CompactionThreshold, botRow.CompactionRatio)
+
+	// Load existing chat_timing from DB to preserve it during partial updates.
+	// Without this, any settings update that omits chat_timing (other tabs, slash
+	// commands) would overwrite it with ChatTimingConfig{} — marshalChatTiming({})
+	// produces "{}" JSON which bypasses the SQL COALESCE guard.
+	if existing, err := s.GetBot(ctx, botID); err == nil {
+		current.ChatTiming = existing.ChatTiming
+		current.Persona = existing.Persona
+	}
+
 	if strings.TrimSpace(req.Language) != "" {
 		current.Language = strings.TrimSpace(req.Language)
 	}
