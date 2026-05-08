@@ -22,6 +22,9 @@
           >
             {{ jsonError }}
           </p>
+          <p class="text-xs text-muted-foreground mt-1">
+            {{ $t('bots.settings.personaHint') }}
+          </p>
         </div>
       </div>
 
