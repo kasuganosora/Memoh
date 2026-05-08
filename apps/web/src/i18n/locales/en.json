@@ -999,7 +999,6 @@
       "chatTimingMinIdle": "Min Idle Before Credit (minutes)",
       "persona": "Persona",
       "personaDescription": "JSON object that overrides the container's IDENTITY.md/SOUL.md personality files. Leave empty to use container defaults.",
-      "personaPlaceholder": "{\n  \"name\": \"Your Name\",\n  \"creature\": \"Your Creature Type\",\n  \"vibe\": \"Your Vibe\",\n  \"emoji\": \"🍀\",\n  \"description\": \"Your Description\"\n}",
       "personaInvalidJSON": "Invalid JSON format",
       "personaNotObject": "Must be a JSON object (not an array or primitive)",
       "showToolCallsInIM": "Show Tool Calls in IM",

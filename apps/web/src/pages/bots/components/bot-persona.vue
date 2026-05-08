@@ -11,7 +11,7 @@
         <div>
           <Textarea
             v-model="personaText"
-            :placeholder="$t('bots.settings.personaPlaceholder')"
+            :placeholder="personaPlaceholder"
             :aria-label="$t('bots.settings.persona')"
             class="font-mono text-sm min-h-[200px]"
             rows="12"
@@ -59,6 +59,14 @@ const botIdRef = computed(() => props.botId)
 
 const personaText = ref('')
 const jsonError = ref('')
+
+const personaPlaceholder = `{
+  "name": "Name",
+  "creature": "Creature",
+  "vibe": "Vibe",
+  "emoji": "Emoji",
+  "description": "Description"
+}`
 
 const { data: settings } = useQuery({
   key: () => ['bot-settings', botIdRef.value],

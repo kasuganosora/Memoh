@@ -995,7 +995,6 @@
       "chatTimingMinIdle": "最低空闲时长（分钟）",
       "persona": "人格配置",
       "personaDescription": "JSON 对象，覆盖容器中的 IDENTITY.md/SOUL.md 人格文件。留空则使用容器默认。",
-      "personaPlaceholder": "{\n  \"name\": \"你的名字\",\n  \"creature\": \"你的种族\",\n  \"vibe\": \"你的性格\",\n  \"emoji\": \"🍀\",\n  \"description\": \"你的描述\"\n}",
       "personaInvalidJSON": "JSON 格式无效",
       "personaNotObject": "必须是 JSON 对象（不能是数组或原始值）",
       "showToolCallsInIM": "在 IM 中显示工具调用",
