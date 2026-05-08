@@ -255,11 +255,9 @@ import {
 } from '@memohai/ui'
 import ConfirmPopover from '@/components/confirm-popover/index.vue'
 import SettingsShell from '@/components/settings-shell/index.vue'
-import ModelSelect from './model-select.vue'
 import {
   getBotsByBotIdSettings, putBotsByBotIdSettings,
   getBotsByBotIdHeartbeatLogs, deleteBotsByBotIdHeartbeatLogs,
-  getModels, getProviders,
 } from '@memohai/sdk'
 import type { SettingsSettings, SettingsUpsertRequest, HeartbeatLog } from '@memohai/sdk'
 import { useQuery, useMutation, useQueryCache } from '@pinia/colada'
@@ -286,24 +284,6 @@ const { data: settings } = useQuery({
   enabled: () => !!botIdRef.value,
 })
 
-const { data: modelData } = useQuery({
-  key: ['all-models'],
-  query: async () => {
-    const { data } = await getModels({ throwOnError: true })
-    return data
-  },
-})
-
-const { data: providerData } = useQuery({
-  key: ['all-providers'],
-  query: async () => {
-    const { data } = await getProviders({ throwOnError: true })
-    return data
-  },
-})
-
-const models = computed(() => modelData.value ?? [])
-const providers = computed(() => providerData.value ?? [])
 
 const settingsForm = reactive({
   heartbeat_enabled: false,
