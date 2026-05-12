@@ -145,6 +145,20 @@ func (h *PipelineHandler) Retry(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusNotFound, err.Error())
 	}
+
+	// Only allow retrying failed pipelines.
+	if status.Pipeline.Status != workflow.StatusFailed {
+		return echo.NewHTTPError(http.StatusBadRequest, "only failed pipelines can be retried")
+	}
+
+	// Reset failed nodes to pending so they can be re-executed.
+	for i := range status.Nodes {
+		if status.Nodes[i].Status == workflow.StatusFailed {
+			status.Nodes[i].Status = workflow.StatusPending
+			status.Nodes[i].Error = nil
+		}
+	}
+
 	pwn := &workflow.PipelineWithNodes{
 		Pipeline: status.Pipeline,
 		Nodes:    status.Nodes,

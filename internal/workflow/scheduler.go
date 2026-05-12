@@ -11,6 +11,13 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	// retryBaseDelay is the base delay for exponential backoff between retries.
+	retryBaseDelay = 2 * time.Second
+	// retryMaxDelay caps the backoff delay.
+	retryMaxDelay = 30 * time.Second
+)
+
 // NodeExecutor abstracts the LLM call for executing a single node.
 // This interface allows testing without a real LLM.
 type NodeExecutor interface {
@@ -101,14 +108,18 @@ func (s *Scheduler) PlanAndCreatePipeline(ctx context.Context, botID uuid.UUID, 
 
 // Resume continues or starts execution of a pipeline.
 // It topologically sorts nodes and executes them in dependency-driven batches.
+// For retry scenarios, failed pipelines are reset to running before re-execution.
 func (s *Scheduler) Resume(ctx context.Context, pipeline *PipelineWithNodes) error {
-	if pipeline.Pipeline.Status.IsTerminal() {
+	// Allow resuming failed/running pipelines (for retry), but skip completed/cancelled.
+	if pipeline.Pipeline.Status == StatusCompleted || pipeline.Pipeline.Status == StatusCancelled {
 		return nil
 	}
 
-	// Mark pipeline as running
-	if _, err := s.repo.UpdatePipelineStatus(ctx, pipeline.Pipeline.ID, StatusRunning); err != nil {
-		return err
+	// Mark pipeline as running (idempotent for already-running pipelines).
+	if pipeline.Pipeline.Status != StatusRunning {
+		if _, err := s.repo.UpdatePipelineStatus(ctx, pipeline.Pipeline.ID, StatusRunning); err != nil {
+			return err
+		}
 	}
 	pipeline.Pipeline.Status = StatusRunning
 
@@ -150,12 +161,28 @@ func (s *Scheduler) Resume(ctx context.Context, pipeline *PipelineWithNodes) err
 			continue
 		}
 
-		// Execute all nodes in this level concurrently
+		// Inject upstream outputs as input context for each node in this level.
+		for _, n := range levelNodes {
+			if len(n.DependsOn) > 0 {
+				upstreamOutputs := make(map[string]json.RawMessage)
+				for _, depID := range n.DependsOn {
+					if dep, ok := nodeByID[depID]; ok && len(dep.Output) > 0 {
+						upstreamOutputs[dep.Name] = dep.Output
+					}
+				}
+				if len(upstreamOutputs) > 0 {
+					inputJSON, _ := json.Marshal(upstreamOutputs)
+					n.Input = json.RawMessage(inputJSON)
+				}
+			}
+		}
+
+		// Execute all nodes in this level concurrently.
 		if err := s.executeLevel(ctx, levelNodes); err != nil {
 			return err
 		}
 
-		// Check if any node failed
+		// Check if any node failed.
 		for _, n := range levelNodes {
 			if n.Status == StatusFailed {
 				s.logger.Warn("node failed, marking pipeline as failed",
@@ -227,10 +254,25 @@ func (s *Scheduler) executeNode(ctx context.Context, node *Node) error {
 	var lastErr error
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
+			// Exponential backoff: 2s, 4s, 8s, ... capped at retryMaxDelay.
+			delay := retryBaseDelay
+			for i := 1; i < attempt; i++ {
+				delay *= 2
+				if delay > retryMaxDelay {
+					delay = retryMaxDelay
+					break
+				}
+			}
 			s.logger.Info("retrying node",
 				slog.String("node_id", node.ID.String()),
 				slog.Int("attempt", attempt),
+				slog.Duration("backoff", delay),
 			)
+			select {
+			case <-time.After(delay):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
 			if _, err := s.repo.IncrementNodeRetry(ctx, node.ID); err != nil {
 				return err
 			}
@@ -315,8 +357,8 @@ func topologicalSort(nodes []Node) ([][]uuid.UUID, error) {
 		return nil, nil
 	}
 
-	inDegree := make(map[uuid.UUID]int)
-	dependents := make(map[uuid.UUID][]uuid.UUID)
+	inDegree := make(map[uuid.UUID]int, len(nodes))
+	dependents := make(map[uuid.UUID][]uuid.UUID, len(nodes))
 
 	for _, n := range nodes {
 		if _, ok := inDegree[n.ID]; !ok {
@@ -328,34 +370,36 @@ func topologicalSort(nodes []Node) ([][]uuid.UUID, error) {
 		}
 	}
 
+	// Seed the first queue with zero-degree nodes.
+	queue := make([]uuid.UUID, 0, len(nodes))
+	for id, deg := range inDegree {
+		if deg == 0 {
+			queue = append(queue, id)
+		}
+	}
+
 	var levels [][]uuid.UUID
-	for {
-		var currentLevel []uuid.UUID
-		for _, n := range nodes {
-			if inDegree[n.ID] == 0 {
-				currentLevel = append(currentLevel, n.ID)
-			}
-		}
-		if len(currentLevel) == 0 {
-			remaining := 0
-			for _, n := range nodes {
-				if inDegree[n.ID] > 0 {
-					remaining++
-				}
-			}
-			if remaining > 0 {
-				return nil, fmt.Errorf("cycle detected: %d nodes with unmet dependencies", remaining)
-			}
-			break
-		}
+	processed := 0
+
+	for len(queue) > 0 {
+		// Current queue IS the current level (all zero-degree nodes).
+		currentLevel := queue
+		queue = nil // reset for next level
 		levels = append(levels, currentLevel)
+		processed += len(currentLevel)
 
 		for _, id := range currentLevel {
-			inDegree[id] = -1
 			for _, dep := range dependents[id] {
 				inDegree[dep]--
+				if inDegree[dep] == 0 {
+					queue = append(queue, dep)
+				}
 			}
 		}
+	}
+
+	if processed != len(nodes) {
+		return nil, fmt.Errorf("cycle detected: %d nodes with unmet dependencies", len(nodes)-processed)
 	}
 
 	return levels, nil

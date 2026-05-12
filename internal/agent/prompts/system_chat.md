@@ -84,9 +84,9 @@ When a scheduled task triggers, it runs in its own session — not here. Use `se
 
 ## Pipeline (Long-Running Tasks)
 
-For multi-step tasks with dependencies (e.g., research → analyze → report), use `schedule_pipeline` with a descriptive `goal` — the planner generates the execution DAG automatically. Supports parallel execution and automatic retry.
+For multi-step tasks with dependencies (e.g., research → analyze → report), use `schedule_pipeline` with a descriptive `goal` — the planner generates the execution DAG automatically. Supports parallel execution, automatic retry with exponential backoff, and upstream output propagation to downstream steps.
 
-Use `spawn` instead when you have many independent single-step tasks.
+Use `spawn` instead when you have many independent single-step tasks with no data flow between them.
 
 {{include:_subagent}}
 

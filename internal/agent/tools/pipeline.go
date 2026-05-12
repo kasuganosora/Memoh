@@ -168,10 +168,12 @@ func (p *PipelineProvider) execute(ctx context.Context, args map[string]any, ses
 		return "", errors.New("pipeline scheduler not configured")
 	}
 
-	// Plan the pipeline
+	// Plan the pipeline — use user-provided nodes if present, otherwise call LLM planner.
 	var plannerOutput *workflow.PlannerOutput
 
-	if p.plannerFn != nil {
+	if userNodes, ok := args["nodes"]; ok && userNodes != nil {
+		plannerOutput, err = p.parseUserNodes(userNodes)
+	} else if p.plannerFn != nil {
 		plannerOutput, err = p.plannerFn(ctx, goal)
 	} else {
 		plannerOutput, err = p.planWithLLM(ctx, goal)
@@ -225,6 +227,46 @@ func (p *PipelineProvider) execute(ctx context.Context, args map[string]any, ses
 	return summary.String(), nil
 }
 
+// parseUserNodes converts user-provided node definitions into a PlannerOutput.
+func (p *PipelineProvider) parseUserNodes(raw any) (*workflow.PlannerOutput, error) {
+	nodeSlice, ok := raw.([]any)
+	if !ok {
+		return nil, errors.New("nodes must be an array")
+	}
+	if len(nodeSlice) == 0 {
+		return nil, errors.New("nodes array is empty")
+	}
+
+	var nodes []workflow.PlannerNode
+	for _, item := range nodeSlice {
+		nodeMap, ok := item.(map[string]any)
+		if !ok {
+			return nil, errors.New("each node must be an object")
+		}
+		pn := workflow.PlannerNode{
+			Name:        StringArg(nodeMap, "name"),
+			Description: StringArg(nodeMap, "description"),
+			ModelTier:   workflow.ModelTier(StringArg(nodeMap, "model_tier")),
+		}
+		if pn.Name == "" {
+			return nil, errors.New("node name is required")
+		}
+		// Parse depends_on (array of integers)
+		if deps, ok := nodeMap["depends_on"]; ok && deps != nil {
+			if depSlice, ok := deps.([]any); ok {
+				for _, d := range depSlice {
+					if num, ok := d.(float64); ok {
+						pn.DependsOn = append(pn.DependsOn, int(num))
+					}
+				}
+			}
+		}
+		nodes = append(nodes, pn)
+	}
+
+	return &workflow.PlannerOutput{Nodes: nodes}, nil
+}
+
 func (p *PipelineProvider) planWithLLM(ctx context.Context, goal string) (*workflow.PlannerOutput, error) {
 	if p.agent == nil {
 		return nil, errors.New("agent not configured for pipeline planning")
@@ -264,12 +306,9 @@ Example for "Research and summarize AI trends":
 		return nil, fmt.Errorf("planner LLM call failed: %w", err)
 	}
 
-	// Parse the JSON from the result text
+	// Parse the JSON from the result text — handle various markdown wrapping.
 	text := strings.TrimSpace(result.Text)
-	text = strings.TrimPrefix(text, "```json")
-	text = strings.TrimPrefix(text, "```")
-	text = strings.TrimSuffix(text, "```")
-	text = strings.TrimSpace(text)
+	text = extractJSON(text)
 
 	var output workflow.PlannerOutput
 	if err := json.Unmarshal([]byte(text), &output); err != nil {
@@ -293,23 +332,30 @@ func (p *PipelineProvider) Execute(ctx context.Context, node workflow.Node) (jso
 		return nil, errors.New("agent not configured")
 	}
 
-	prompt := fmt.Sprintf(`Execute the following pipeline step:
+	// Build a context-rich prompt that includes upstream node outputs.
+	var promptBuilder strings.Builder
+	fmt.Fprintf(&promptBuilder, "Execute the following pipeline step:\n\n")
+	fmt.Fprintf(&promptBuilder, "Step Name: %s\n", node.Name)
+	fmt.Fprintf(&promptBuilder, "Description: %s\n", strPtrVal(node.Description))
 
-Step Name: %s
-Description: %s
+	// Include upstream input context if available.
+	if len(node.Input) > 0 && string(node.Input) != "null" {
+		fmt.Fprintf(&promptBuilder, "\n## Input from upstream steps\n```json\n%s\n```\n", string(node.Input))
+	}
 
-Produce your output as a JSON object with a "result" field and any additional relevant fields.
-Keep your response concise and focused on completing this specific step.`, node.Name, strPtrVal(node.Description))
+	fmt.Fprintf(&promptBuilder, "\nProduce your output as a JSON object with a \"result\" field and any additional relevant fields.")
+	fmt.Fprintf(&promptBuilder, "\nKeep your response concise and focused on completing this specific step.")
 
 	attemptStart := time.Now()
 	p.logger.Info("executing pipeline node via LLM",
 		slog.String("node_name", node.Name),
 		slog.String("model_tier", string(node.ModelTier)),
+		slog.Bool("has_input", len(node.Input) > 0 && string(node.Input) != "null"),
 	)
 
 	cfg := SpawnRunConfig{
-		System:      "You are a pipeline worker executing a single step. Output only a JSON result object.",
-		Query:       prompt,
+		System:      "You are a pipeline worker executing a single step in a multi-step workflow. You have access to tools. Output a JSON result object.",
+		Query:       promptBuilder.String(),
 		SessionType: "pipeline",
 	}
 
@@ -324,10 +370,7 @@ Keep your response concise and focused on completing this specific step.`, node.
 	}
 
 	text := strings.TrimSpace(result.Text)
-	text = strings.TrimPrefix(text, "```json")
-	text = strings.TrimPrefix(text, "```")
-	text = strings.TrimSuffix(text, "```")
-	text = strings.TrimSpace(text)
+	text = extractJSON(text)
 
 	if !json.Valid([]byte(text)) {
 		wrapped := map[string]string{"result": text}
@@ -344,6 +387,30 @@ Keep your response concise and focused on completing this specific step.`, node.
 }
 
 var _ workflow.NodeExecutor = (*PipelineProvider)(nil)
+
+// extractJSON strips markdown code fences from LLM output to extract raw JSON.
+func extractJSON(text string) string {
+	text = strings.TrimSpace(text)
+
+	// Handle ```json ... ``` wrapping (possibly with language tag variations).
+	if idx := strings.Index(text, "```"); idx >= 0 {
+		// Find the opening fence end (after the language tag line).
+		start := strings.Index(text[idx:], "\n")
+		if start >= 0 {
+			inner := text[idx+start+1:]
+			// Find the closing fence.
+			if end := strings.LastIndex(inner, "```"); end >= 0 {
+				return strings.TrimSpace(inner[:end])
+			}
+		}
+	}
+
+	// Fallback: simple prefix/suffix strip.
+	text = strings.TrimPrefix(text, "```json")
+	text = strings.TrimPrefix(text, "```")
+	text = strings.TrimSuffix(text, "```")
+	return strings.TrimSpace(text)
+}
 
 func strPtrVal(s *string) string {
 	if s == nil {
