@@ -228,7 +228,7 @@ func (p *PipelineProvider) execute(ctx context.Context, args map[string]any, ses
 }
 
 // parseUserNodes converts user-provided node definitions into a PlannerOutput.
-func (p *PipelineProvider) parseUserNodes(raw any) (*workflow.PlannerOutput, error) {
+func (*PipelineProvider) parseUserNodes(raw any) (*workflow.PlannerOutput, error) {
 	nodeSlice, ok := raw.([]any)
 	if !ok {
 		return nil, errors.New("nodes must be an array")
