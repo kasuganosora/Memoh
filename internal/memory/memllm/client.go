@@ -179,34 +179,10 @@ func buildUpdateUserMessage(candidates []adapters.CandidateMemory, facts []strin
 		sb.WriteString("Current memory is empty.\n\n")
 	}
 
-	sb.WriteString("The new retrieved facts are mentioned in the triple backticks. You have to analyze the new retrieved facts and determine whether these facts should be added, updated, or deleted in the memory.\n\n```\n")
+	sb.WriteString("The new retrieved facts are:\n\n```\n")
 	factsJSON, _ := json.Marshal(facts)
 	sb.Write(factsJSON)
-	sb.WriteString("\n```\n\n")
-
-	sb.WriteString(`You must return your response in the following JSON structure only:
-
-{
-  "memory" : [
-    {
-      "id" : " ",
-      "text" : " ",
-      "event" : " ",
-      "old_memory" : " "
-    }
-  ]
-}
-
-Follow the instruction mentioned below:
-- Do not return anything from the custom few shot prompts provided above.
-- If the current memory is empty, then you have to add the new retrieved facts to the memory.
-- You should return the updated memory in only JSON format as shown below. The memory key should be the same if no changes are made.
-- If there is an addition, generate a new key and add the new memory corresponding to it.
-- If there is a deletion, the memory key-value pair should be removed from the memory.
-- If there is an update, the ID key should remain the same and only the value needs to be updated.
-
-Do not return anything except the JSON format.
-`)
+	sb.WriteString("\n```\n")
 	return sb.String()
 }
 

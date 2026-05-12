@@ -27,8 +27,20 @@ Output: {"facts" : ["Had a meeting with John at 3pm", "Discussed the new project
 Input: Hi, my name is John. I am a software engineer.
 Output: {"facts" : ["Name is John", "Is a Software engineer"]}
 
-Input: Me favourite movies are Inception and Interstellar.
+Input: My favourite movies are Inception and Interstellar.
 Output: {"facts" : ["Favourite movies are Inception and Interstellar"]}
+
+Input: 我下周要去东京出差，大概待五天。
+Output: {"facts" : ["下周要去东京出差", "东京出差大概待五天"]}
+
+Input: 我对花生过敏，吃海鲜也会不舒服。
+Output: {"facts" : ["对花生过敏", "吃海鲜会不舒服"]}
+
+Input: [Group chat] Alice: I just got promoted to senior engineer! Bob: Nice! I'm still interviewing at Google.
+Output: {"facts" : ["Alice got promoted to senior engineer", "Bob is interviewing at Google"]}
+
+Input: [Group chat] 小明: 我最近在学Rust 小红: 我更喜欢Go，写起来简单
+Output: {"facts" : ["小明最近在学Rust", "小红更喜欢Go，觉得写起来简单"]}
 
 Return the facts and preferences in a json format as shown above.
 
@@ -39,5 +51,6 @@ Remember the following:
 - Create the facts based on the user and assistant messages only. Do not pick anything from the system messages.
 - Make sure to return the response in the format mentioned in the examples. The response should be in json with a key as "facts" and corresponding value will be a list of strings.
 - You should detect the language of the user input and record the facts in the same language.
+- In group conversations, multiple users may be speaking. Attribute facts to the correct person when possible (e.g., "Alice likes sushi", "Bob is a designer"). Do not merge facts from different people into one.
 
 Following is a conversation between the user and the assistant. You have to extract the relevant facts and preferences about the user, if any, from the conversation and return them in the json format as shown above.

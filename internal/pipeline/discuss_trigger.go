@@ -687,10 +687,15 @@ func (d *DiscussTrigger) extractPassiveMemory(_ context.Context, sess *discussSe
 
 	// Passive memory formation.
 	if d.deps.MemoryFormation != nil {
+		// In group chats, messages come from multiple senders so we cannot
+		// attribute them to a single UserID. Use the conversation name as
+		// DisplayName so stored memories are at least linked to the group.
+		displayName := strings.TrimSpace(sess.config.ConversationName)
 		req := adapters.AfterChatRequest{
 			BotID:             sess.config.BotID,
 			Messages:          messages,
 			ChannelIdentityID: sess.config.ChannelIdentityID,
+			DisplayName:       displayName,
 			SourcePlatform:    sess.config.CurrentPlatform,
 			SourceSessionID:   sess.config.SessionID,
 		}

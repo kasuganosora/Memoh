@@ -132,7 +132,12 @@ func (w *WorkingMemory) Add(botID, content string, importance string, metadata m
 }
 
 // Search retrieves up to `limit` entries from the bot's working memory
-// whose content contains the query (case-insensitive substring match).
+// whose content matches the query. It uses a two-pass strategy:
+//  1. Exact substring match (case-insensitive) — highest confidence.
+//  2. Token overlap — splits query into words and matches entries that
+//     contain a sufficient proportion of those words. This improves recall
+//     for semantically related content that doesn't share the exact phrase.
+//
 // Results are sorted by access count descending.
 func (w *WorkingMemory) Search(botID, query string, limit int) []*MemoryEntry {
 	cache := w.getOrCreateCache(botID)
@@ -142,8 +147,10 @@ func (w *WorkingMemory) Search(botID, query string, limit int) []*MemoryEntry {
 
 	keys := cache.Keys()
 	var hits []*MemoryEntry
+	seen := make(map[string]bool)
 	queryLower := strings.ToLower(strings.TrimSpace(query))
 
+	// Pass 1: exact substring match.
 	for _, key := range keys {
 		entry, ok := cache.Get(key)
 		if !ok {
@@ -152,6 +159,34 @@ func (w *WorkingMemory) Search(botID, query string, limit int) []*MemoryEntry {
 		if queryLower == "" || strings.Contains(strings.ToLower(entry.Content), queryLower) {
 			entry.touch()
 			hits = append(hits, entry)
+			seen[key] = true
+		}
+	}
+
+	// Pass 2: token overlap match — only when query has multiple words.
+	queryTokens := tokenize(queryLower)
+	if len(queryTokens) >= 2 {
+		// Require at least half of the query tokens to appear in the entry.
+		minMatch := (len(queryTokens) + 1) / 2
+		for _, key := range keys {
+			if seen[key] {
+				continue
+			}
+			entry, ok := cache.Get(key)
+			if !ok {
+				continue
+			}
+			contentLower := strings.ToLower(entry.Content)
+			matched := 0
+			for _, tok := range queryTokens {
+				if strings.Contains(contentLower, tok) {
+					matched++
+				}
+			}
+			if matched >= minMatch {
+				entry.touch()
+				hits = append(hits, entry)
+			}
 		}
 	}
 
@@ -162,6 +197,19 @@ func (w *WorkingMemory) Search(botID, query string, limit int) []*MemoryEntry {
 		hits = hits[:limit]
 	}
 	return hits
+}
+
+// tokenize splits a string into lowercase words, filtering out short tokens
+// (length < 2) that are unlikely to carry semantic meaning.
+func tokenize(s string) []string {
+	words := strings.Fields(s)
+	var tokens []string
+	for _, w := range words {
+		if len(w) >= 2 {
+			tokens = append(tokens, w)
+		}
+	}
+	return tokens
 }
 
 // GetHighAccessEntries returns entries with access_count >= threshold and

@@ -340,6 +340,21 @@ func (p *BuiltinProvider) promoteWorkingMemory(ctx context.Context, botID string
 
 	promotedCount := 0
 	for _, entry := range entries {
+		// Dedup check: search for existing similar content before promoting.
+		if resp, err := p.service.Search(ctx, adapters.SearchRequest{
+			Query:   entry.Content,
+			BotID:   botID,
+			Limit:   1,
+			Filters: filters,
+			NoStats: true,
+		}); err == nil && len(resp.Results) > 0 && resp.Results[0].Score > 0.9 {
+			p.logger.Debug("promote skipped: similar memory already exists",
+				slog.String("bot_id", botID),
+				slog.String("existing_id", resp.Results[0].ID),
+			)
+			continue
+		}
+
 		meta := make(map[string]any)
 		if entry.Metadata != nil {
 			for k, v := range entry.Metadata {

@@ -387,7 +387,9 @@ func (s *Service) strengthenAssociations(ctx context.Context, botID string, filt
 
 		existing := strings.TrimSpace(item.Memory)
 		// Skip if already has association tags (idempotent).
-		if strings.Contains(existing, "[↗") {
+		// Check trailing lines rather than a simple substring match to avoid
+		// false positives when the memory content itself contains "[↗".
+		if hasAssociationTags(existing) {
 			continue
 		}
 
@@ -439,4 +441,26 @@ func (s *Service) strengthenAssociations(ctx context.Context, botID string, filt
 	}
 
 	return res
+}
+
+// hasAssociationTags checks whether a memory already has cross-reference tags
+// appended at the end. Instead of a naive substring search (which would false-
+// positive on memory content that happens to contain "[↗"), it inspects the
+// trailing lines of the text for the expected tag prefix pattern.
+func hasAssociationTags(text string) bool {
+	lines := strings.Split(text, "\n")
+	// Walk backwards from the end, skipping empty lines.
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(lines[i])
+		if line == "" {
+			continue
+		}
+		// A valid association tag line starts with "[↗ " and ends with "]".
+		if strings.HasPrefix(line, "[↗ ") && strings.HasSuffix(line, "]") {
+			return true
+		}
+		// Once we hit a non-empty, non-tag line, stop — tags are always at the end.
+		return false
+	}
+	return false
 }
