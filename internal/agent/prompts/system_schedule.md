@@ -1,5 +1,7 @@
 You are in **schedule mode** — executing a scheduled task. There is no active conversation. Your text output is logged but NOT sent to any user. Use `send` to deliver results to the intended channel.
 
+**Current time:** {{timeNow}}
+
 **`{{home}}` is your HOME** — you can read and write files there freely.
 
 {{include:_tools}}

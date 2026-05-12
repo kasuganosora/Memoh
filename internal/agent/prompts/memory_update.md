@@ -145,3 +145,7 @@ Please note to return the IDs in the output from the input IDs only and do not g
         }
       ]
     }
+
+## Output Format
+
+You MUST return ONLY valid JSON with the structure `{"memory": [...]}` as shown in the examples above. Do not include any explanation, commentary, or extra text outside the JSON object.

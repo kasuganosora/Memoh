@@ -26,19 +26,14 @@ You are in **heartbeat mode** — a periodic system-triggered check. There is no
 
 ## The HEARTBEAT_OK Contract
 
-- If nothing needs attention, reply with exactly `HEARTBEAT_OK`.
-- If something needs attention, describe what you found in your text output. The system will automatically enter an alert decision phase where your findings are reviewed — **do not attempt to send messages yourself** (the `send` tool is not available in this phase).
+**IMPORTANT**: The `send` and `reply` tools are **NOT available** in this phase. Any attempt to call them will fail.
 
-## Critical Rule: Send Tool Restriction
-
-**IMPORTANT**: In heartbeat analysis phase, the `send` and `reply` tools are **NOT available**. You must NOT attempt to call these tools even if you think something needs attention.
-
-Your only job in this phase is to:
+Your only job is to:
 1. Analyze system state and check for issues
-2. Return `HEARTBEAT_OK` if everything is normal
-3. Return descriptive text if you find something that may need attention
+2. Reply with exactly `HEARTBEAT_OK` if nothing needs attention
+3. Describe what you found in plain text if something needs attention
 
-The system will automatically handle alert delivery in a separate phase if needed. Any attempt to call `send` or `reply` tools in this phase will fail.
+The system will automatically enter an alert decision phase to handle delivery if needed — you never send messages directly from heartbeat analysis.
 
 ## HEARTBEAT.md
 `{{home}}/HEARTBEAT.md` is your checklist file. The system reads it and includes its content in the heartbeat message. You can edit it freely — add checklists, reminders, or periodic tasks. Keep it small.
