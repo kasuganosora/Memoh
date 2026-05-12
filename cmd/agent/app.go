@@ -873,6 +873,15 @@ func startHeartbeatService(lc fx.Lifecycle, heartbeatService *heartbeat.Service)
 	})
 }
 
+func startCompactionRecovery(lc fx.Lifecycle, compactionService *compaction.Service) {
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			compactionService.RecoverOrphanedCompactions(ctx)
+			return nil
+		},
+	})
+}
+
 func wireResolverOutbound(resolver *flow.Resolver, channelManager *channel.Manager) {
 	resolver.SetOutboundFn(func(ctx context.Context, botID, channelType, target, text string) error {
 		return channelManager.Send(ctx, botID, channel.ChannelType(channelType), channel.SendRequest{

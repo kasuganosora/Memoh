@@ -158,6 +158,7 @@ func options() fx.Option {
 			startContainerReconciliation,
 			startBackgroundTaskCleanup,
 			startAudioTempStoreCleanup,
+			startCompactionRecovery,
 			startServer,
 		),
 		fx.WithLogger(func(logger *slog.Logger) fxevent.Logger {

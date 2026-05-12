@@ -41,3 +41,10 @@ DELETE FROM bot_history_message_compacts WHERE bot_id = $1;
 
 -- name: DeleteCompactionLogsBySession :exec
 DELETE FROM bot_history_message_compacts WHERE session_id = $1;
+
+-- name: MarkOrphanedCompactionsAsError :execrows
+UPDATE bot_history_message_compacts
+SET status = 'error',
+    error_message = 'server restarted during compaction',
+    completed_at = now()
+WHERE status = 'pending';

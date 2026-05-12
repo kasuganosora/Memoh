@@ -71,6 +71,22 @@ func (s *Service) RunCompactionSync(ctx context.Context, cfg TriggerConfig) erro
 	return s.runCompaction(ctx, cfg)
 }
 
+// RecoverOrphanedCompactions marks all orphaned "pending" compaction records
+// as "error" on server startup. This handles the case where the server crashed
+// or was killed while compacting, leaving records stuck in "pending" status.
+func (s *Service) RecoverOrphanedCompactions(ctx context.Context) {
+	n, err := s.queries.MarkOrphanedCompactionsAsError(ctx)
+	if err != nil {
+		s.logger.Error("failed to recover orphaned compactions", slog.String("error", err.Error()))
+		return
+	}
+	if n > 0 {
+		s.logger.Info("recovered orphaned compactions",
+			slog.Int64("count", n),
+		)
+	}
+}
+
 func (s *Service) runCompaction(ctx context.Context, cfg TriggerConfig) error {
 	botUUID, err := db.ParseUUID(cfg.BotID)
 	if err != nil {

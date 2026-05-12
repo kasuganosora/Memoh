@@ -229,3 +229,19 @@ func (q *Queries) ListCompactionLogsBySession(ctx context.Context, sessionID pgt
 	}
 	return items, nil
 }
+
+const markOrphanedCompactionsAsError = `-- name: MarkOrphanedCompactionsAsError :execrows
+UPDATE bot_history_message_compacts
+SET status = 'error',
+    error_message = 'server restarted during compaction',
+    completed_at = now()
+WHERE status = 'pending'
+`
+
+func (q *Queries) MarkOrphanedCompactionsAsError(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, markOrphanedCompactionsAsError)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
