@@ -105,6 +105,7 @@ memory.db
 config.toml
 
 .workdocs/
+.codebuddy/
 data
 _main-ref/
 .toolkit/
