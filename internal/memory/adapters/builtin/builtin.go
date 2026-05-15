@@ -107,6 +107,14 @@ func (p *BuiltinProvider) SetLLM(llm adapters.LLM) {
 	}
 }
 
+// FlushPipeline synchronously processes all buffered pipeline messages.
+// Exposed for testing and graceful shutdown scenarios.
+func (p *BuiltinProvider) FlushPipeline() {
+	if p.pipeline != nil {
+		p.pipeline.Flush()
+	}
+}
+
 // SetWorkingMemory injects the working memory cache for short-term recall.
 func (p *BuiltinProvider) SetWorkingMemory(wm *working.WorkingMemory) {
 	p.workingMem = wm

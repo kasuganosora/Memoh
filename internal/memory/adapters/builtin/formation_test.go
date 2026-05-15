@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
-	"time"
 
 	adapters "github.com/memohai/memoh/internal/memory/adapters"
 )
@@ -362,8 +361,8 @@ func TestOnAfterChatWithLLM(t *testing.T) {
 	if err != nil {
 		t.Fatalf("OnAfterChat error: %v", err)
 	}
-	// Wait for pipeline goroutine to complete formation.
-	time.Sleep(100 * time.Millisecond)
+	// Synchronously flush pipeline to ensure formation completes before assertions.
+	p.FlushPipeline()
 	if len(store.items) != 1 {
 		t.Fatalf("expected 1 fact stored, got %d", len(store.items))
 	}
@@ -419,8 +418,8 @@ func TestOnBeforeChatRecallsFactMemory(t *testing.T) {
 			{Role: "user", Content: "I prefer oolong tea"},
 		},
 	})
-	// Wait for pipeline goroutine to complete formation.
-	time.Sleep(100 * time.Millisecond)
+	// Synchronously flush pipeline to ensure formation completes before recall.
+	p.FlushPipeline()
 
 	result, err := p.OnBeforeChat(context.Background(), adapters.BeforeChatRequest{
 		BotID: "bot-1",
