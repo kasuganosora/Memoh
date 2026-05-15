@@ -74,6 +74,7 @@ services:
     image: memohai/sparse:latest
     container_name: memoh-sparse
     profiles: [sparse]
+    mem_limit: 2g
     volumes:
       - /etc/localtime:/etc/localtime:ro
     expose:
@@ -82,7 +83,7 @@ services:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8085/health')\" || exit 1"]
       interval: 15s
       timeout: 10s
-      start_period: 30s
+      start_period: 45s
       retries: 3
     restart: unless-stopped
     networks:
