@@ -221,10 +221,16 @@ func (a *MisskeyAdapter) runStreamLoop(ctx context.Context, cfg channel.ChannelC
 			return
 		default:
 		}
+		start := time.Now()
 		if err := a.runStream(ctx, cfg, mkCfg, me, handler); err != nil {
 			if a.logger != nil {
 				a.logger.Warn("stream disconnected", slog.String("config_id", cfg.ID), slog.Any("error", err),
 					slog.Duration("reconnect_delay", delay))
+			}
+			// If the connection was alive for longer than the max backoff window,
+			// reset the delay — the disconnect is likely transient, not systemic.
+			if time.Since(start) > misskeyReconnectDelayMax {
+				delay = misskeyReconnectDelayMin
 			}
 		} else {
 			// Clean disconnect (context cancelled) — no backoff needed.
@@ -539,13 +545,13 @@ func (a *MisskeyAdapter) handleChannelEvent(ctx context.Context, cfg channel.Cha
 	switch body.Type {
 	case "note":
 		// Timeline note events from homeTimeline or localTimeline subscriptions.
-		// Main channel (body.ID == "1") also sends "note" events for renotes,
-		// but without the full renote data — only a renoteId. Fetch the note
-		// via REST API to get the complete data.
-		if body.ID != "memoh-home" && body.ID != "memoh-local" && body.ID != "1" {
+		// Main channel (body.ID == "memoh-main") also sends "note" events for
+		// renotes, but without the full renote data — only a renoteId. Fetch
+		// the note via REST API to get the complete data.
+		if body.ID != "memoh-home" && body.ID != "memoh-local" && body.ID != "memoh-main" {
 			return
 		}
-		if body.ID == "1" {
+		if body.ID == "memoh-main" {
 			var note misskeyNote
 			if err := json.Unmarshal(body.Body, &note); err != nil {
 				return
@@ -1360,6 +1366,9 @@ func (s *misskeyBlockStream) Close(ctx context.Context) error {
 // It downloads an attachment from its URL and returns the raw bytes and MIME type.
 // This is used as a fallback when the generic URL download in the inbound
 // processor fails.
+// maxAttachmentDownloadSize is the maximum size allowed when resolving attachments (50 MB).
+const maxAttachmentDownloadSize = 50 << 20
+
 func (*MisskeyAdapter) ResolveAttachment(ctx context.Context, _ channel.ChannelConfig, attachment channel.Attachment) (channel.AttachmentPayload, error) {
 	url := strings.TrimSpace(attachment.URL)
 	if url == "" {
@@ -1381,9 +1390,14 @@ func (*MisskeyAdapter) ResolveAttachment(ctx context.Context, _ channel.ChannelC
 	if resp.StatusCode != http.StatusOK {
 		return channel.AttachmentPayload{}, fmt.Errorf("attachment download returned status %d", resp.StatusCode)
 	}
-	data, err := io.ReadAll(resp.Body)
+	// Limit read size to prevent OOM from abnormally large attachments.
+	limited := io.LimitReader(resp.Body, maxAttachmentDownloadSize+1)
+	data, err := io.ReadAll(limited)
 	if err != nil {
 		return channel.AttachmentPayload{}, fmt.Errorf("read attachment body: %w", err)
+	}
+	if int64(len(data)) > maxAttachmentDownloadSize {
+		return channel.AttachmentPayload{}, fmt.Errorf("misskey attachment exceeds %d byte size limit", maxAttachmentDownloadSize)
 	}
 	mime := strings.TrimSpace(attachment.Mime)
 	if mime == "" {
