@@ -146,6 +146,11 @@ func (r *Resolver) StreamChat(ctx context.Context, req conversation.ChatRequest)
 			cfg := rc.runConfig
 			cfg = r.prepareRunConfig(ctx, cfg)
 
+			// Append stable memory context (profile, scene index) to system prompt.
+			if rc.memorySystemContext != "" {
+				cfg.System = cfg.System + "\n\n" + rc.memorySystemContext
+			}
+
 			// Wrap with idle timeout: if no events arrive within the adaptive timeout, cancel the stream.
 			idleCtx, idleCancel := withIdleTimeout(ctx)
 
@@ -334,6 +339,11 @@ func (r *Resolver) StreamChatWS(
 
 		cfg := rc.runConfig
 		cfg = r.prepareRunConfig(streamCtx, cfg)
+
+		// Append stable memory context (profile, scene index) to system prompt.
+		if rc.memorySystemContext != "" {
+			cfg.System = cfg.System + "\n\n" + rc.memorySystemContext
+		}
 
 		// Wrap with idle timeout: if no events arrive within the adaptive timeout, cancel the stream.
 		idleCtx, idleCancel := withIdleTimeout(streamCtx)

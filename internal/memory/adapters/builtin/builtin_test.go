@@ -78,11 +78,11 @@ func TestBuiltinProviderContextPackingProducesMemoryContextTags(t *testing.T) {
 		t.Fatal("expected non-nil result")
 		return
 	}
-	if !strings.Contains(result.ContextText, "<memory-context>") {
-		t.Fatalf("expected memory-context tags, got: %s", result.ContextText)
+	if !strings.Contains(result.ContextText, "<memory-context>") { //nolint:staticcheck // SA1019: testing backward compat field
+		t.Fatalf("expected memory-context tags, got: %s", result.ContextText) //nolint:staticcheck // SA1019
 	}
-	if !strings.Contains(result.ContextText, "</memory-context>") {
-		t.Fatalf("expected closing memory-context tag, got: %s", result.ContextText)
+	if !strings.Contains(result.ContextText, "</memory-context>") { //nolint:staticcheck // SA1019: testing backward compat field
+		t.Fatalf("expected closing memory-context tag, got: %s", result.ContextText) //nolint:staticcheck // SA1019
 	}
 }
 

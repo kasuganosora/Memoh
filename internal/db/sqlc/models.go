@@ -385,6 +385,16 @@ type MediaAsset struct {
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 }
 
+// Persists formation pipeline buffer state for crash recovery
+type MemoryPipelineState struct {
+	BotID       string             `json:"bot_id"`
+	BufferJson  []byte             `json:"buffer_json"`
+	Threshold   int32              `json:"threshold"`
+	WarmupIndex int32              `json:"warmup_index"`
+	RetryCount  int32              `json:"retry_count"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
 type MemoryProvider struct {
 	ID        pgtype.UUID        `json:"id"`
 	Name      string             `json:"name"`

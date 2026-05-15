@@ -18,6 +18,7 @@ type ToolSessionContext struct {
 	CurrentPlatform   string
 	ReplyTarget       string
 	IsSubagent        bool
+	ToolCallCount     int // tracks how many times a specific tool has been called in this turn
 }
 
 // ToolDescriptor is the MCP tools/list item shape used by the gateway.

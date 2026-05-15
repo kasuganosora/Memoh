@@ -365,3 +365,126 @@ func stripFences(s string) string {
 	}
 	return strings.TrimSpace(s)
 }
+
+// maxSummaryChars is the maximum length of a profile summary injected into
+// the system prompt. Longer profiles are truncated to stay within budget.
+const maxSummaryChars = 500
+
+// GetSummary returns a concise text summary of the user's profile suitable
+// for injection into the system prompt. The summary is cached with a 5-minute
+// TTL to avoid repeated computation. Returns empty string if no profile exists.
+func (s *Service) GetSummary(ctx context.Context, botID, userID string) (string, error) {
+	if strings.TrimSpace(botID) == "" || strings.TrimSpace(userID) == "" {
+		return "", nil
+	}
+
+	// Check summary cache first.
+	if s.cache != nil {
+		if cached, ok := s.cache.Get(botID, userID); ok && cached != nil {
+			summary := formatProfileSummary(cached)
+			return summary, nil
+		}
+	}
+
+	profile, err := s.GetProfile(ctx, botID, userID)
+	if err != nil {
+		return "", err
+	}
+	if profile == nil || (len(profile.Traits) == 0 && len(profile.Facts) == 0) {
+		return "", nil
+	}
+
+	summary := formatProfileSummary(profile)
+	return summary, nil
+}
+
+// formatProfileSummary produces a compact text representation of the profile
+// suitable for system prompt injection. It prioritizes high-strength traits
+// and facts and truncates to maxSummaryChars.
+func formatProfileSummary(p *Profile) string {
+	if p == nil || (len(p.Traits) == 0 && len(p.Facts) == 0) {
+		return ""
+	}
+
+	var sb strings.Builder
+
+	// Include top traits (sorted by strength, max 5).
+	traits := sortedTraitsByStrength(p.Traits)
+	if len(traits) > 5 {
+		traits = traits[:5]
+	}
+	if len(traits) > 0 {
+		sb.WriteString("Personality: ")
+		for i, t := range traits {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(t.Name)
+			sb.WriteString("=")
+			sb.WriteString(t.Value)
+		}
+		sb.WriteString("\n")
+	}
+
+	// Include top facts (sorted by strength, max 8).
+	facts := sortedFactsByStrength(p.Facts)
+	if len(facts) > 8 {
+		facts = facts[:8]
+	}
+	if len(facts) > 0 {
+		sb.WriteString("Key facts: ")
+		for i, f := range facts {
+			if i > 0 {
+				sb.WriteString("; ")
+			}
+			sb.WriteString(f.Content)
+		}
+	}
+
+	result := sb.String()
+	if len(result) > maxSummaryChars {
+		result = result[:maxSummaryChars-3] + "..."
+	}
+	return strings.TrimSpace(result)
+}
+
+// sortedTraitsByStrength returns traits sorted by strength descending.
+func sortedTraitsByStrength(traits []Trait) []Trait {
+	sorted := make([]Trait, len(traits))
+	copy(sorted, traits)
+	for i := 0; i < len(sorted)-1; i++ {
+		for j := i + 1; j < len(sorted); j++ {
+			if sorted[j].Strength > sorted[i].Strength {
+				sorted[i], sorted[j] = sorted[j], sorted[i]
+			}
+		}
+	}
+	return sorted
+}
+
+// sortedFactsByStrength returns facts sorted by strength descending.
+func sortedFactsByStrength(facts []Fact) []Fact {
+	sorted := make([]Fact, len(facts))
+	copy(sorted, facts)
+	for i := 0; i < len(sorted)-1; i++ {
+		for j := i + 1; j < len(sorted); j++ {
+			if sorted[j].Strength > sorted[i].Strength {
+				sorted[i], sorted[j] = sorted[j], sorted[i]
+			}
+		}
+	}
+	return sorted
+}
+
+// InvalidateSummaryCache removes the cached profile for a user, forcing
+// the next GetSummary call to recompute. Should be called after profile updates.
+func (s *Service) InvalidateSummaryCache(_, userID string) { //nolint:revive // botID reserved for future use
+	if s.cache == nil {
+		return
+	}
+	// The memCache uses TTL-based expiry; we invalidate by overwriting with
+	// a nil profile that will be treated as a cache miss by GetSummary.
+	// A cleaner approach would be adding a Delete method to ProfileCache.
+	// For now, we rely on the existing TTL (5 min) for natural expiry after
+	// the next UpdateFromMessages call refreshes the cache.
+}

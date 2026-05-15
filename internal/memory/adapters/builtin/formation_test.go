@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
+	"time"
 
 	adapters "github.com/memohai/memoh/internal/memory/adapters"
 )
@@ -361,6 +362,8 @@ func TestOnAfterChatWithLLM(t *testing.T) {
 	if err != nil {
 		t.Fatalf("OnAfterChat error: %v", err)
 	}
+	// Wait for pipeline goroutine to complete formation.
+	time.Sleep(100 * time.Millisecond)
 	if len(store.items) != 1 {
 		t.Fatalf("expected 1 fact stored, got %d", len(store.items))
 	}
@@ -416,6 +419,8 @@ func TestOnBeforeChatRecallsFactMemory(t *testing.T) {
 			{Role: "user", Content: "I prefer oolong tea"},
 		},
 	})
+	// Wait for pipeline goroutine to complete formation.
+	time.Sleep(100 * time.Millisecond)
 
 	result, err := p.OnBeforeChat(context.Background(), adapters.BeforeChatRequest{
 		BotID: "bot-1",
@@ -428,9 +433,9 @@ func TestOnBeforeChatRecallsFactMemory(t *testing.T) {
 		t.Fatal("expected non-nil context result")
 		return
 	}
-	lower := strings.ToLower(result.ContextText)
+	lower := strings.ToLower(result.ContextText) //nolint:staticcheck // SA1019: testing backward compat field
 	if !strings.Contains(lower, "oolong tea") {
-		t.Fatalf("expected recalled context to mention oolong tea, got %q", result.ContextText)
+		t.Fatalf("expected recalled context to mention oolong tea, got %q", result.ContextText) //nolint:staticcheck // SA1019
 	}
 }
 

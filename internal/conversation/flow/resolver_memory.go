@@ -32,27 +32,62 @@ func (r *Resolver) resolveMemoryProvider(ctx context.Context, botID string) memp
 	return p
 }
 
-func (r *Resolver) loadMemoryContextMessage(ctx context.Context, req conversation.ChatRequest) *conversation.ModelMessage {
+// memoryContextResult holds the partitioned memory context returned by
+// loadMemoryContext. AppendSystemContext is stable content (profile, scene
+// index) that should be appended to the system prompt for prompt-cache
+// friendliness. UserMessage is dynamic per-turn content (recalled memories)
+// injected as a user message.
+type memoryContextResult struct {
+	AppendSystemContext string
+	UserMessage         *conversation.ModelMessage
+}
+
+// loadMemoryContext retrieves memory context from the configured provider and
+// returns it partitioned into system-level and user-level parts.
+// It is backward-compatible: when the provider only populates the deprecated
+// ContextText field, the result falls back to the old behavior.
+func (r *Resolver) loadMemoryContext(ctx context.Context, req conversation.ChatRequest) memoryContextResult {
 	p := r.resolveMemoryProvider(ctx, req.BotID)
 	if p == nil {
-		return nil
+		return memoryContextResult{}
 	}
 	result, err := p.OnBeforeChat(ctx, memprovider.BeforeChatRequest{
 		Query:  req.Query,
 		BotID:  req.BotID,
 		ChatID: req.ChatID,
+		UserID: req.UserID,
 	})
 	if err != nil {
 		r.logger.Error("memory provider OnBeforeChat failed", slog.String("bot_id", req.BotID), slog.Any("error", err))
-		return nil
+		return memoryContextResult{}
 	}
-	if result == nil || strings.TrimSpace(result.ContextText) == "" {
-		return nil
+	if result == nil {
+		return memoryContextResult{}
 	}
-	return &conversation.ModelMessage{
-		Role:    "user",
-		Content: conversation.NewTextContent(result.ContextText),
+
+	var out memoryContextResult
+
+	// Prefer new partitioned fields; fall back to deprecated ContextText.
+	userCtx := strings.TrimSpace(result.PrependUserContext)
+	if userCtx == "" {
+		userCtx = strings.TrimSpace(result.ContextText) //nolint:staticcheck // SA1019: intentional fallback for backward compat
 	}
+	if userCtx != "" {
+		out.UserMessage = &conversation.ModelMessage{
+			Role:    "user",
+			Content: conversation.NewTextContent(userCtx),
+		}
+	}
+
+	out.AppendSystemContext = strings.TrimSpace(result.AppendSystemContext)
+	return out
+}
+
+// loadMemoryContextMessage is a backward-compatible wrapper that returns only
+// the user-message part of the memory context. Callers that also need the
+// system-level context should use loadMemoryContext directly.
+func (r *Resolver) loadMemoryContextMessage(ctx context.Context, req conversation.ChatRequest) *conversation.ModelMessage {
+	return r.loadMemoryContext(ctx, req).UserMessage
 }
 
 // storeMemoryWithProvider is a variant of storeMemory that accepts a pre-resolved

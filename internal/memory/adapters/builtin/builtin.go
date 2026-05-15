@@ -3,6 +3,7 @@ package builtin
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"sort"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/memohai/memoh/internal/conversation"
 	"github.com/memohai/memoh/internal/mcp"
 	adapters "github.com/memohai/memoh/internal/memory/adapters"
+	"github.com/memohai/memoh/internal/memory/scene"
 	"github.com/memohai/memoh/internal/memory/working"
 )
 
@@ -22,17 +24,30 @@ const (
 	defaultMemoryToolLimit = 8
 	maxMemoryToolLimit     = 50
 	toolSearchMemory       = "search_memory"
+
+	// maxSearchCallsPerTurn limits how many times search_memory can be called in a single turn.
+	maxSearchCallsPerTurn = 5
 )
+
+// ProfileSummaryProvider abstracts the profile service for summary retrieval.
+// This avoids a direct dependency on the profiles package.
+type ProfileSummaryProvider interface {
+	GetSummary(ctx context.Context, botID, userID string) (string, error)
+}
 
 // BuiltinProvider wraps the existing Service as a Provider.
 type BuiltinProvider struct {
-	service      memoryRuntime
-	llm          adapters.LLM
-	chatAccessor conversation.Accessor
-	adminChecker AdminChecker
-	workingMem   *working.WorkingMemory
-	logger       *slog.Logger
-	packer       contextPackerConfig
+	service        memoryRuntime
+	llm            adapters.LLM
+	chatAccessor   conversation.Accessor
+	adminChecker   AdminChecker
+	workingMem     *working.WorkingMemory
+	profileService ProfileSummaryProvider
+	sceneStore     scene.Store
+	pipeline       *FormationPipeline
+	logger         *slog.Logger
+	packer         contextPackerConfig
+	cb             *CircuitBreaker // circuit breaker for memory search
 }
 
 // memoryRuntime is the runtime memory backend required by the builtin provider.
@@ -73,17 +88,38 @@ func NewBuiltinProvider(log *slog.Logger, service any, chatAccessor conversation
 		adminChecker: adminChecker,
 		logger:       logger,
 		packer:       defaultPackerConfig,
+		cb: NewCircuitBreaker(logger, CircuitBreakerConfig{
+			FailureThreshold: defaultFailureThreshold,
+			OpenDuration:     defaultOpenDuration,
+		}),
 	}
 }
 
 // SetLLM injects the LLM client used for Extract/Decide in memory formation.
+// When an LLM is set, the formation pipeline is automatically initialized.
 func (p *BuiltinProvider) SetLLM(llm adapters.LLM) {
 	p.llm = llm
+	// Initialize the formation pipeline when LLM is available.
+	if llm != nil && p.pipeline == nil {
+		p.pipeline = NewFormationPipeline(p.logger, func(ctx context.Context, req adapters.AfterChatRequest) formationResult {
+			return runFormation(ctx, p.logger, p.llm, p.service, req)
+		})
+	}
 }
 
 // SetWorkingMemory injects the working memory cache for short-term recall.
 func (p *BuiltinProvider) SetWorkingMemory(wm *working.WorkingMemory) {
 	p.workingMem = wm
+}
+
+// SetProfileService injects the profile service for user profile summary injection.
+func (p *BuiltinProvider) SetProfileService(ps ProfileSummaryProvider) {
+	p.profileService = ps
+}
+
+// SetSceneStore injects the scene store for scene navigation and search.
+func (p *BuiltinProvider) SetSceneStore(store scene.Store) {
+	p.sceneStore = store
 }
 
 // SetPackerConfig overrides the default context packing configuration.
@@ -195,48 +231,118 @@ func (p *BuiltinProvider) OnBeforeChat(ctx context.Context, req adapters.BeforeC
 		}
 	}
 
-	// 2. Long-term memory from Qdrant.
-	fetchLimit := overfetchLimit(p.packer)
-	resp, err := p.service.Search(ctx, adapters.SearchRequest{
-		Query: req.Query,
-		BotID: req.BotID,
-		Limit: fetchLimit,
-		Filters: map[string]any{
-			"namespace": sharedMemoryNamespace,
-			"scopeId":   req.BotID,
-			"bot_id":    req.BotID,
-		},
-		NoStats: true,
-	})
-	if err != nil {
-		p.logger.Warn("memory search for context failed", slog.Any("error", err))
-	} else {
-		candidates := deduplicateAndSort(resp.Results)
-		if len(candidates) > 0 {
-			packed := packContext(candidates, p.packer)
-			if len(packed.Items) > 0 {
-				var sb strings.Builder
-				sb.WriteString("<memory-context>\nRelevant memory context (use when helpful):\n")
-				for _, entry := range packed.Items {
-					sb.WriteString("- ")
-					if label := memorySourceLabel(entry.Item); label != "" {
-						sb.WriteString("[")
-						sb.WriteString(label)
-						sb.WriteString("] ")
+	// 2. Long-term memory from Qdrant (with timeout and circuit breaker).
+	if p.cb.Allow() {
+		const searchTimeout = 5 * time.Second
+		searchCtx, searchCancel := context.WithTimeout(ctx, searchTimeout)
+		defer searchCancel()
+
+		fetchLimit := overfetchLimit(p.packer)
+		resp, err := p.service.Search(searchCtx, adapters.SearchRequest{
+			Query: req.Query,
+			BotID: req.BotID,
+			Limit: fetchLimit,
+			Filters: map[string]any{
+				"namespace": sharedMemoryNamespace,
+				"scopeId":   req.BotID,
+				"bot_id":    req.BotID,
+			},
+			NoStats: true,
+		})
+		if err != nil {
+			switch {
+			case ctx.Err() != nil:
+				// Parent context cancelled, don't count as circuit failure
+				p.logger.Warn("memory search cancelled by parent context", slog.Any("error", err))
+			case searchCtx.Err() != nil:
+				// Search-specific timeout
+				p.cb.RecordFailure()
+				p.logger.Warn("memory search timed out",
+					slog.String("bot_id", req.BotID),
+					slog.Duration("timeout", searchTimeout),
+				)
+			default:
+				p.cb.RecordFailure()
+				p.logger.Warn("memory search for context failed", slog.Any("error", err))
+			}
+		} else {
+			p.cb.RecordSuccess()
+			candidates := deduplicateAndSort(resp.Results)
+			if len(candidates) > 0 {
+				packed := packContext(candidates, p.packer)
+				if len(packed.Items) > 0 {
+					var sb strings.Builder
+					sb.WriteString("<memory-context>\nRelevant memory context (use when helpful):\n")
+					for _, entry := range packed.Items {
+						sb.WriteString("- ")
+						if label := memorySourceLabel(entry.Item); label != "" {
+							sb.WriteString("[")
+							sb.WriteString(label)
+							sb.WriteString("] ")
+						}
+						sb.WriteString(entry.Snippet)
+						sb.WriteString("\n")
 					}
-					sb.WriteString(entry.Snippet)
-					sb.WriteString("\n")
+					sb.WriteString("</memory-context>")
+					contextParts = append(contextParts, sb.String())
 				}
-				sb.WriteString("</memory-context>")
-				contextParts = append(contextParts, sb.String())
 			}
 		}
+	} else {
+		p.logger.Warn("memory search skipped: circuit breaker open",
+			slog.String("bot_id", req.BotID),
+		)
 	}
 
 	if len(contextParts) == 0 {
 		return nil, nil
 	}
-	return &adapters.BeforeChatResult{ContextText: strings.Join(contextParts, "\n")}, nil
+
+	// Assemble partitioned context output.
+	prependUserContext := strings.Join(contextParts, "\n")
+
+	// AppendSystemContext holds stable content (profile, scene index) that
+	// benefits from prompt caching. Populated by Profile injection (task 5)
+	// and scene index injection (task 11).
+	var systemContextParts []string
+	// Profile summary injection: inject user profile into system context.
+	if p.profileService != nil && strings.TrimSpace(req.UserID) != "" {
+		summary, err := p.profileService.GetSummary(ctx, req.BotID, req.UserID)
+		if err != nil {
+			p.logger.Warn("profile summary retrieval failed",
+				slog.String("bot_id", req.BotID),
+				slog.String("user_id", req.UserID),
+				slog.Any("error", err),
+			)
+		} else if strings.TrimSpace(summary) != "" {
+			systemContextParts = append(systemContextParts, "<user-profile>\n"+summary+"\n</user-profile>")
+		}
+	}
+	// Scene navigation index injection.
+	if p.sceneStore != nil {
+		scenes, err := p.sceneStore.List(ctx, req.BotID)
+		if err != nil {
+			p.logger.Warn("scene index retrieval failed",
+				slog.String("bot_id", req.BotID),
+				slog.Any("error", err),
+			)
+		} else if len(scenes) > 0 {
+			var sb strings.Builder
+			sb.WriteString("<scene-index>\n")
+			for _, sc := range scenes {
+				fmt.Fprintf(&sb, "- [%s] %s: %s\n", sc.ID, sc.Title, sc.Summary)
+			}
+			sb.WriteString("</scene-index>")
+			systemContextParts = append(systemContextParts, sb.String())
+		}
+	}
+	appendSystemContext := strings.Join(systemContextParts, "\n")
+
+	return &adapters.BeforeChatResult{
+		ContextText:         prependUserContext, // backward compat
+		AppendSystemContext: appendSystemContext,
+		PrependUserContext:  prependUserContext,
+	}, nil
 }
 
 func (p *BuiltinProvider) OnAfterChat(ctx context.Context, req adapters.AfterChatRequest) error {
@@ -252,18 +358,30 @@ func (p *BuiltinProvider) OnAfterChat(ctx context.Context, req adapters.AfterCha
 	}
 
 	if p.llm != nil {
-		result := runFormation(ctx, p.logger, p.llm, p.service, req)
-		p.logger.Debug("memory formation completed",
-			slog.String("bot_id", botID),
-			slog.Int("extracted", result.ExtractedFacts),
-			slog.Int("added", result.Added),
-			slog.Int("updated", result.Updated),
-			slog.Int("deleted", result.Deleted),
-			slog.Int("skipped", result.Skipped),
-		)
-
-		// Sync extracted facts to working memory for short-term recall.
+		// Sync to working memory immediately (fast, no LLM call).
 		p.syncToWorkingMemory(botID, req)
+
+		// Enqueue to pipeline for batched formation instead of running synchronously.
+		if p.pipeline != nil {
+			p.pipeline.Enqueue(req) //nolint:contextcheck // Pipeline processes asynchronously with its own context
+			p.logger.Debug("memory formation enqueued to pipeline",
+				slog.String("bot_id", botID),
+				slog.Int("buffer_size", p.pipeline.BufferSize()),
+				slog.Int("threshold", p.pipeline.Threshold()),
+			)
+		} else {
+			// Fallback: no pipeline configured, run formation synchronously (legacy).
+			result := runFormation(ctx, p.logger, p.llm, p.service, req)
+			p.logger.Debug("memory formation completed",
+				slog.String("bot_id", botID),
+				slog.Int("extracted", result.ExtractedFacts),
+				slog.Int("added", result.Added),
+				slog.Int("updated", result.Updated),
+				slog.Int("deleted", result.Deleted),
+				slog.Int("skipped", result.Skipped),
+			)
+		}
+
 		// Promote high-access working memory entries to long-term Qdrant.
 		p.promoteWorkingMemory(ctx, botID)
 		return nil
@@ -399,7 +517,7 @@ func (p *BuiltinProvider) ListTools(_ context.Context, _ mcp.ToolSessionContext)
 	return []mcp.ToolDescriptor{
 		{
 			Name:        toolSearchMemory,
-			Description: "Search for memories relevant to the current chat",
+			Description: "Search for memories relevant to the current chat. Supports semantic search, time-range filtering, and scene-based retrieval.",
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -410,6 +528,19 @@ func (p *BuiltinProvider) ListTools(_ context.Context, _ mcp.ToolSessionContext)
 					"limit": map[string]any{
 						"type":        "integer",
 						"description": "Maximum number of memory results",
+					},
+					"mode": map[string]any{
+						"type":        "string",
+						"enum":        []string{"search", "time", "scene"},
+						"description": "Search mode: 'search' (default, semantic), 'time' (time-range filter), 'scene' (retrieve scene and associated memories)",
+					},
+					"after": map[string]any{
+						"type":        "string",
+						"description": "For mode=time: only return memories after this date (ISO 8601, e.g. 2024-01-01)",
+					},
+					"before": map[string]any{
+						"type":        "string",
+						"description": "For mode=time: only return memories before this date (ISO 8601, e.g. 2024-12-31)",
 					},
 				},
 				"required": []string{"query"},
@@ -424,6 +555,16 @@ func (p *BuiltinProvider) CallTool(ctx context.Context, session mcp.ToolSessionC
 	}
 	if p.service == nil {
 		return mcp.BuildToolErrorResult("memory service not available"), nil
+	}
+
+	// Enforce per-turn call count limit.
+	if session.ToolCallCount >= maxSearchCallsPerTurn {
+		return mcp.BuildToolErrorResult(fmt.Sprintf("search_memory call limit reached (%d per turn)", maxSearchCallsPerTurn)), nil
+	}
+
+	// Flush pipeline before search to ensure latest memories are available.
+	if p.pipeline != nil {
+		p.pipeline.Flush() //nolint:contextcheck // Flush uses context.Background internally by design
 	}
 
 	query := mcp.StringArg(arguments, "query")
@@ -452,6 +593,7 @@ func (p *BuiltinProvider) CallTool(ctx context.Context, session mcp.ToolSessionC
 		limit = maxMemoryToolLimit
 	}
 
+	// Access control check.
 	if chatID != botID {
 		if p.chatAccessor == nil {
 			return mcp.BuildToolErrorResult("chat service not available"), nil
@@ -475,6 +617,26 @@ func (p *BuiltinProvider) CallTool(ctx context.Context, session mcp.ToolSessionC
 		}
 	}
 
+	// Determine search mode.
+	mode := mcp.StringArg(arguments, "mode")
+	if mode == "" {
+		mode = "search"
+	}
+
+	switch mode {
+	case "scene":
+		return p.callToolSceneMode(ctx, botID, query, limit)
+	case "time":
+		afterStr := mcp.StringArg(arguments, "after")
+		beforeStr := mcp.StringArg(arguments, "before")
+		return p.callToolTimeMode(ctx, botID, query, limit, afterStr, beforeStr)
+	default:
+		return p.callToolSearchMode(ctx, botID, query, limit)
+	}
+}
+
+// callToolSearchMode performs standard semantic search.
+func (p *BuiltinProvider) callToolSearchMode(ctx context.Context, botID, query string, limit int) (map[string]any, error) {
 	resp, err := p.service.Search(ctx, adapters.SearchRequest{
 		Query: query,
 		BotID: botID,
@@ -509,8 +671,175 @@ func (p *BuiltinProvider) CallTool(ctx context.Context, session mcp.ToolSessionC
 
 	return mcp.BuildToolSuccessResult(map[string]any{
 		"query":   query,
+		"mode":    "search",
 		"total":   len(results),
 		"results": results,
+	}), nil
+}
+
+// callToolTimeMode performs time-range filtered search.
+func (p *BuiltinProvider) callToolTimeMode(ctx context.Context, botID, query string, limit int, afterStr, beforeStr string) (map[string]any, error) {
+	filters := map[string]any{
+		"namespace": sharedMemoryNamespace,
+		"scopeId":   botID,
+		"bot_id":    botID,
+	}
+
+	// Parse time boundaries.
+	if afterStr != "" {
+		if t, err := time.Parse("2006-01-02", afterStr); err == nil {
+			filters["created_at_gte"] = t.Format(time.RFC3339)
+		}
+	}
+	if beforeStr != "" {
+		if t, err := time.Parse("2006-01-02", beforeStr); err == nil {
+			// Set to end of day.
+			t = t.Add(24*time.Hour - time.Second)
+			filters["created_at_lte"] = t.Format(time.RFC3339)
+		}
+	}
+
+	resp, err := p.service.Search(ctx, adapters.SearchRequest{
+		Query:   query,
+		BotID:   botID,
+		Limit:   limit,
+		Filters: filters,
+		NoStats: true,
+	})
+	if err != nil {
+		return mcp.BuildToolErrorResult("memory time search failed"), nil
+	}
+
+	allResults := adapters.DeduplicateItems(resp.Results)
+	sort.Slice(allResults, func(i, j int) bool {
+		return allResults[i].Score > allResults[j].Score
+	})
+	if len(allResults) > limit {
+		allResults = allResults[:limit]
+	}
+
+	results := make([]map[string]any, 0, len(allResults))
+	for _, item := range allResults {
+		results = append(results, map[string]any{
+			"id":     item.ID,
+			"memory": item.Memory,
+			"score":  item.Score,
+		})
+	}
+
+	return mcp.BuildToolSuccessResult(map[string]any{
+		"query":   query,
+		"mode":    "time",
+		"after":   afterStr,
+		"before":  beforeStr,
+		"total":   len(results),
+		"results": results,
+	}), nil
+}
+
+// callToolSceneMode retrieves a scene and its associated memories.
+func (p *BuiltinProvider) callToolSceneMode(ctx context.Context, botID, query string, limit int) (map[string]any, error) {
+	if p.sceneStore == nil {
+		// Fallback to regular search if scene store not configured.
+		return p.callToolSearchMode(ctx, botID, query, limit)
+	}
+
+	// First, list scenes and find the best match by title/summary.
+	scenes, err := p.sceneStore.List(ctx, botID)
+	if err != nil || len(scenes) == 0 {
+		// Fallback to regular search.
+		return p.callToolSearchMode(ctx, botID, query, limit)
+	}
+
+	// Find the scene most relevant to the query (simple substring match).
+	queryLower := strings.ToLower(query)
+	var bestScene *scene.Scene
+	bestScore := 0
+	for i := range scenes {
+		sc := &scenes[i]
+		titleLower := strings.ToLower(sc.Title)
+		summaryLower := strings.ToLower(sc.Summary)
+
+		score := 0
+		if strings.Contains(titleLower, queryLower) || strings.Contains(queryLower, titleLower) {
+			score += 3
+		}
+		if strings.Contains(summaryLower, queryLower) {
+			score += 2
+		}
+		// Check word overlap.
+		queryWords := strings.Fields(queryLower)
+		for _, w := range queryWords {
+			if len(w) > 2 && (strings.Contains(titleLower, w) || strings.Contains(summaryLower, w)) {
+				score++
+			}
+		}
+
+		if score > bestScore {
+			bestScore = score
+			bestScene = sc
+		}
+	}
+
+	if bestScene == nil || bestScore == 0 {
+		// No matching scene found, fallback to regular search.
+		return p.callToolSearchMode(ctx, botID, query, limit)
+	}
+
+	// Retrieve associated memories using the scene title as query.
+	// Use a single search call with a higher limit instead of N individual calls.
+	memLimit := limit
+	if memLimit < len(bestScene.MemoryIDs) {
+		memLimit = len(bestScene.MemoryIDs)
+	}
+	if memLimit > maxMemoryToolLimit {
+		memLimit = maxMemoryToolLimit
+	}
+
+	resp, err := p.service.Search(ctx, adapters.SearchRequest{
+		Query: bestScene.Title + " " + bestScene.Summary,
+		BotID: botID,
+		Limit: memLimit,
+		Filters: map[string]any{
+			"namespace": sharedMemoryNamespace,
+			"scopeId":   botID,
+			"bot_id":    botID,
+		},
+		NoStats: true,
+	})
+	if err != nil {
+		return p.callToolSearchMode(ctx, botID, query, limit)
+	}
+
+	// Filter results to only include memories that belong to this scene.
+	sceneMemIDs := make(map[string]bool, len(bestScene.MemoryIDs))
+	for _, mid := range bestScene.MemoryIDs {
+		sceneMemIDs[mid] = true
+	}
+
+	var sceneMemories []map[string]any
+	for _, item := range resp.Results {
+		if sceneMemIDs[item.ID] {
+			sceneMemories = append(sceneMemories, map[string]any{
+				"id":     item.ID,
+				"memory": item.Memory,
+			})
+		}
+		if len(sceneMemories) >= limit {
+			break
+		}
+	}
+
+	return mcp.BuildToolSuccessResult(map[string]any{
+		"query": query,
+		"mode":  "scene",
+		"scene": map[string]any{
+			"id":      bestScene.ID,
+			"title":   bestScene.Title,
+			"summary": bestScene.Summary,
+		},
+		"total":   len(sceneMemories),
+		"results": sceneMemories,
 	}), nil
 }
 

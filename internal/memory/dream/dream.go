@@ -70,6 +70,20 @@ type DreamLLM interface {
 	// entries. Input is a slice of memory strings; output indices are 0-based.
 	// Called by Task 3 (association strengthening) with the compact model.
 	FindAssociations(ctx context.Context, memories []string) ([]MemoryAssociation, error)
+	// AggregateScenes analyzes a batch of memories and proposes scene clusters.
+	// Each SceneCandidate groups semantically related memories into a coherent scene.
+	// Called by Task 4 (scene aggregation) with the compact model.
+	AggregateScenes(ctx context.Context, memories []string) ([]SceneCandidate, error)
+}
+
+// SceneCandidate is a proposed scene from the LLM aggregation step.
+// Note: This is intentionally separate from scene.SceneCandidate to keep the
+// dream package decoupled from the scene package. The dream service uses its
+// own SceneStore interface and SceneEntry type for the same reason.
+type SceneCandidate struct {
+	Title     string   `json:"title"`
+	Summary   string   `json:"summary"`
+	MemoryIDs []string `json:"memory_ids"` // IDs of memories belonging to this scene
 }
 
 // MemoryAssociation is a semantic link between two memories.
@@ -79,11 +93,30 @@ type MemoryAssociation struct {
 	Label  string `json:"label"` // short relation, e.g. "same_topic", "contradicts", "supports"
 }
 
+// SceneStore is the interface for scene persistence used by the dream service.
+type SceneStore interface {
+	List(ctx context.Context, botID string) ([]SceneEntry, error)
+	Create(ctx context.Context, entry SceneEntry) error
+	Update(ctx context.Context, entry SceneEntry) error
+	Delete(ctx context.Context, sceneID string) error
+}
+
+// SceneEntry is the dream service's view of a scene (decoupled from scene package).
+type SceneEntry struct {
+	ID        string
+	BotID     string
+	Title     string
+	Summary   string
+	HeatScore float64
+	MemoryIDs []string
+}
+
 // Service performs periodic memory maintenance (dream).
 type Service struct {
-	runtime MemoryRuntime
-	llm     DreamLLM
-	logger  *slog.Logger
+	runtime    MemoryRuntime
+	llm        DreamLLM
+	sceneStore SceneStore
+	logger     *slog.Logger
 }
 
 // New creates a new dream service.
@@ -93,6 +126,11 @@ func New(runtime MemoryRuntime, llm DreamLLM, logger *slog.Logger) *Service {
 		llm:     llm,
 		logger:  logger.With(slog.String("component", "dream")),
 	}
+}
+
+// SetSceneStore injects the scene store for scene aggregation tasks.
+func (s *Service) SetSceneStore(store SceneStore) {
+	s.sceneStore = store
 }
 
 // MemoryMergeConfig controls how merge decisions are made.
@@ -110,11 +148,13 @@ var defaultMergeConfig = MemoryMergeConfig{
 
 // MergeResult holds the outcome of a dream maintenance cycle.
 type MergeResult struct {
-	Scanned      int `json:"scanned"`
-	Merged       int `json:"merged"`
-	Deleted      int `json:"deleted"`
-	HarmCount    int `json:"harm_count"`
-	Associations int `json:"associations"` // Task 3: number of cross-references written
+	Scanned       int `json:"scanned"`
+	Merged        int `json:"merged"`
+	Deleted       int `json:"deleted"`
+	HarmCount     int `json:"harm_count"`
+	Associations  int `json:"associations"`   // Task 3: number of cross-references written
+	ScenesCreated int `json:"scenes_created"` // Task 4: new scenes created
+	ScenesUpdated int `json:"scenes_updated"` // Task 4: existing scenes updated
 }
 
 // RunOptions controls incremental scan behavior.
@@ -148,12 +188,19 @@ func (s *Service) Run(ctx context.Context, botID string, opts RunOptions) MergeR
 	assocRes := s.strengthenAssociations(ctx, botID, filters, opts.Since)
 	result.Associations = assocRes.Written
 
+	// Task 4: Scene aggregation (cluster memories into coherent scenes)
+	sceneRes := s.aggregateScenes(ctx, botID, filters, opts.Since)
+	result.ScenesCreated = sceneRes.Created
+	result.ScenesUpdated = sceneRes.Updated
+
 	s.logger.Info("dream cycle complete",
 		slog.String("bot_id", botID),
 		slog.Int("scanned", result.Scanned),
 		slog.Int("merged", result.Merged),
 		slog.Int("deleted", result.Deleted),
 		slog.Int("associations", result.Associations),
+		slog.Int("scenes_created", result.ScenesCreated),
+		slog.Int("scenes_updated", result.ScenesUpdated),
 	)
 
 	return result

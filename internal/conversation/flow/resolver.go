@@ -322,12 +322,13 @@ type usageInfo struct {
 }
 
 type resolvedContext struct {
-	runConfig       agentpkg.RunConfig
-	model           models.GetResponse
-	provider        sqlc.Provider
-	query           string // headerified query
-	injectedRecords *[]conversation.InjectedMessageRecord
-	estimatedTokens int // estimated input token count for compaction
+	runConfig           agentpkg.RunConfig
+	model               models.GetResponse
+	provider            sqlc.Provider
+	query               string // headerified query
+	injectedRecords     *[]conversation.InjectedMessageRecord
+	estimatedTokens     int    // estimated input token count for compaction
+	memorySystemContext string // stable memory context to append to system prompt
 }
 
 func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (resolvedContext, error) {
@@ -376,7 +377,8 @@ func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (r
 		)
 		return resolvedContext{}, err
 	}
-	memoryMsg := r.loadMemoryContextMessage(ctx, req)
+	memCtx := r.loadMemoryContext(ctx, req)
+	memoryMsg := memCtx.UserMessage
 	reqMessages := pruneMessagesForGateway(nonNilModelMessages(req.Messages))
 	if memoryMsg != nil {
 		pruned, _ := pruneMessageForGateway(*memoryMsg)
@@ -598,12 +600,13 @@ func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (r
 	}
 
 	return resolvedContext{
-		runConfig:       runCfg,
-		model:           chatModel,
-		provider:        provider,
-		query:           headerifiedQuery,
-		injectedRecords: injectedRecords,
-		estimatedTokens: estimatedTokens,
+		runConfig:           runCfg,
+		model:               chatModel,
+		provider:            provider,
+		query:               headerifiedQuery,
+		injectedRecords:     injectedRecords,
+		estimatedTokens:     estimatedTokens,
+		memorySystemContext: memCtx.AppendSystemContext,
 	}, nil
 }
 
@@ -635,6 +638,11 @@ func (r *Resolver) Chat(ctx context.Context, req conversation.ChatRequest) (conv
 
 	cfg := rc.runConfig
 	cfg = r.prepareRunConfig(ctx, cfg)
+
+	// Append stable memory context (profile, scene index) to system prompt.
+	if rc.memorySystemContext != "" {
+		cfg.System = cfg.System + "\n\n" + rc.memorySystemContext
+	}
 
 	result, err := r.agent.Generate(ctx, cfg)
 	if err != nil {

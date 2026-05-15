@@ -82,6 +82,10 @@ func (f *fakeDreamLLM) FindAssociations(_ context.Context, _ []string) ([]Memory
 	return f.associations, nil
 }
 
+func (*fakeDreamLLM) AggregateScenes(_ context.Context, _ []string) ([]SceneCandidate, error) {
+	return nil, nil
+}
+
 // --- tests ---
 
 func TestStrengthenAssociations_Success(t *testing.T) {

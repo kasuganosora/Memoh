@@ -10,11 +10,24 @@ type BeforeChatRequest struct {
 	Query  string
 	BotID  string
 	ChatID string
+	UserID string // optional; used for profile-based context injection
 }
 
 // BeforeChatResult contains memory context to inject into the conversation.
 type BeforeChatResult struct {
+	// Deprecated: Use AppendSystemContext and PrependUserContext instead.
+	// Kept for backward compatibility with existing Provider implementations.
 	ContextText string // formatted text to inject as a user message
+
+	// AppendSystemContext holds stable context (e.g. user profile, scene index)
+	// that should be appended to the end of the system prompt.
+	// This content changes infrequently and benefits from LLM prompt caching.
+	AppendSystemContext string
+
+	// PrependUserContext holds dynamic context (e.g. recalled memories, working memory)
+	// that should be prepended before the user message.
+	// This content varies per turn based on the current query.
+	PrependUserContext string
 }
 
 // AfterChatRequest is passed to OnAfterChat after receiving the gateway response.

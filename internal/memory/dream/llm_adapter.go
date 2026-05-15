@@ -149,6 +149,62 @@ func cleanJSON(s string) string {
 // Ensure PromptBasedDreamLLM satisfies DreamLLM.
 var _ DreamLLM = (*PromptBasedDreamLLM)(nil)
 
+// AggregateScenes analyzes a batch of memories and proposes scene clusters.
+func (a *PromptBasedDreamLLM) AggregateScenes(ctx context.Context, memories []string) ([]SceneCandidate, error) {
+	if len(memories) < 3 {
+		return nil, nil
+	}
+
+	var sb strings.Builder
+	sb.WriteString("Analyze these memories and group them into coherent scenes/topics.\n")
+	sb.WriteString("A scene is a cluster of memories about the same topic, event, or interaction pattern.\n\n")
+	sb.WriteString("Memories (0-based index):\n")
+	for i, m := range memories {
+		fmt.Fprintf(&sb, "%d: %s\n", i, strings.TrimSpace(m))
+	}
+	sb.WriteString("\nOutput JSON array of scenes:\n")
+	sb.WriteString(`[{"title": "short title", "summary": "1-2 sentence description", "memory_ids": ["0", "2", "5"]}]`)
+	sb.WriteString("\n\nRules:\n")
+	sb.WriteString("- Each scene must have at least 2 memories\n")
+	sb.WriteString("- A memory can only belong to one scene\n")
+	sb.WriteString("- Only create scenes for clearly related memories\n")
+	sb.WriteString("- Maximum 5 scenes per batch\n")
+	sb.WriteString("- memory_ids are the 0-based indices as strings\n")
+
+	text, err := a.llm.GenerateText(ctx, dreamSystemPrompt, sb.String())
+	if err != nil {
+		return nil, fmt.Errorf("AggregateScenes LLM call failed: %w", err)
+	}
+
+	cleanText := cleanJSON(text)
+
+	// Try as array first.
+	var candidates []SceneCandidate
+	if err := json.Unmarshal([]byte(cleanText), &candidates); err != nil {
+		// Try wrapped: {"scenes": [...]}
+		var wrapped struct {
+			Scenes []SceneCandidate `json:"scenes"`
+		}
+		if err2 := json.Unmarshal([]byte(cleanText), &wrapped); err2 != nil {
+			a.logger.Debug("AggregateScenes parse failed",
+				slog.String("text", text[:min(len(text), 200)]),
+			)
+			return nil, nil // graceful degradation
+		}
+		candidates = wrapped.Scenes
+	}
+
+	// Validate: filter out invalid candidates.
+	var valid []SceneCandidate
+	for _, c := range candidates {
+		if c.Title != "" && len(c.MemoryIDs) >= 2 {
+			valid = append(valid, c)
+		}
+	}
+
+	return valid, nil
+}
+
 // NoOpDreamLLM is a stub DreamLLM that does nothing. Useful when no compact
 // model is configured — dream runs are silent no-ops.
 type NoOpDreamLLM struct{}
@@ -162,6 +218,10 @@ func (NoOpDreamLLM) IsHarmful(context.Context, string) (bool, error) {
 }
 
 func (NoOpDreamLLM) FindAssociations(context.Context, []string) ([]MemoryAssociation, error) {
+	return nil, errors.New("dream LLM not configured")
+}
+
+func (NoOpDreamLLM) AggregateScenes(context.Context, []string) ([]SceneCandidate, error) {
 	return nil, errors.New("dream LLM not configured")
 }
 

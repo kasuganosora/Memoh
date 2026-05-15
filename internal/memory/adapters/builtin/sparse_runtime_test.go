@@ -396,7 +396,7 @@ func TestBuiltinProviderMultiTurnRecallUsesSparseSourceRuntime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("OnBeforeChat() error = %v", err)
 	}
-	if before == nil || !strings.Contains(strings.ToLower(before.ContextText), "berlin") {
+	if before == nil || !strings.Contains(strings.ToLower(before.ContextText), "berlin") { //nolint:staticcheck // SA1019: testing backward compat field
 		t.Fatalf("expected recalled context to mention berlin, got %#v", before)
 	}
 
@@ -407,7 +407,7 @@ func TestBuiltinProviderMultiTurnRecallUsesSparseSourceRuntime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("OnBeforeChat() tea error = %v", err)
 	}
-	if before == nil || !strings.Contains(strings.ToLower(before.ContextText), "oolong tea") {
+	if before == nil || !strings.Contains(strings.ToLower(before.ContextText), "oolong tea") { //nolint:staticcheck // SA1019: testing backward compat field
 		t.Fatalf("expected recalled context to mention oolong tea, got %#v", before)
 	}
 }
