@@ -9,6 +9,7 @@ import (
 
 	sdk "github.com/memohai/twilight-ai/sdk"
 
+	"github.com/memohai/memoh/internal/agent/contextkeys"
 	"github.com/memohai/memoh/internal/channel"
 	"github.com/memohai/memoh/internal/expression"
 	"github.com/memohai/memoh/internal/messaging"
@@ -396,7 +397,7 @@ func (p *MessageProvider) generateReply(ctx context.Context, session SessionCont
 		}
 	}
 
-	result, err := p.textGen.GenerateText(ctx, systemPrompt, []sdk.Message{
+	result, err := p.textGen.GenerateText(contextkeys.WithBudgetBotID(ctx, session.BotID), systemPrompt, []sdk.Message{
 		sdk.UserMessage(reasoning),
 	})
 	if err != nil {

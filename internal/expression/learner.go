@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"github.com/memohai/memoh/internal/agent/contextkeys"
 )
 
 // LLMService is the interface for LLM-based extraction of expressions.
@@ -119,7 +121,7 @@ func (l *Learner) LearnFromHistory(ctx context.Context, messages []Message) erro
 		fmt.Fprintf(&sb, "[%s]: %s\n", msg.Role, strings.TrimSpace(msg.Content))
 	}
 
-	response, err := l.llm.GenerateText(ctx, learnPromptTemplate, sb.String())
+	response, err := l.llm.GenerateText(contextkeys.WithBudgetBotID(ctx, l.botID), learnPromptTemplate, sb.String())
 	if err != nil {
 		return fmt.Errorf("llm extraction: %w", err)
 	}

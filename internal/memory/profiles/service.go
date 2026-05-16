@@ -10,6 +10,8 @@ import (
 	"time"
 
 	memprovider "github.com/memohai/memoh/internal/memory/adapters"
+
+	"github.com/memohai/memoh/internal/agent/contextkeys"
 )
 
 // profileExtractSystemPrompt is the system prompt for profile extraction via LLM.
@@ -141,7 +143,7 @@ func (s *Service) UpdateFromMessages(ctx context.Context, botID, userID string, 
 	if s.llm == nil {
 		return errors.New("profile: LLM not configured")
 	}
-	llmResp, err := s.llm.GenerateText(ctx, profileExtractSystemPrompt, userPrompt)
+	llmResp, err := s.llm.GenerateText(contextkeys.WithBudgetBotID(ctx, botID), profileExtractSystemPrompt, userPrompt)
 	if err != nil {
 		return fmt.Errorf("profile: llm extract: %w", err)
 	}
