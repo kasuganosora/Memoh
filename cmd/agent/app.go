@@ -76,6 +76,7 @@ import (
 	membuiltin "github.com/memohai/memoh/internal/memory/adapters/builtin"
 	memmem0 "github.com/memohai/memoh/internal/memory/adapters/mem0"
 	memopenviking "github.com/memohai/memoh/internal/memory/adapters/openviking"
+	"github.com/memohai/memoh/internal/memory/dream"
 	"github.com/memohai/memoh/internal/memory/memllm"
 	"github.com/memohai/memoh/internal/memory/profiles"
 	storefs "github.com/memohai/memoh/internal/memory/storefs"
@@ -897,6 +898,158 @@ func startCompactionRecovery(lc fx.Lifecycle, compactionService *compaction.Serv
 			return nil
 		},
 	})
+}
+
+// ---------------------------------------------------------------------------
+// Dream service (nightly memory maintenance)
+// ---------------------------------------------------------------------------
+
+// dreamRuntimeAdapter adapts a memory provider to dream.MemoryRuntime.
+type dreamRuntimeAdapter struct {
+	provider memprovider.Provider
+}
+
+func (a *dreamRuntimeAdapter) Search(ctx context.Context, req dream.SearchRequest) (dream.SearchResponse, error) {
+	resp, err := a.provider.Search(ctx, memprovider.SearchRequest{
+		Query:   req.Query,
+		BotID:   req.BotID,
+		Limit:   req.Limit,
+		Filters: req.Filters,
+	})
+	if err != nil {
+		return dream.SearchResponse{}, err
+	}
+	items := make([]dream.MemoryItem, len(resp.Results))
+	for i, r := range resp.Results {
+		items[i] = dream.MemoryItem{
+			ID:       r.ID,
+			Memory:   r.Memory,
+			Metadata: r.Metadata,
+		}
+		if t, err := time.Parse(time.RFC3339, r.CreatedAt); err == nil {
+			items[i].CreatedAt = t
+		}
+	}
+	return dream.SearchResponse{Results: items}, nil
+}
+
+func (a *dreamRuntimeAdapter) GetAll(ctx context.Context, req dream.GetAllRequest) (dream.GetAllResponse, error) {
+	resp, err := a.provider.GetAll(ctx, memprovider.GetAllRequest{
+		BotID:   req.BotID,
+		Limit:   req.Limit,
+		Filters: req.Filters,
+	})
+	if err != nil {
+		return dream.GetAllResponse{}, err
+	}
+	items := make([]dream.MemoryItem, len(resp.Results))
+	for i, r := range resp.Results {
+		items[i] = dream.MemoryItem{
+			ID:       r.ID,
+			Memory:   r.Memory,
+			Metadata: r.Metadata,
+		}
+		if t, err := time.Parse(time.RFC3339, r.CreatedAt); err == nil {
+			items[i].CreatedAt = t
+		}
+	}
+	return dream.GetAllResponse{Results: items}, nil
+}
+
+func (a *dreamRuntimeAdapter) Delete(ctx context.Context, memoryID string) (dream.DeleteResponse, error) {
+	_, err := a.provider.Delete(ctx, memoryID)
+	if err != nil {
+		return dream.DeleteResponse{}, err
+	}
+	return dream.DeleteResponse{OK: true}, nil
+}
+
+func (a *dreamRuntimeAdapter) Update(ctx context.Context, memoryID, newText string) error {
+	_, err := a.provider.Update(ctx, memprovider.UpdateRequest{
+		MemoryID: memoryID,
+		Memory:   newText,
+	})
+	return err
+}
+
+// dreamLLMAdapter adapts budgetModelProvider to dream.PromptLLM.
+type dreamLLMAdapter struct {
+	agent         *agentpkg.Agent
+	modelProvider budgetModelProvider
+}
+
+func (a *dreamLLMAdapter) GenerateText(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
+	model := a.modelProvider(ctx, contextkeys.BudgetBotID(ctx))
+	if model == nil {
+		return "", errors.New("dream: no model configured")
+	}
+	result, err := a.agent.Generate(ctx, agentpkg.RunConfig{
+		Model:    model,
+		System:   systemPrompt,
+		Messages: []sdk.Message{sdk.UserMessage(userPrompt)},
+	})
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(result.Text), nil
+}
+
+func provideDreamService(log *slog.Logger, defaultProvider *membuiltin.BuiltinProvider, a *agentpkg.Agent, modelsService *models.Service, settingsService *settings.Service, queries *dbsqlc.Queries) *dream.Service {
+	if defaultProvider == nil || a == nil {
+		return nil
+	}
+	runtime := &dreamRuntimeAdapter{provider: defaultProvider}
+	modelProvider := func(ctx context.Context, botID string) *sdk.Model {
+		return resolveBudgetModel(ctx, settingsService, modelsService, queries, botID)
+	}
+	llm := dream.NewPromptBasedDreamLLM(&dreamLLMAdapter{
+		agent:         a,
+		modelProvider: modelProvider,
+	}, log)
+	return dream.New(runtime, llm, log)
+}
+
+func startDreamScheduler(lc fx.Lifecycle, log *slog.Logger, dreamService *dream.Service, queries *dbsqlc.Queries) {
+	if dreamService == nil {
+		return
+	}
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			go runDreamDaily(ctx, log, dreamService, queries)
+			return nil
+		},
+	})
+}
+
+// runDreamDaily runs the dream cycle once per day at midnight.
+func runDreamDaily(ctx context.Context, log *slog.Logger, ds *dream.Service, queries *dbsqlc.Queries) {
+	for {
+		// Calculate duration until next midnight.
+		now := time.Now()
+		nextMidnight := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, now.Location())
+		waitDuration := nextMidnight.Sub(now)
+
+		log.Info("dream scheduler: next run", slog.Time("at", nextMidnight), slog.Duration("in", waitDuration))
+		select {
+		case <-time.After(waitDuration):
+		case <-ctx.Done():
+			return
+		}
+
+		// Run dream for all ready bots with heartbeat enabled.
+		bots, err := queries.ListHeartbeatEnabledBots(ctx)
+		if err != nil {
+			log.Error("dream scheduler: failed to list bots", slog.Any("error", err))
+			continue
+		}
+		for _, bot := range bots {
+			botID := bot.ID.String()
+			botCtx := contextkeys.WithBudgetBotID(ctx, botID)
+			ds.Run(botCtx, botID, dream.RunOptions{
+				Since: time.Now().Add(-24 * time.Hour),
+			})
+		}
+	}
 }
 
 func wireResolverOutbound(resolver *flow.Resolver, channelManager *channel.Manager) {

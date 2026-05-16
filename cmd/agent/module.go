@@ -143,6 +143,7 @@ func options() fx.Option {
 			provideServerHandler(handlers.NewPipelineHandler),
 			provideServerHandler(provideWebHandler),
 			provideServer,
+			provideDreamService,
 		),
 		fx.Invoke(
 			injectToolProviders,
@@ -159,6 +160,7 @@ func options() fx.Option {
 			startBackgroundTaskCleanup,
 			startAudioTempStoreCleanup,
 			startCompactionRecovery,
+			startDreamScheduler,
 			startServer,
 		),
 		fx.WithLogger(func(logger *slog.Logger) fxevent.Logger {
