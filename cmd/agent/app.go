@@ -199,7 +199,8 @@ func provideEventStore(log *slog.Logger, queries *dbsqlc.Queries) *pipelinepkg.E
 	return pipelinepkg.NewEventStore(log, queries)
 }
 
-func provideDiscussTrigger(log *slog.Logger, pipeline *pipelinepkg.Pipeline, eventStore *pipelinepkg.EventStore, chatTimingService *chattiming.Service, settingsService *settings.Service, defaultProvider *membuiltin.BuiltinProvider, pool *pgxpool.Pool, a *agentpkg.Agent, exprSelector *expression.Selector) *pipelinepkg.DiscussTrigger {
+func provideDiscussTrigger(log *slog.Logger, pipeline *pipelinepkg.Pipeline, eventStore *pipelinepkg.EventStore, chatTimingService *chattiming.Service, settingsService *settings.Service, defaultProvider *membuiltin.BuiltinProvider, pool *pgxpool.Pool, a *agentpkg.Agent, exprSelector *expression.Selector, modelsService *models.Service, queries *dbsqlc.Queries) *pipelinepkg.DiscussTrigger {
+	budgetModel := resolveDefaultBudgetModel(context.Background(), modelsService, queries, nil)
 	return pipelinepkg.NewDiscussTrigger(pipelinepkg.DiscussTriggerDeps{
 		Pipeline:                 pipeline,
 		EventStore:               eventStore,
@@ -209,7 +210,7 @@ func provideDiscussTrigger(log *slog.Logger, pipeline *pipelinepkg.Pipeline, eve
 		MemoryFormation:          defaultProvider,
 		StreamChunkParser:        inbound.MapStreamChunkToChannelEvents,
 		AssistantOutputExtractor: flow.ExtractAssistantOutputs,
-		ExpressionAccumulator:    makeExpressionAccumulator(pool, a, log),
+		ExpressionAccumulator:    makeExpressionAccumulator(pool, a, log, budgetModel),
 		ExpressionSelector:       exprSelector,
 	})
 }
@@ -268,7 +269,8 @@ func provideAgent(log *slog.Logger, manager *workspace.Manager) *agentpkg.Agent 
 	})
 }
 
-func injectToolProviders(a *agentpkg.Agent, msgService *message.DBService, settingsService *settings.Service, exprSelector *expression.Selector, providers []agenttools.ToolProvider, scheduler *workflowpkg.Scheduler) {
+func injectToolProviders(a *agentpkg.Agent, msgService *message.DBService, settingsService *settings.Service, exprSelector *expression.Selector, providers []agenttools.ToolProvider, scheduler *workflowpkg.Scheduler, modelsService *models.Service, queries *dbsqlc.Queries) {
+	budgetModel := resolveDefaultBudgetModel(context.Background(), modelsService, queries, nil)
 	a.SetToolProviders(providers)
 	for _, p := range providers {
 		if sp, ok := p.(*agenttools.SpawnProvider); ok {
@@ -278,7 +280,7 @@ func injectToolProviders(a *agentpkg.Agent, msgService *message.DBService, setti
 			sp.SetModelCreator(agentpkg.SpawnModelCreatorFunc())
 		}
 		if mp, ok := p.(*agenttools.MessageProvider); ok {
-			mp.SetTextGenerator(&agentTextGenerator{agent: a})
+			mp.SetTextGenerator(&agentTextGenerator{agent: a, model: budgetModel})
 			mp.SetReplyerConfigCheck(makeReplyerConfigCheck(settingsService))
 			mp.SetReplyerSystemPrompt(agentpkg.ReplyerPrompt)
 			mp.SetExpressionSelector(exprSelector)
@@ -296,10 +298,15 @@ func injectToolProviders(a *agentpkg.Agent, msgService *message.DBService, setti
 
 type agentTextGenerator struct {
 	agent *agentpkg.Agent
+	model *sdk.Model // budget model for replyer LLM calls
 }
 
 func (g *agentTextGenerator) GenerateText(ctx context.Context, systemPrompt string, messages []sdk.Message) (string, error) {
+	if g.model == nil {
+		return "", errors.New("replyer: no model configured")
+	}
 	result, err := g.agent.Generate(ctx, agentpkg.RunConfig{
+		Model:    g.model,
 		System:   systemPrompt,
 		Messages: messages,
 	})
@@ -331,8 +338,8 @@ func provideChatResolver(log *slog.Logger, a *agentpkg.Agent, modelsService *mod
 	resolver.SetCompactionService(compactionService)
 	resolver.SetPipeline(pipeline)
 	resolver.SetBackgroundManager(bgManager)
-	resolver.SetExpressionLearner(makeExpressionLearner(pool, a, log))
-	resolver.SetProfileService(makeProfileService(defaultProvider, a, log))
+	resolver.SetExpressionLearner(makeExpressionLearner(pool, a, log, resolveDefaultBudgetModel(context.Background(), modelsService, queries, nil)))
+	resolver.SetProfileService(makeProfileService(defaultProvider, a, log, resolveDefaultBudgetModel(context.Background(), modelsService, queries, nil)))
 	bgManager.SetWakeFunc(func(botID, sessionID string) {
 		resolver.TriggerBackgroundNotification(context.Background(), botID, sessionID)
 	})
@@ -1271,10 +1278,15 @@ func (m *expressionLearnerManager) getOrCreate(botID string) *expression.Learner
 // expressionLLMAdapter adapts agentpkg.Agent to expression.LLMService.
 type expressionLLMAdapter struct {
 	agent *agentpkg.Agent
+	model *sdk.Model // budget model for expression learning LLM calls
 }
 
 func (a *expressionLLMAdapter) GenerateText(ctx context.Context, systemPrompt, userMessage string) (string, error) {
+	if a.model == nil {
+		return "", errors.New("expression: no model configured")
+	}
 	result, err := a.agent.Generate(ctx, agentpkg.RunConfig{
+		Model:    a.model,
 		System:   systemPrompt,
 		Messages: []sdk.Message{sdk.UserMessage(userMessage)},
 	})
@@ -1286,11 +1298,11 @@ func (a *expressionLLMAdapter) GenerateText(ctx context.Context, systemPrompt, u
 
 // makeExpressionAccumulator returns a pipeline.ExpressionAccumulator backed by
 // per-bot expression learners. Returns nil when pool or agent is nil (feature disabled).
-func makeExpressionAccumulator(pool *pgxpool.Pool, a *agentpkg.Agent, log *slog.Logger) pipelinepkg.ExpressionAccumulator {
+func makeExpressionAccumulator(pool *pgxpool.Pool, a *agentpkg.Agent, log *slog.Logger, budgetModel *sdk.Model) pipelinepkg.ExpressionAccumulator {
 	if pool == nil || a == nil {
 		return nil
 	}
-	mgr := newExpressionLearnerManager(pool, &expressionLLMAdapter{agent: a}, log)
+	mgr := newExpressionLearnerManager(pool, &expressionLLMAdapter{agent: a, model: budgetModel}, log)
 	return func(ctx context.Context, botID, sessionID string, messages []memprovider.Message) {
 		learner := mgr.getOrCreate(botID)
 		exprMsgs := make([]expression.Message, 0, len(messages))
@@ -1307,11 +1319,11 @@ func makeExpressionAccumulator(pool *pgxpool.Pool, a *agentpkg.Agent, log *slog.
 
 // makeExpressionLearner returns a flow.ExpressionLearner backed by per-bot
 // expression learners. Returns nil when pool or agent is nil (feature disabled).
-func makeExpressionLearner(pool *pgxpool.Pool, a *agentpkg.Agent, log *slog.Logger) flow.ExpressionLearner {
+func makeExpressionLearner(pool *pgxpool.Pool, a *agentpkg.Agent, log *slog.Logger, budgetModel *sdk.Model) flow.ExpressionLearner {
 	if pool == nil || a == nil {
 		return nil
 	}
-	mgr := newExpressionLearnerManager(pool, &expressionLLMAdapter{agent: a}, log)
+	mgr := newExpressionLearnerManager(pool, &expressionLLMAdapter{agent: a, model: budgetModel}, log)
 	return func(ctx context.Context, botID, sessionID string, messages []flow.ExpressionMessage) {
 		learner := mgr.getOrCreate(botID)
 		exprMsgs := make([]expression.Message, 0, len(messages))
@@ -1348,13 +1360,41 @@ func (a *profileLLMAdapter) GenerateText(ctx context.Context, systemPrompt, user
 	return strings.TrimSpace(result.Text), nil
 }
 
+// resolveDefaultBudgetModel resolves a default SDK model for budget tasks
+// (replyer, expression learning, profile extraction). It picks the first
+// enabled chat model and returns a configured sdk.Model with credentials.
+// Returns nil if no model is available (feature gracefully degrades).
+func resolveDefaultBudgetModel(ctx context.Context, modelsService *models.Service, queries *dbsqlc.Queries, streamHTTPClient *http.Client) *sdk.Model {
+	if modelsService == nil || queries == nil {
+		return nil
+	}
+	chatModel, provider, err := models.SelectMemoryModel(ctx, modelsService, queries)
+	if err != nil {
+		return nil
+	}
+	authResolver := providers.NewService(nil, queries, "")
+	creds, err := authResolver.ResolveModelCredentials(ctx, provider)
+	if err != nil {
+		return nil
+	}
+	sdkModel := models.NewSDKChatModel(models.SDKModelConfig{
+		ModelID:        chatModel.ModelID,
+		ClientType:     provider.ClientType,
+		APIKey:         creds.APIKey,
+		CodexAccountID: creds.CodexAccountID,
+		BaseURL:        providers.ProviderConfigString(provider, "base_url"),
+		HTTPClient:     streamHTTPClient,
+	})
+	return sdkModel
+}
+
 // makeProfileService creates a profile service backed by the builtin memory provider
 // and the agent for LLM aggregation. Returns nil if required deps are missing.
-func makeProfileService(defaultProvider *membuiltin.BuiltinProvider, a *agentpkg.Agent, log *slog.Logger) flow.ProfileService {
-	if defaultProvider == nil || a == nil {
+func makeProfileService(defaultProvider *membuiltin.BuiltinProvider, a *agentpkg.Agent, log *slog.Logger, budgetModel *sdk.Model) flow.ProfileService {
+	if defaultProvider == nil || a == nil || budgetModel == nil {
 		return nil
 	}
 	cache := profiles.NewMemCache()
-	llm := &profileLLMAdapter{agent: a}
+	llm := &profileLLMAdapter{agent: a, model: budgetModel}
 	return profiles.NewService(defaultProvider, llm, cache, log)
 }

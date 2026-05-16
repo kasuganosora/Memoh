@@ -28,6 +28,10 @@ type formationResult struct {
 	Updated        int
 	Deleted        int
 	Skipped        int
+	// Err is set when the formation step failed due to an LLM call error
+	// (e.g. timeout, network issue). Empty results without errors are valid
+	// outcomes (nothing to extract), not failures.
+	Err error
 }
 
 // runFormation executes the Extract -> candidate retrieval -> Decide -> apply pipeline.
@@ -45,6 +49,7 @@ func runFormation(ctx context.Context, logger *slog.Logger, llm adapters.LLM, ru
 	})
 	if err != nil {
 		logger.Warn("memory formation: extract failed", slog.String("bot_id", botID), slog.Any("error", err))
+		result.Err = err
 		return result
 	}
 	facts := filterNonEmpty(extracted.Facts)
@@ -62,6 +67,7 @@ func runFormation(ctx context.Context, logger *slog.Logger, llm adapters.LLM, ru
 	})
 	if err != nil {
 		logger.Warn("memory formation: decide failed", slog.String("bot_id", botID), slog.Any("error", err))
+		result.Err = err
 		return result
 	}
 

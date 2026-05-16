@@ -12,8 +12,11 @@ const sceneAggBatchSize = 30
 
 // sceneTaskResult holds the outcome of scene aggregation.
 type sceneTaskResult struct {
-	Created int
-	Updated int
+	Created         int
+	Updated         int
+	MemoriesIndexed int // number of memories assigned to scenes
+	LLMCalls        int // number of LLM AggregateScenes calls made
+	LLMErrors       int // number of LLM calls that failed
 }
 
 // aggregateScenes clusters memories into coherent scenes using the compact LLM.
@@ -90,14 +93,23 @@ func (s *Service) aggregateScenes(ctx context.Context, botID string, filters map
 			texts[i] = strings.TrimSpace(m.Memory)
 		}
 
+		res.LLMCalls++
 		candidates, err := s.llm.AggregateScenes(ctx, texts)
 		if err != nil {
+			res.LLMErrors++
 			s.logger.Warn("dream: AggregateScenes LLM call failed",
 				slog.Int("batch_offset", offset),
+				slog.Int("batch_size", len(texts)),
 				slog.Any("error", err),
 			)
 			continue
 		}
+
+		s.logger.Debug("dream: AggregateScenes batch result",
+			slog.Int("batch_offset", offset),
+			slog.Int("batch_size", len(texts)),
+			slog.Int("scenes_proposed", len(candidates)),
+		)
 
 		for _, candidate := range candidates {
 			if candidate.Title == "" || len(candidate.MemoryIDs) == 0 {
@@ -126,10 +138,19 @@ func (s *Service) aggregateScenes(ctx context.Context, botID string, filters map
 					if err := s.sceneStore.Update(ctx, *matchedScene); err != nil {
 						s.logger.Warn("dream: update scene failed",
 							slog.String("scene_id", matchedScene.ID),
+							slog.String("scene_title", matchedScene.Title),
 							slog.Any("error", err),
 						)
 					} else {
 						res.Updated++
+						res.MemoriesIndexed += len(resolvedIDs)
+						s.logger.Info("dream: scene updated with new memories",
+							slog.String("bot_id", botID),
+							slog.String("scene_id", matchedScene.ID),
+							slog.String("scene_title", matchedScene.Title),
+							slog.Int("added_memories", len(resolvedIDs)),
+							slog.Int("total_memories", len(matchedScene.MemoryIDs)),
+						)
 					}
 				}
 			} else {
@@ -148,6 +169,12 @@ func (s *Service) aggregateScenes(ctx context.Context, botID string, filters map
 					)
 				} else {
 					res.Created++
+					res.MemoriesIndexed += len(resolvedIDs)
+					s.logger.Info("dream: new scene created",
+						slog.String("bot_id", botID),
+						slog.String("scene_title", candidate.Title),
+						slog.Int("memory_count", len(resolvedIDs)),
+					)
 					// Add to existing scenes for overlap detection in subsequent batches.
 					existingScenes = append(existingScenes, newScene)
 				}

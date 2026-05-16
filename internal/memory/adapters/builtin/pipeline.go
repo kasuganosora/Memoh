@@ -41,7 +41,9 @@ type FormationPipeline struct {
 	// Once >= len(warmupThresholds), the pipeline uses defaultMatureThreshold.
 	warmupIndex int
 
-	// retryCount tracks consecutive formation failures for the current batch.
+	// retryCount tracks consecutive formation failures for persist/restore.
+	// Retries now happen synchronously within processBatch, so this is always 0.
+	// Kept for backward compatibility with saved pipeline states.
 	retryCount int
 
 	// idleTimer fires after idleFlushDuration of inactivity to flush remaining buffer.
@@ -136,54 +138,57 @@ func (p *FormationPipeline) triggerFormation() {
 }
 
 // processBatch merges buffered requests into a single AfterChatRequest and
-// calls the formation function. On failure, it retries up to maxRetries times.
+// calls the formation function. On transient LLM errors, it retries up to
+// maxRetries times with exponential backoff. Empty results without errors
+// are valid outcomes (nothing to extract) and not retried.
 func (p *FormationPipeline) processBatch(batch []adapters.AfterChatRequest) {
 	if len(batch) == 0 {
 		return
 	}
 
 	merged := mergeBatch(batch)
-	ctx := context.Background()
 
-	result := p.formationFn(ctx, merged)
+	for attempt := 0; ; attempt++ {
+		ctx := context.Background()
+		result := p.formationFn(ctx, merged)
 
-	// A batch is considered "failed" only if it extracted nothing at all.
-	// If ExtractedFacts > 0 but all actions are NOOP/skipped, that's a valid
-	// outcome (the LLM decided nothing new to store) — not a failure.
-	if result.ExtractedFacts == 0 && result.Added == 0 && result.Updated == 0 && result.Deleted == 0 && result.Skipped == 0 {
-		// Possible LLM failure or empty extraction — track retries.
-		p.mu.Lock()
-		p.retryCount++
-		if p.retryCount < maxRetries {
-			// Re-enqueue the batch for retry.
-			p.buffer = append(batch, p.buffer...)
-			p.logger.Warn("formation pipeline: batch produced no results, will retry",
-				slog.Int("retry", p.retryCount),
-				slog.Int("buffer_size", len(p.buffer)),
-			)
-		} else {
-			// Max retries reached — discard and log error.
-			p.retryCount = 0
+		// If the formation produced results (even NOOP/skipped), it succeeded.
+		allZero := result.ExtractedFacts == 0 && result.Added == 0 && result.Updated == 0 && result.Deleted == 0 && result.Skipped == 0
+		if !allZero || result.Err == nil {
+			if allZero {
+				p.logger.Debug("formation pipeline: batch produced no results (no new facts to extract)")
+			} else {
+				p.logger.Debug("formation pipeline: batch processed",
+					slog.Int("batch_size", len(batch)),
+					slog.Int("extracted", result.ExtractedFacts),
+					slog.Int("added", result.Added),
+					slog.Int("updated", result.Updated),
+				)
+			}
+			return
+		}
+
+		// Transient LLM error — retry with backoff.
+		if attempt >= maxRetries-1 {
 			p.logger.Error("formation pipeline: batch discarded after max retries",
 				slog.Int("max_retries", maxRetries),
 				slog.Int("discarded_messages", countMessages(batch)),
+				slog.Any("last_error", result.Err),
 			)
+			return
 		}
-		p.mu.Unlock()
-		return
+
+		p.logger.Warn("formation pipeline: batch produced no results, will retry",
+			slog.Int("retry", attempt+1),
+			slog.Int("max_retries", maxRetries),
+			slog.Int("buffer_size", len(batch)),
+			slog.Any("error", result.Err),
+		)
+
+		// Exponential backoff: 1s, 2s, 4s
+		backoff := time.Duration(1<<uint(attempt)) * time.Second
+		time.Sleep(backoff)
 	}
-
-	// Success — reset retry counter.
-	p.mu.Lock()
-	p.retryCount = 0
-	p.mu.Unlock()
-
-	p.logger.Debug("formation pipeline: batch processed",
-		slog.Int("batch_size", len(batch)),
-		slog.Int("extracted", result.ExtractedFacts),
-		slog.Int("added", result.Added),
-		slog.Int("updated", result.Updated),
-	)
 }
 
 // processBatchNoRetry processes a batch without retry logic.

@@ -168,32 +168,70 @@ type RunOptions struct {
 // If opts.Since is set, only memories created/updated after that time
 // are processed (incremental mode). Otherwise, all memories are processed.
 func (s *Service) Run(ctx context.Context, botID string, opts RunOptions) MergeResult {
+	start := time.Now()
 	result := MergeResult{}
+
+	s.logger.Info("dream: cycle starting",
+		slog.String("bot_id", botID),
+		slog.String("since", opts.Since.Format(time.RFC3339)),
+	)
 
 	filters := map[string]any{
 		"bot_id": botID,
 	}
 
 	// Task 1: Merge similar memories
+	t1Start := time.Now()
 	mergeRes := s.mergeSimilar(ctx, botID, filters, opts.Since, defaultMergeConfig)
 	result.Scanned = mergeRes.Scanned
 	result.Merged = mergeRes.Merged
+	s.logger.Info("dream: task 1/4 merge similar complete",
+		slog.String("bot_id", botID),
+		slog.Int("scanned", mergeRes.Scanned),
+		slog.Int("merged", mergeRes.Merged),
+		slog.Duration("duration", time.Since(t1Start)),
+	)
 
 	// Task 2: Mark harmful/outdated memories
+	t2Start := time.Now()
 	harmRes := s.cleanHarmful(ctx, botID, filters, opts.Since)
 	result.Deleted += harmRes.Deleted
 	result.HarmCount += harmRes.HarmCount
+	s.logger.Info("dream: task 2/4 clean harmful complete",
+		slog.String("bot_id", botID),
+		slog.Int("harm_detected", harmRes.HarmCount),
+		slog.Int("deleted", harmRes.Deleted),
+		slog.Duration("duration", time.Since(t2Start)),
+	)
 
 	// Task 3: Strengthen cross-memory associations (compact model)
+	t3Start := time.Now()
 	assocRes := s.strengthenAssociations(ctx, botID, filters, opts.Since)
 	result.Associations = assocRes.Written
+	s.logger.Info("dream: task 3/4 associations complete",
+		slog.String("bot_id", botID),
+		slog.Int("cross_references", assocRes.Written),
+		slog.Int("llm_calls", assocRes.LLMCalls),
+		slog.Int("llm_errors", assocRes.LLMErrors),
+		slog.Duration("duration", time.Since(t3Start)),
+	)
 
 	// Task 4: Scene aggregation (cluster memories into coherent scenes)
+	t4Start := time.Now()
 	sceneRes := s.aggregateScenes(ctx, botID, filters, opts.Since)
 	result.ScenesCreated = sceneRes.Created
 	result.ScenesUpdated = sceneRes.Updated
+	s.logger.Info("dream: task 4/4 scene aggregation complete",
+		slog.String("bot_id", botID),
+		slog.Int("scenes_created", sceneRes.Created),
+		slog.Int("scenes_updated", sceneRes.Updated),
+		slog.Int("memories_indexed", sceneRes.MemoriesIndexed),
+		slog.Int("llm_calls", sceneRes.LLMCalls),
+		slog.Int("llm_errors", sceneRes.LLMErrors),
+		slog.Duration("duration", time.Since(t4Start)),
+	)
 
-	s.logger.Info("dream cycle complete",
+	s.logger.Info("dream: cycle complete",
 		slog.String("bot_id", botID),
 		slog.Int("scanned", result.Scanned),
 		slog.Int("merged", result.Merged),
@@ -201,6 +239,7 @@ func (s *Service) Run(ctx context.Context, botID string, opts RunOptions) MergeR
 		slog.Int("associations", result.Associations),
 		slog.Int("scenes_created", result.ScenesCreated),
 		slog.Int("scenes_updated", result.ScenesUpdated),
+		slog.Duration("total_duration", time.Since(start)),
 	)
 
 	return result
@@ -257,19 +296,21 @@ func (s *Service) mergeSimilar(ctx context.Context, botID string, filters map[st
 			if err != nil {
 				continue
 			}
-			if !shouldMerge {
-				continue
-			}
-
-			// Keep the first, delete the second, then update the first
-			// with the merged text from the LLM.
-			if _, err := s.runtime.Delete(ctx, memories[j].ID); err != nil {
-				s.logger.Warn("dream: delete for merge failed",
-					slog.String("id", memories[j].ID),
-					slog.Any("error", err),
+			if shouldMerge {
+				s.logger.Info("dream: merging duplicate memories",
+					slog.String("bot_id", botID),
+					slog.String("keep_id", memories[i].ID),
+					slog.String("delete_id", memories[j].ID),
+					slog.String("keep_preview", truncateForLog(m1, 60)),
+					slog.String("merged_preview", truncateForLog(mergedText, 60)),
 				)
-				continue
-			}
+				if _, err := s.runtime.Delete(ctx, memories[j].ID); err != nil {
+					s.logger.Warn("dream: delete for merge failed",
+						slog.String("id", memories[j].ID),
+						slog.Any("error", err),
+					)
+					continue
+				}
 			if mergedText != "" {
 				if err := s.runtime.Update(ctx, memories[i].ID, mergedText); err != nil {
 					s.logger.Warn("dream: update merged text failed",
@@ -279,6 +320,7 @@ func (s *Service) mergeSimilar(ctx context.Context, botID string, filters map[st
 				}
 			}
 			res.Merged++
+			}
 		}
 	}
 
@@ -348,7 +390,9 @@ func (s *Service) cleanHarmful(ctx context.Context, botID string, filters map[st
 
 // assocTaskResult holds the outcome of association strengthening.
 type assocTaskResult struct {
-	Written int // number of cross-reference tags written back to memories
+	Written   int // number of cross-reference tags written back to memories
+	LLMCalls  int // number of LLM FindAssociations calls made
+	LLMErrors int // number of LLM calls that failed
 }
 
 // associationBatchSize is the max number of memories sent in one LLM call.
@@ -399,13 +443,22 @@ func (s *Service) strengthenAssociations(ctx context.Context, botID string, filt
 		}
 
 		assocs, err := s.llm.FindAssociations(ctx, texts)
+		res.LLMCalls++
 		if err != nil {
+			res.LLMErrors++
 			s.logger.Warn("dream: FindAssociations LLM call failed",
 				slog.Int("batch_offset", offset),
+				slog.Int("batch_size", len(texts)),
 				slog.Any("error", err),
 			)
 			continue
 		}
+
+		s.logger.Debug("dream: FindAssociations batch result",
+			slog.Int("batch_offset", offset),
+			slog.Int("batch_size", len(texts)),
+			slog.Int("associations_found", len(assocs)),
+		)
 
 		for _, a := range assocs {
 			if a.IndexA < 0 || a.IndexA >= len(batch) || a.IndexB < 0 || a.IndexB >= len(batch) {
@@ -496,18 +549,23 @@ func (s *Service) strengthenAssociations(ctx context.Context, botID string, filt
 // trailing lines of the text for the expected tag prefix pattern.
 func hasAssociationTags(text string) bool {
 	lines := strings.Split(text, "\n")
-	// Walk backwards from the end, skipping empty lines.
 	for i := len(lines) - 1; i >= 0; i-- {
 		line := strings.TrimSpace(lines[i])
 		if line == "" {
 			continue
 		}
-		// A valid association tag line starts with "[↗ " and ends with "]".
 		if strings.HasPrefix(line, "[↗ ") && strings.HasSuffix(line, "]") {
 			return true
 		}
-		// Once we hit a non-empty, non-tag line, stop — tags are always at the end.
 		return false
 	}
 	return false
+}
+
+// truncateForLog truncates a string to maxLen for use in log messages.
+func truncateForLog(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "…"
 }
