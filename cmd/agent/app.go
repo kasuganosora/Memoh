@@ -1333,10 +1333,12 @@ func makeExpressionLearner(pool *pgxpool.Pool, a *agentpkg.Agent, log *slog.Logg
 // profileLLMAdapter adapts agentpkg.Agent to profiles.ProfileLLM.
 type profileLLMAdapter struct {
 	agent *agentpkg.Agent
+	model *sdk.Model // optional model to use for profile LLM calls
 }
 
 func (a *profileLLMAdapter) GenerateText(ctx context.Context, systemPrompt, userMessage string) (string, error) {
 	result, err := a.agent.Generate(ctx, agentpkg.RunConfig{
+		Model:    a.model,
 		System:   systemPrompt,
 		Messages: []sdk.Message{sdk.UserMessage(userMessage)},
 	})

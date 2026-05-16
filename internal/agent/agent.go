@@ -78,6 +78,14 @@ func sendEvent(ctx context.Context, ch chan<- StreamEvent, evt StreamEvent) bool
 	}
 }
 
+// modelID returns the model ID string, or "unknown" if model is nil.
+func modelID(cfg RunConfig) string {
+	if cfg.Model != nil {
+		return cfg.Model.ID
+	}
+	return "unknown"
+}
+
 func (a *Agent) runStream(ctx context.Context, cfg RunConfig, ch chan<- StreamEvent) {
 	streamCtx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
@@ -112,7 +120,7 @@ func (a *Agent) runStream(ctx context.Context, cfg RunConfig, ch chan<- StreamEv
 		a.logger.Warn("runStream: tool calling disabled for this run",
 			slog.String("bot_id", cfg.Identity.BotID),
 			slog.String("session_type", cfg.SessionType),
-			slog.String("model", cfg.Model.ID),
+			slog.String("model", modelID(cfg)),
 		)
 	}
 	sdkTools, readMediaState := decorateReadMediaTools(cfg.Model, sdkTools)
@@ -486,6 +494,10 @@ func (a *Agent) runStream(ctx context.Context, cfg RunConfig, ch chan<- StreamEv
 }
 
 func (a *Agent) runGenerate(ctx context.Context, cfg RunConfig) (*GenerateResult, error) {
+	if cfg.Model == nil {
+		return nil, errors.New("agent: RunConfig.Model must not be nil")
+	}
+
 	genCtx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
 	loopAbort := newLoopAbortState()
@@ -519,7 +531,7 @@ func (a *Agent) runGenerate(ctx context.Context, cfg RunConfig) (*GenerateResult
 		a.logger.Warn("runGenerate: tool calling disabled for this run",
 			slog.String("bot_id", cfg.Identity.BotID),
 			slog.String("session_type", cfg.SessionType),
-			slog.String("model", cfg.Model.ID),
+			slog.String("model", modelID(cfg)),
 		)
 	}
 	sdkTools, readMediaState := decorateReadMediaTools(cfg.Model, sdkTools)
