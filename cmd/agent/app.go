@@ -1287,7 +1287,7 @@ func (m *expressionLearnerManager) getOrCreate(botID string) *expression.Learner
 
 // expressionLLMAdapter adapts agentpkg.Agent to expression.LLMService.
 type expressionLLMAdapter struct {
-	agent *agentpkg.Agent
+	agent         *agentpkg.Agent
 	modelProvider budgetModelProvider
 }
 
@@ -1355,7 +1355,7 @@ func makeExpressionLearner(pool *pgxpool.Pool, a *agentpkg.Agent, log *slog.Logg
 
 // profileLLMAdapter adapts agentpkg.Agent to profiles.ProfileLLM.
 type profileLLMAdapter struct {
-	agent *agentpkg.Agent
+	agent         *agentpkg.Agent
 	modelProvider budgetModelProvider
 }
 

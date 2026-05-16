@@ -171,7 +171,8 @@ func (s *Service) Run(ctx context.Context, botID string, opts RunOptions) MergeR
 	start := time.Now()
 	result := MergeResult{}
 
-	s.logger.Info("dream: cycle starting",
+	s.logger.Info(
+		"dream: cycle starting",
 		slog.String("bot_id", botID),
 		slog.String("since", opts.Since.Format(time.RFC3339)),
 	)
@@ -185,7 +186,8 @@ func (s *Service) Run(ctx context.Context, botID string, opts RunOptions) MergeR
 	mergeRes := s.mergeSimilar(ctx, botID, filters, opts.Since, defaultMergeConfig)
 	result.Scanned = mergeRes.Scanned
 	result.Merged = mergeRes.Merged
-	s.logger.Info("dream: task 1/4 merge similar complete",
+	s.logger.Info(
+		"dream: task 1/4 merge similar complete",
 		slog.String("bot_id", botID),
 		slog.Int("scanned", mergeRes.Scanned),
 		slog.Int("merged", mergeRes.Merged),
@@ -197,7 +199,8 @@ func (s *Service) Run(ctx context.Context, botID string, opts RunOptions) MergeR
 	harmRes := s.cleanHarmful(ctx, botID, filters, opts.Since)
 	result.Deleted += harmRes.Deleted
 	result.HarmCount += harmRes.HarmCount
-	s.logger.Info("dream: task 2/4 clean harmful complete",
+	s.logger.Info(
+		"dream: task 2/4 clean harmful complete",
 		slog.String("bot_id", botID),
 		slog.Int("harm_detected", harmRes.HarmCount),
 		slog.Int("deleted", harmRes.Deleted),
@@ -208,7 +211,8 @@ func (s *Service) Run(ctx context.Context, botID string, opts RunOptions) MergeR
 	t3Start := time.Now()
 	assocRes := s.strengthenAssociations(ctx, botID, filters, opts.Since)
 	result.Associations = assocRes.Written
-	s.logger.Info("dream: task 3/4 associations complete",
+	s.logger.Info(
+		"dream: task 3/4 associations complete",
 		slog.String("bot_id", botID),
 		slog.Int("cross_references", assocRes.Written),
 		slog.Int("llm_calls", assocRes.LLMCalls),
@@ -221,7 +225,8 @@ func (s *Service) Run(ctx context.Context, botID string, opts RunOptions) MergeR
 	sceneRes := s.aggregateScenes(ctx, botID, filters, opts.Since)
 	result.ScenesCreated = sceneRes.Created
 	result.ScenesUpdated = sceneRes.Updated
-	s.logger.Info("dream: task 4/4 scene aggregation complete",
+	s.logger.Info(
+		"dream: task 4/4 scene aggregation complete",
 		slog.String("bot_id", botID),
 		slog.Int("scenes_created", sceneRes.Created),
 		slog.Int("scenes_updated", sceneRes.Updated),
@@ -231,7 +236,8 @@ func (s *Service) Run(ctx context.Context, botID string, opts RunOptions) MergeR
 		slog.Duration("duration", time.Since(t4Start)),
 	)
 
-	s.logger.Info("dream: cycle complete",
+	s.logger.Info(
+		"dream: cycle complete",
 		slog.String("bot_id", botID),
 		slog.Int("scanned", result.Scanned),
 		slog.Int("merged", result.Merged),
@@ -297,7 +303,8 @@ func (s *Service) mergeSimilar(ctx context.Context, botID string, filters map[st
 				continue
 			}
 			if shouldMerge {
-				s.logger.Info("dream: merging duplicate memories",
+				s.logger.Info(
+					"dream: merging duplicate memories",
 					slog.String("bot_id", botID),
 					slog.String("keep_id", memories[i].ID),
 					slog.String("delete_id", memories[j].ID),
@@ -305,21 +312,23 @@ func (s *Service) mergeSimilar(ctx context.Context, botID string, filters map[st
 					slog.String("merged_preview", truncateForLog(mergedText, 60)),
 				)
 				if _, err := s.runtime.Delete(ctx, memories[j].ID); err != nil {
-					s.logger.Warn("dream: delete for merge failed",
+					s.logger.Warn(
+						"dream: delete for merge failed",
 						slog.String("id", memories[j].ID),
 						slog.Any("error", err),
 					)
 					continue
 				}
-			if mergedText != "" {
-				if err := s.runtime.Update(ctx, memories[i].ID, mergedText); err != nil {
-					s.logger.Warn("dream: update merged text failed",
-						slog.String("id", memories[i].ID),
-						slog.Any("error", err),
-					)
+				if mergedText != "" {
+					if err := s.runtime.Update(ctx, memories[i].ID, mergedText); err != nil {
+						s.logger.Warn(
+							"dream: update merged text failed",
+							slog.String("id", memories[i].ID),
+							slog.Any("error", err),
+						)
+					}
 				}
-			}
-			res.Merged++
+				res.Merged++
 			}
 		}
 	}
@@ -373,7 +382,8 @@ func (s *Service) cleanHarmful(ctx context.Context, botID string, filters map[st
 		if harmful {
 			res.HarmCount++
 			if _, err := s.runtime.Delete(ctx, item.ID); err != nil {
-				s.logger.Warn("dream: delete harmful memory failed",
+				s.logger.Warn(
+					"dream: delete harmful memory failed",
 					slog.String("id", item.ID),
 					slog.Any("error", err),
 				)
@@ -446,7 +456,8 @@ func (s *Service) strengthenAssociations(ctx context.Context, botID string, filt
 		res.LLMCalls++
 		if err != nil {
 			res.LLMErrors++
-			s.logger.Warn("dream: FindAssociations LLM call failed",
+			s.logger.Warn(
+				"dream: FindAssociations LLM call failed",
 				slog.Int("batch_offset", offset),
 				slog.Int("batch_size", len(texts)),
 				slog.Any("error", err),
@@ -454,7 +465,8 @@ func (s *Service) strengthenAssociations(ctx context.Context, botID string, filt
 			continue
 		}
 
-		s.logger.Debug("dream: FindAssociations batch result",
+		s.logger.Debug(
+			"dream: FindAssociations batch result",
 			slog.Int("batch_offset", offset),
 			slog.Int("batch_size", len(texts)),
 			slog.Int("associations_found", len(assocs)),
@@ -523,7 +535,8 @@ func (s *Service) strengthenAssociations(ctx context.Context, botID string, filt
 
 		newText := sb.String()
 		if err := s.runtime.Update(ctx, item.ID, newText); err != nil {
-			s.logger.Warn("dream: update association tags failed",
+			s.logger.Warn(
+				"dream: update association tags failed",
 				slog.String("id", item.ID),
 				slog.Any("error", err),
 			)
@@ -533,7 +546,8 @@ func (s *Service) strengthenAssociations(ctx context.Context, botID string, filt
 	}
 
 	if res.Written > 0 {
-		s.logger.Info("dream: association strengthening complete",
+		s.logger.Info(
+			"dream: association strengthening complete",
 			slog.String("bot_id", botID),
 			slog.Int("total_memories", len(items)),
 			slog.Int("cross_references", res.Written),

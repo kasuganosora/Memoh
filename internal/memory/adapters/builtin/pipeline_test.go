@@ -2,7 +2,7 @@ package builtin
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -134,7 +134,7 @@ func TestFormationPipeline_RetryAndDiscard(t *testing.T) {
 	fn := func(_ context.Context, _ adapters.AfterChatRequest) formationResult {
 		callCount.Add(1)
 		// Return empty result with error to simulate transient LLM failure.
-		return formationResult{Err: fmt.Errorf("simulated LLM timeout")}
+		return formationResult{Err: errors.New("simulated LLM timeout")}
 	}
 
 	p := NewFormationPipeline(nil, fn)

@@ -9,9 +9,8 @@ import (
 	"strings"
 	"time"
 
-	memprovider "github.com/memohai/memoh/internal/memory/adapters"
-
 	"github.com/memohai/memoh/internal/agent/contextkeys"
+	memprovider "github.com/memohai/memoh/internal/memory/adapters"
 )
 
 // profileExtractSystemPrompt is the system prompt for profile extraction via LLM.
