@@ -93,10 +93,12 @@ func buildLateBindingPrompt(isMentioned bool) string {
 	sb.WriteString("\n\n")
 	sb.WriteString("Reminder: Your text output is internal monologue — invisible to everyone. To speak, call the `send` tool. ")
 	sb.WriteString("Call `send` at most ONCE per turn. Do NOT send multiple messages with similar content. ")
-	sb.WriteString("If nobody is talking to you, staying silent is the right choice — trust your own judgment.")
+	sb.WriteString("Focus on the MOST RECENT messages in the conversation. ")
+	sb.WriteString("If you already replied to an earlier question or @mention in a previous turn, do NOT re-reply to it — the conversation has moved on. ")
+	sb.WriteString("If new messages are unrelated to you or don't warrant a response, staying silent is the right choice — trust your judgment.")
 
 	if isMentioned {
-		sb.WriteString("\n\nYou were @mentioned or replied to. Consider responding — but only if you have something to say. Use your best judgment.")
+		sb.WriteString("\n\nYou were @mentioned or replied to in the LATEST messages. Consider responding — but only if you have something meaningful to say.")
 	}
 
 	return sb.String()
