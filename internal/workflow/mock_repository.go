@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync"
 
 	"github.com/google/uuid"
 )
 
 // MockRepository implements Repository for testing.
 type MockRepository struct {
+	mu        sync.Mutex
 	Pipelines map[uuid.UUID]Pipeline
 	Nodes     map[uuid.UUID]Node
 }
@@ -23,6 +25,8 @@ func NewMockRepository() *MockRepository {
 }
 
 func (m *MockRepository) CreatePipeline(_ context.Context, botID uuid.UUID, goal string, status Status) (Pipeline, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	p := Pipeline{
 		ID:     uuid.New(),
 		BotID:  botID,
@@ -39,6 +43,8 @@ func (m *MockRepository) CreatePipeline(_ context.Context, botID uuid.UUID, goal
 var errNotFound = errors.New("not found")
 
 func (m *MockRepository) GetPipeline(_ context.Context, id uuid.UUID) (Pipeline, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	p, ok := m.Pipelines[id]
 	if !ok {
 		return Pipeline{}, errNotFound
@@ -47,6 +53,8 @@ func (m *MockRepository) GetPipeline(_ context.Context, id uuid.UUID) (Pipeline,
 }
 
 func (m *MockRepository) ListPipelinesByBot(_ context.Context, botID uuid.UUID, _, _ int32) ([]Pipeline, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	var result []Pipeline
 	for _, p := range m.Pipelines {
 		if p.BotID == botID {
@@ -57,6 +65,8 @@ func (m *MockRepository) ListPipelinesByBot(_ context.Context, botID uuid.UUID, 
 }
 
 func (m *MockRepository) UpdatePipelineStatus(_ context.Context, id uuid.UUID, status Status) (Pipeline, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	p := m.Pipelines[id]
 	p.Status = status
 	m.Pipelines[id] = p
@@ -64,11 +74,15 @@ func (m *MockRepository) UpdatePipelineStatus(_ context.Context, id uuid.UUID, s
 }
 
 func (m *MockRepository) DeletePipeline(_ context.Context, id uuid.UUID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	delete(m.Pipelines, id)
 	return nil
 }
 
 func (m *MockRepository) CreateNode(_ context.Context, pipelineID uuid.UUID, input CreateNodeInput) (Node, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	n := Node{
 		ID:             uuid.New(),
 		PipelineID:     pipelineID,
@@ -87,6 +101,8 @@ func (m *MockRepository) CreateNode(_ context.Context, pipelineID uuid.UUID, inp
 }
 
 func (m *MockRepository) GetNode(_ context.Context, id uuid.UUID) (Node, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	n, ok := m.Nodes[id]
 	if !ok {
 		return Node{}, errNotFound
@@ -95,6 +111,8 @@ func (m *MockRepository) GetNode(_ context.Context, id uuid.UUID) (Node, error) 
 }
 
 func (m *MockRepository) ListNodesByPipeline(_ context.Context, pipelineID uuid.UUID) ([]Node, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	var result []Node
 	for _, n := range m.Nodes {
 		if n.PipelineID == pipelineID {
@@ -105,6 +123,8 @@ func (m *MockRepository) ListNodesByPipeline(_ context.Context, pipelineID uuid.
 }
 
 func (m *MockRepository) UpdateNodeStatus(_ context.Context, id uuid.UUID, status Status) (Node, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	n := m.Nodes[id]
 	n.Status = status
 	m.Nodes[id] = n
@@ -112,6 +132,8 @@ func (m *MockRepository) UpdateNodeStatus(_ context.Context, id uuid.UUID, statu
 }
 
 func (m *MockRepository) UpdateNodeOutput(_ context.Context, id uuid.UUID, output json.RawMessage, status Status) (Node, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	n := m.Nodes[id]
 	n.Output = output
 	n.Status = status
@@ -120,6 +142,8 @@ func (m *MockRepository) UpdateNodeOutput(_ context.Context, id uuid.UUID, outpu
 }
 
 func (m *MockRepository) UpdateNodeError(_ context.Context, id uuid.UUID, errMsg string) (Node, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	n := m.Nodes[id]
 	n.Error = &errMsg
 	n.Status = StatusFailed
@@ -128,6 +152,8 @@ func (m *MockRepository) UpdateNodeError(_ context.Context, id uuid.UUID, errMsg
 }
 
 func (m *MockRepository) IncrementNodeRetry(_ context.Context, id uuid.UUID) (Node, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	n := m.Nodes[id]
 	n.RetryCount++
 	n.Status = StatusPending
@@ -136,6 +162,8 @@ func (m *MockRepository) IncrementNodeRetry(_ context.Context, id uuid.UUID) (No
 }
 
 func (m *MockRepository) UpdateNodeReview(_ context.Context, id uuid.UUID, result, feedback string) (Node, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	n := m.Nodes[id]
 	n.ReviewResult = &result
 	n.ReviewFeedback = &feedback
@@ -144,6 +172,8 @@ func (m *MockRepository) UpdateNodeReview(_ context.Context, id uuid.UUID, resul
 }
 
 func (m *MockRepository) DeleteNodesByPipeline(_ context.Context, pipelineID uuid.UUID) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	for id, n := range m.Nodes {
 		if n.PipelineID == pipelineID {
 			delete(m.Nodes, id)
