@@ -1076,16 +1076,9 @@ func (c *lazyLLMClient) resolve(ctx context.Context, botID string) (memprovider.
 		return nil, errors.New("models service not configured")
 	}
 
-	chatModelID := ""
-	if c.settingsService != nil && strings.TrimSpace(botID) != "" {
-		if botSettings, err := c.settingsService.GetBot(ctx, botID); err == nil {
-			if id := strings.TrimSpace(botSettings.CompactionModelID); id != "" {
-				chatModelID = id
-			} else if id := strings.TrimSpace(botSettings.ChatModelID); id != "" {
-				chatModelID = id
-			}
-		}
-	}
+	// Use the same priority chain as resolveBudgetModelID:
+	// compaction (lightest) → heartbeat (compact) → chat (fallback).
+	chatModelID := resolveBudgetModelID(ctx, c.settingsService, botID)
 
 	memoryModel, memoryProvider, err := models.SelectMemoryModelForBot(ctx, c.modelsService, c.queries, chatModelID)
 	if err != nil {

@@ -178,6 +178,9 @@ func (h *CompactionHandler) buildTriggerConfig(ctx context.Context, botID, sessi
 	}
 	modelID := botSettings.CompactionModelID
 	if modelID == "" {
+		modelID = botSettings.HeartbeatModelID
+	}
+	if modelID == "" {
 		modelID = botSettings.ChatModelID
 	}
 	if modelID == "" {

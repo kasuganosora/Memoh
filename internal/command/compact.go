@@ -57,6 +57,9 @@ func (h *Handler) buildCompactConfig(cc CommandContext, sessionID string) (compa
 	}
 	modelID := botSettings.CompactionModelID
 	if modelID == "" {
+		modelID = botSettings.HeartbeatModelID
+	}
+	if modelID == "" {
 		modelID = botSettings.ChatModelID
 	}
 	if modelID == "" {
