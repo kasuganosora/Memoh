@@ -1013,9 +1013,14 @@ func startDreamScheduler(lc fx.Lifecycle, log *slog.Logger, dreamService *dream.
 	if dreamService == nil {
 		return
 	}
+	bgCtx, cancel := context.WithCancel(context.Background())
 	lc.Append(fx.Hook{
-		OnStart: func(ctx context.Context) error {
-			go runDreamDaily(ctx, log, dreamService, queries)
+		OnStart: func(_ context.Context) error {
+			go runDreamDaily(bgCtx, log, dreamService, queries)
+			return nil
+		},
+		OnStop: func(_ context.Context) error {
+			cancel()
 			return nil
 		},
 	})
