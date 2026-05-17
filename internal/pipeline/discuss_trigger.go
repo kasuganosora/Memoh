@@ -189,6 +189,15 @@ func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 			log.Info("discuss: received new RC in session loop",
 				slog.Int("rc_segments", len(rc)),
 				slog.Int("queue_depth", len(sess.rcCh)))
+			// Properly stop the idle timer before resetting — Reset on
+			// an active timer is undefined behavior in Go and can cause
+			// the goroutine to hang (no channel events fire).
+			if !idle.Stop() {
+				select {
+				case <-idle.C:
+				default:
+				}
+			}
 			idle.Reset(discussIdleTimeout)
 		}
 
