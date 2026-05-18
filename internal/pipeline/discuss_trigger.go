@@ -172,8 +172,19 @@ func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 		d.mu.Unlock()
 	}()
 
-	idle := time.NewTimer(discussIdleTimeout)
-	defer idle.Stop()
+	// Use AfterFunc for idle detection — avoids time.Timer.Reset races.
+	idleCh := make(chan time.Time, 1)
+	idleTimer := time.AfterFunc(discussIdleTimeout, func() {
+		select {
+		case idleCh <- time.Now():
+		default:
+		}
+	})
+	defer idleTimer.Stop()
+
+	resetIdle := func() {
+		idleTimer.Reset(discussIdleTimeout)
+	}
 
 	var latestRC RenderedContext
 
@@ -181,7 +192,7 @@ func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 		select {
 		case <-sess.stopCh:
 			return
-		case <-idle.C:
+		case <-idleCh:
 			log.Info("discuss session idle timeout, exiting")
 			return
 		case rc := <-sess.rcCh:
@@ -189,16 +200,7 @@ func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 			log.Info("discuss: received new RC in session loop",
 				slog.Int("rc_segments", len(rc)),
 				slog.Int("queue_depth", len(sess.rcCh)))
-			// Properly stop the idle timer before resetting — Reset on
-			// an active timer is undefined behavior in Go and can cause
-			// the goroutine to hang (no channel events fire).
-			if !idle.Stop() {
-				select {
-				case <-idle.C:
-				default:
-				}
-			}
-			idle.Reset(discussIdleTimeout)
+			resetIdle()
 		}
 
 		// Smart timing: debounce — wait for quiet period before processing.
