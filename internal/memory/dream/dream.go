@@ -142,7 +142,7 @@ type MemoryMergeConfig struct {
 
 var defaultMergeConfig = MemoryMergeConfig{
 	SimilarityThreshold: 0.9,
-	MaxPairsToCheck:     20,
+	MaxPairsToCheck:     5, // budget model: limit sequential LLM calls
 	QueryPrefix:         "memory maintenance",
 }
 
@@ -170,6 +170,10 @@ type RunOptions struct {
 func (s *Service) Run(ctx context.Context, botID string, opts RunOptions) MergeResult {
 	start := time.Now()
 	result := MergeResult{}
+
+	// Enforce a 10-minute timeout so dream never blocks the scheduler.
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
 
 	s.logger.Info(
 		"dream: cycle starting",
@@ -361,6 +365,12 @@ func (s *Service) cleanHarmful(ctx context.Context, botID string, filters map[st
 		"social security", "ssn", "private key",
 	}
 
+	// Only call LLM for the first N memories to avoid unlimited
+	// sequential calls with the budget model. Keyword-based
+	// detection always runs on all memories.
+	const maxLLMChecks = 20
+	llmChecks := 0
+
 	for _, item := range allResp.Results {
 		mem := strings.ToLower(item.Memory)
 		harmful := false
@@ -372,7 +382,8 @@ func (s *Service) cleanHarmful(ctx context.Context, botID string, filters map[st
 			}
 		}
 
-		if !harmful && s.llm != nil {
+		if !harmful && s.llm != nil && llmChecks < maxLLMChecks {
+			llmChecks++
 			isHarm, err := s.llm.IsHarmful(ctx, item.Memory)
 			if err == nil && isHarm {
 				harmful = true
