@@ -967,10 +967,27 @@ func (a *dreamRuntimeAdapter) Delete(ctx context.Context, memoryID string) (drea
 }
 
 func (a *dreamRuntimeAdapter) Update(ctx context.Context, memoryID, newText string) error {
+	// Memory IDs can be in either format:
+	//  1. "botID:mem_NANO" (dense runtime format) — used by Add/GetAll
+	//  2. "mem_YYYYMMDD_NNN" (plain format) — returned by GetAll via some paths
+	// Try botID-prefixed format first, fall back to plain ID.
+	botID := contextkeys.BudgetBotID(ctx)
+	fullID := memoryID
+	if botID != "" && !strings.Contains(memoryID, ":") {
+		fullID = botID + ":" + memoryID
+	}
+
 	_, err := a.provider.Update(ctx, memprovider.UpdateRequest{
-		MemoryID: memoryID,
+		MemoryID: fullID,
 		Memory:   newText,
 	})
+	if err != nil && fullID != memoryID {
+		// Retry with plain ID if prefixed version failed.
+		_, err = a.provider.Update(ctx, memprovider.UpdateRequest{
+			MemoryID: memoryID,
+			Memory:   newText,
+		})
+	}
 	return err
 }
 
