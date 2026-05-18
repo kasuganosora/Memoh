@@ -365,7 +365,7 @@ func (d *DiscussTrigger) resolveProbeConfig(ctx context.Context, sess *discussSe
 func (d *DiscussTrigger) handleReplyWithAgent(ctx context.Context, sess *discussSession, rc RenderedContext, log *slog.Logger) {
 	// Hard deadline so the session loop always returns to select, even if the
 	// LLM provider or outbound send hangs indefinitely.
-	const maxAgentCallDuration = 15 * time.Minute
+	const maxAgentCallDuration = 5 * time.Minute
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithTimeout(ctx, maxAgentCallDuration)
 	defer cancel()
