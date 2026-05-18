@@ -8,10 +8,12 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
 	stdpath "path"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -1026,34 +1028,53 @@ func startDreamScheduler(lc fx.Lifecycle, log *slog.Logger, dreamService *dream.
 	})
 }
 
-// runDreamDaily runs the dream cycle once per day at midnight.
+// runDreamDaily runs the dream cycle once per day at midnight,
+// and also listens for SIGUSR1 to trigger an immediate run for testing.
+// Send: docker kill -s USR1 memoh-server
 func runDreamDaily(ctx context.Context, log *slog.Logger, ds *dream.Service, queries *dbsqlc.Queries) {
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGUSR1)
+	defer signal.Stop(sigCh)
+
 	for {
 		// Calculate duration until next midnight.
 		now := time.Now()
 		nextMidnight := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, now.Location())
 		waitDuration := nextMidnight.Sub(now)
 
-		log.Info("dream scheduler: next run", slog.Time("at", nextMidnight), slog.Duration("in", waitDuration))
+		log.Info("dream scheduler: next run",
+			slog.Time("at", nextMidnight),
+			slog.Duration("in", waitDuration),
+		)
+
 		select {
 		case <-time.After(waitDuration):
+		case <-sigCh:
+			log.Info("dream scheduler: SIGUSR1 received, triggering immediate run")
 		case <-ctx.Done():
 			return
 		}
 
-		// Run dream for all ready bots with heartbeat enabled.
-		bots, err := queries.ListHeartbeatEnabledBots(ctx)
-		if err != nil {
-			log.Error("dream scheduler: failed to list bots", slog.Any("error", err))
-			continue
+		runDreamForAllBots(ctx, log, ds, queries)
+
+		if len(sigCh) > 0 {
+			<-sigCh // drain any duplicate SIGUSR1
 		}
-		for _, bot := range bots {
-			botID := bot.ID.String()
-			botCtx := contextkeys.WithBudgetBotID(ctx, botID)
-			ds.Run(botCtx, botID, dream.RunOptions{
-				Since: time.Now().Add(-24 * time.Hour),
-			})
-		}
+	}
+}
+
+func runDreamForAllBots(ctx context.Context, log *slog.Logger, ds *dream.Service, queries *dbsqlc.Queries) {
+	bots, err := queries.ListHeartbeatEnabledBots(ctx)
+	if err != nil {
+		log.Error("dream scheduler: failed to list bots", slog.Any("error", err))
+		return
+	}
+	for _, bot := range bots {
+		botID := bot.ID.String()
+		botCtx := contextkeys.WithBudgetBotID(ctx, botID)
+		ds.Run(botCtx, botID, dream.RunOptions{
+			Since: time.Now().Add(-24 * time.Hour),
+		})
 	}
 }
 
