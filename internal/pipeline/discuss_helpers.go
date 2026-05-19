@@ -83,6 +83,39 @@ func latestRCReceivedAtMs(rc RenderedContext) int64 {
 	return latest
 }
 
+// latestReplyTarget extracts the best reply target from a RenderedContext.
+// It prefers the latest non-self segment with MentionsMe or RepliesToMe set.
+// If none found, it falls back to the latest non-self segment's Target.
+// Returns empty string if no suitable target is found.
+func latestReplyTarget(rc RenderedContext, afterMs int64) string {
+	var mentionTarget string
+	var mentionMs int64
+	var latestTarget string
+	var latestMs int64
+
+	for _, seg := range rc {
+		if seg.IsMyself || seg.Target == "" {
+			continue
+		}
+		if afterMs > 0 && seg.ReceivedAtMs <= afterMs {
+			continue
+		}
+		if seg.ReceivedAtMs > latestMs {
+			latestMs = seg.ReceivedAtMs
+			latestTarget = seg.Target
+		}
+		if (seg.MentionsMe || seg.RepliesToMe) && seg.ReceivedAtMs > mentionMs {
+			mentionMs = seg.ReceivedAtMs
+			mentionTarget = seg.Target
+		}
+	}
+
+	if mentionTarget != "" {
+		return mentionTarget
+	}
+	return latestTarget
+}
+
 // buildLateBindingPrompt constructs the late-binding system prompt injected
 // as the final user message in discuss mode.
 func buildLateBindingPrompt(isMentioned bool) string {

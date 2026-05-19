@@ -213,6 +213,21 @@ func (p *MessageProvider) execSend(ctx context.Context, session SessionContext, 
 		return nil, err
 	}
 
+	// Discuss mode auto-inject reply_to: when the bot doesn't specify reply_to
+	// and no cross-conversation target is set, automatically thread the reply
+	// under the session's ReplyTarget (the latest triggering note).
+	if session.SessionType == "discuss" &&
+		StringArg(args, "reply_to") == "" &&
+		StringArg(args, "target") == "" &&
+		strings.TrimSpace(session.ReplyTarget) != "" {
+		if args == nil {
+			args = make(map[string]any)
+		}
+		args["reply_to"] = strings.TrimSpace(session.ReplyTarget)
+		p.logger.Info("send tool: auto-injected reply_to for discuss mode",
+			slog.String("reply_to", strings.TrimSpace(session.ReplyTarget)))
+	}
+
 	result, err := p.exec.Send(ctx, toMessagingSession(session), args)
 	if err != nil {
 		return nil, err
@@ -357,6 +372,14 @@ func (p *MessageProvider) execReact(ctx context.Context, session SessionContext,
 func (p *MessageProvider) execReply(ctx context.Context, session SessionContext, args map[string]any) (any, error) {
 	reasoning := StringArg(args, "reasoning")
 	replyTo := StringArg(args, "reply_to")
+
+	// Discuss mode auto-inject reply_to: when the bot doesn't specify reply_to,
+	// automatically use the session's ReplyTarget so the reply threads correctly.
+	if replyTo == "" && session.SessionType == "discuss" && strings.TrimSpace(session.ReplyTarget) != "" {
+		replyTo = strings.TrimSpace(session.ReplyTarget)
+		p.logger.Info("reply tool: auto-injected reply_to for discuss mode",
+			slog.String("reply_to", replyTo))
+	}
 
 	replyText, err := p.generateReply(ctx, session, reasoning)
 	if err != nil {

@@ -4,7 +4,7 @@ Use `get_contacts` to list all known contacts and conversations across all platf
 
 Supported platforms: telegram, discord, qq, matrix, feishu, wecom, dingtalk, wechatoa, weixin, misskey, web.
 
-- **`send`**: Send a message, file, or attachment. Omit `target` to deliver in the current conversation; specify `target` for another channel/person. You can use any supported platform — pass `platform` to send cross-platform. When `target` is omitted on platforms like Misskey, a new standalone post is created.
+- **`send`**: Send a message, file, or attachment. Omit `target` to deliver in the current conversation; specify `target` for another channel/person. You can use any supported platform — pass `platform` to send cross-platform. Use `reply_to` with a message `id` to create a threaded reply — on Misskey, omitting `reply_to` creates a standalone post instead of a reply.
 - **`react`**: Add or remove an emoji reaction on a message. Omit `target` to react in the current conversation.
 - **`speak`**: Send a voice message. Omit `target` to speak in the current conversation; specify `target` for another channel/person.
 

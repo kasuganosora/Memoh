@@ -102,6 +102,19 @@ func (e *Executor) Send(ctx context.Context, session SessionContext, args map[st
 // SendDirect sends a message via the channel adapter without the same-conversation
 // local shortcut. Used by discuss mode where there is no active stream emitter.
 func (e *Executor) SendDirect(ctx context.Context, session SessionContext, target string, args map[string]any) (*SendResult, error) {
+	// Misskey reply fallback: when reply_to is not explicitly set and the session
+	// has a ReplyTarget on the Misskey platform, automatically inject it so the
+	// message is sent as a threaded reply rather than an independent note.
+	if strings.EqualFold(strings.TrimSpace(session.CurrentPlatform), "misskey") &&
+		firstStringArg(args, "reply_to") == "" &&
+		strings.TrimSpace(session.ReplyTarget) != "" &&
+		(target == "" || target == strings.TrimSpace(session.ReplyTarget)) {
+		if args == nil {
+			args = make(map[string]any)
+		}
+		args["reply_to"] = strings.TrimSpace(session.ReplyTarget)
+	}
+
 	return e.sendWithMode(ctx, session, target, args, sendMode{
 		name:                   "send direct",
 		requireTarget:          true,

@@ -1103,6 +1103,26 @@ func (a *MisskeyAdapter) Send(ctx context.Context, cfg channel.ChannelConfig, ms
 
 	_, err = createNote(ctx, mkCfg, text, replyID, visibility, fileIDs...)
 	if err != nil {
+		// Fallback: if the reply target note was deleted or is otherwise invalid,
+		// retry as an independent note without the reply reference.
+		if replyID != "" {
+			if a.logger != nil {
+				a.logger.Warn("misskey: reply target may be deleted, retrying as independent note",
+					slog.String("reply_id", replyID),
+					slog.String("config_id", cfg.ID),
+					slog.Any("original_error", err))
+			}
+			_, retryErr := createNote(ctx, mkCfg, text, "", "public", fileIDs...)
+			if retryErr == nil {
+				return nil
+			}
+			// Both attempts failed — return the original error.
+			if a.logger != nil {
+				a.logger.Error("misskey: fallback send also failed",
+					slog.String("config_id", cfg.ID),
+					slog.Any("error", retryErr))
+			}
+		}
 		if a.logger != nil {
 			a.logger.Error("send note failed", slog.String("config_id", cfg.ID), slog.Any("error", err))
 		}

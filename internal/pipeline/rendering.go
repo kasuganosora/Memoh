@@ -30,6 +30,7 @@ type RenderedSegment struct {
 	MentionsMe   bool                   `json:"mentions_me,omitempty"`
 	RepliesToMe  bool                   `json:"replies_to_me,omitempty"`
 	IsTimeline   bool                   `json:"is_timeline,omitempty"`
+	Target       string                 `json:"target,omitempty"`
 	ImageRefs    []ImageAttachmentRef   `json:"image_refs,omitempty"`
 }
 
@@ -126,6 +127,7 @@ func renderMessage(msg *ICMessage, params RenderParams) RenderedSegment {
 			MentionsMe:   mentionsMe,
 			RepliesToMe:  repliesToMe,
 			IsTimeline:   msg.IsTimeline,
+			Target:       msg.Conversation.Target,
 		}
 	}
 
@@ -174,6 +176,7 @@ func renderMessage(msg *ICMessage, params RenderParams) RenderedSegment {
 		MentionsMe:   mentionsMe,
 		RepliesToMe:  repliesToMe,
 		IsTimeline:   msg.IsTimeline,
+		Target:       msg.Conversation.Target,
 		ImageRefs:    imageRefs,
 	}
 }

@@ -187,3 +187,149 @@ func TestSendDirectPromotesDataPathAttachmentToContentHash(t *testing.T) {
 		t.Fatalf("expected public access URL after promotion, got %q", att.URL)
 	}
 }
+
+func TestSendDirectMisskeyAutoInjectsReplyTo(t *testing.T) {
+	t.Parallel()
+
+	sender := &testSender{}
+	exec := &Executor{
+		Sender:   sender,
+		Resolver: testResolver{},
+	}
+
+	session := SessionContext{
+		BotID:           "bot_1",
+		CurrentPlatform: "misskey",
+		ReplyTarget:     "note-abc123",
+	}
+
+	_, err := exec.SendDirect(context.Background(), session, "note-abc123", map[string]any{
+		"text": "hello",
+	})
+	if err != nil {
+		t.Fatalf("SendDirect returned error: %v", err)
+	}
+	if sender.called != 1 {
+		t.Fatalf("expected sender called once, got %d", sender.called)
+	}
+	// reply_to should be auto-injected for Misskey.
+	if sender.req.Message.Reply == nil {
+		t.Fatal("expected Reply to be set via Misskey fallback")
+	}
+	if sender.req.Message.Reply.MessageID != "note-abc123" {
+		t.Fatalf("expected reply_to=note-abc123, got %q", sender.req.Message.Reply.MessageID)
+	}
+}
+
+func TestSendDirectMisskeyDoesNotOverrideExplicitReplyTo(t *testing.T) {
+	t.Parallel()
+
+	sender := &testSender{}
+	exec := &Executor{
+		Sender:   sender,
+		Resolver: testResolver{},
+	}
+
+	session := SessionContext{
+		BotID:           "bot_1",
+		CurrentPlatform: "misskey",
+		ReplyTarget:     "note-abc123",
+	}
+
+	_, err := exec.SendDirect(context.Background(), session, "note-abc123", map[string]any{
+		"text":     "hello",
+		"reply_to": "note-explicit",
+	})
+	if err != nil {
+		t.Fatalf("SendDirect returned error: %v", err)
+	}
+	if sender.req.Message.Reply == nil {
+		t.Fatal("expected Reply to be set")
+	}
+	// Should use the explicit value, not the session's ReplyTarget.
+	if sender.req.Message.Reply.MessageID != "note-explicit" {
+		t.Fatalf("expected reply_to=note-explicit, got %q", sender.req.Message.Reply.MessageID)
+	}
+}
+
+func TestSendDirectMisskeyNoFallbackForCrossConversation(t *testing.T) {
+	t.Parallel()
+
+	sender := &testSender{}
+	exec := &Executor{
+		Sender:   sender,
+		Resolver: testResolver{},
+	}
+
+	session := SessionContext{
+		BotID:           "bot_1",
+		CurrentPlatform: "misskey",
+		ReplyTarget:     "note-abc123",
+	}
+
+	// Sending to a different target (cross-conversation).
+	_, err := exec.SendDirect(context.Background(), session, "note-different", map[string]any{
+		"text": "hello",
+	})
+	if err != nil {
+		t.Fatalf("SendDirect returned error: %v", err)
+	}
+	// Should NOT auto-inject reply_to for cross-conversation sends.
+	if sender.req.Message.Reply != nil {
+		t.Fatalf("expected no Reply for cross-conversation send, got %+v", sender.req.Message.Reply)
+	}
+}
+
+func TestSendDirectNonMisskeyNoFallback(t *testing.T) {
+	t.Parallel()
+
+	sender := &testSender{}
+	exec := &Executor{
+		Sender:   sender,
+		Resolver: testResolver{},
+	}
+
+	session := SessionContext{
+		BotID:           "bot_1",
+		CurrentPlatform: "telegram",
+		ReplyTarget:     "chat-123",
+	}
+
+	_, err := exec.SendDirect(context.Background(), session, "chat-123", map[string]any{
+		"text": "hello",
+	})
+	if err != nil {
+		t.Fatalf("SendDirect returned error: %v", err)
+	}
+	// Non-Misskey platforms should NOT get auto-injected reply_to.
+	if sender.req.Message.Reply != nil {
+		t.Fatalf("expected no Reply for non-Misskey platform, got %+v", sender.req.Message.Reply)
+	}
+}
+
+func TestSendDirectMisskeyNoFallbackWhenReplyTargetEmpty(t *testing.T) {
+	t.Parallel()
+
+	sender := &testSender{}
+	exec := &Executor{
+		Sender:   sender,
+		Resolver: testResolver{},
+	}
+
+	session := SessionContext{
+		BotID:           "bot_1",
+		CurrentPlatform: "misskey",
+		ReplyTarget:     "",
+	}
+
+	_, err := exec.SendDirect(context.Background(), session, "some-target", map[string]any{
+		"text": "hello",
+	})
+	if err != nil {
+		t.Fatalf("SendDirect returned error: %v", err)
+	}
+	// Empty ReplyTarget should not trigger fallback.
+	if sender.req.Message.Reply != nil {
+		t.Fatalf("expected no Reply when ReplyTarget is empty, got %+v", sender.req.Message.Reply)
+	}
+}

@@ -80,6 +80,10 @@ func (d *DiscussTrigger) NotifyRC(ctx context.Context, sessionID string, rc Rend
 		d.wireSmartTiming(ctx, sess, config.BotID)
 		d.sessions[sessionID] = sess
 		go d.runSession(sessCtx, sess) //nolint:contextcheck // long-lived goroutine
+	} else if config.ReplyTarget != "" {
+		// Update ReplyTarget to track the latest inbound message's note ID.
+		// This ensures fallback reply mechanisms target the most recent message.
+		sess.config.ReplyTarget = config.ReplyTarget
 	}
 	d.mu.Unlock()
 
@@ -416,6 +420,14 @@ func (d *DiscussTrigger) handleReplyWithAgent(ctx context.Context, sess *discuss
 	cfg := sess.config
 	sess.lastAgentCallAt = time.Now()
 	isMentioned := wasRecentlyMentioned(rc, sess.lastProcessedMs)
+
+	// Update ReplyTarget to the best candidate from the current RC.
+	// Prefer the latest mentions_me/replies_to_me segment's target; fall back
+	// to the latest non-self segment's target.
+	if bestTarget := latestReplyTarget(rc, sess.lastProcessedMs); bestTarget != "" {
+		cfg.ReplyTarget = bestTarget
+		sess.config.ReplyTarget = bestTarget
+	}
 
 	// Mark route active in the dispatcher for inject/queue support.
 	routeID := cfg.RouteID
