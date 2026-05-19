@@ -281,9 +281,11 @@ func (a *MisskeyAdapter) runStream(ctx context.Context, cfg channel.ChannelConfi
 
 	// Subscribe to timeline channels based on routing config.
 	tlCfg := parseTimelineConfig(cfg.Routing)
-	needDedup := tlCfg.Home || tlCfg.Local // dedup needed when any timeline is active
+	needDedup := tlCfg.Home || tlCfg.Local || tlCfg.Global || tlCfg.Hybrid // dedup needed when any timeline is active
 	if tlCfg.Home {
-		if err := subscribeChannel(conn, "homeTimeline", "memoh-home"); err != nil {
+		if err := subscribeChannel(conn, "homeTimeline", "memoh-home", map[string]any{
+			"withRenotes": true,
+		}); err != nil {
 			return fmt.Errorf("misskey ws connect homeTimeline: %w", err)
 		}
 		if a.logger != nil {
@@ -291,11 +293,35 @@ func (a *MisskeyAdapter) runStream(ctx context.Context, cfg channel.ChannelConfi
 		}
 	}
 	if tlCfg.Local {
-		if err := subscribeChannel(conn, "localTimeline", "memoh-local"); err != nil {
+		if err := subscribeChannel(conn, "localTimeline", "memoh-local", map[string]any{
+			"withRenotes": true,
+			"withReplies": true,
+		}); err != nil {
 			return fmt.Errorf("misskey ws connect localTimeline: %w", err)
 		}
 		if a.logger != nil {
 			a.logger.Info("subscribed to localTimeline", slog.String("config_id", cfg.ID))
+		}
+	}
+	if tlCfg.Global {
+		if err := subscribeChannel(conn, "globalTimeline", "memoh-global", map[string]any{
+			"withRenotes": true,
+		}); err != nil {
+			return fmt.Errorf("misskey ws connect globalTimeline: %w", err)
+		}
+		if a.logger != nil {
+			a.logger.Info("subscribed to globalTimeline", slog.String("config_id", cfg.ID))
+		}
+	}
+	if tlCfg.Hybrid {
+		if err := subscribeChannel(conn, "hybridTimeline", "memoh-hybrid", map[string]any{
+			"withRenotes": true,
+			"withReplies": true,
+		}); err != nil {
+			return fmt.Errorf("misskey ws connect hybridTimeline: %w", err)
+		}
+		if a.logger != nil {
+			a.logger.Info("subscribed to hybridTimeline", slog.String("config_id", cfg.ID))
 		}
 	}
 
@@ -370,7 +396,7 @@ func (a *MisskeyAdapter) runStream(ctx context.Context, cfg channel.ChannelConfi
 		}
 		// Extend read deadline on every successful read.
 		_ = conn.SetReadDeadline(time.Now().Add(misskeyReadTimeout))
-		a.handleStreamMessage(ctx, cfg, mkCfg, me, handler, msgBytes, dedup, &dedupMu, tlCfg)
+		a.handleStreamMessage(ctx, cfg, me, handler, msgBytes, dedup, &dedupMu, tlCfg)
 	}
 }
 
@@ -511,7 +537,7 @@ func (a *MisskeyAdapter) getMentions(noteID string) []string {
 	return append([]string(nil), a.mentions[noteID]...)
 }
 
-func (a *MisskeyAdapter) handleStreamMessage(ctx context.Context, cfg channel.ChannelConfig, mkCfg Config, me *meResponse, handler channel.InboundHandler, raw []byte, dedup map[string]time.Time, dedupMu *sync.Mutex, tlCfg timelineConfig) {
+func (a *MisskeyAdapter) handleStreamMessage(ctx context.Context, cfg channel.ChannelConfig, me *meResponse, handler channel.InboundHandler, raw []byte, dedup map[string]time.Time, dedupMu *sync.Mutex, tlCfg timelineConfig) {
 	var msg streamMessage
 	if err := json.Unmarshal(raw, &msg); err != nil {
 		return
@@ -523,45 +549,21 @@ func (a *MisskeyAdapter) handleStreamMessage(ctx context.Context, cfg channel.Ch
 		if err := json.Unmarshal(msg.Body, &body); err != nil {
 			return
 		}
-		a.handleChannelEvent(ctx, cfg, mkCfg, me, handler, body, dedup, dedupMu, tlCfg)
-	case "sr":
-		// Misskey sends "sr" (server request) events for renotes and other
-		// timeline entries that are not full "note" events. The body contains
-		// only a note ID — fetch the full note via REST API.
-		var sr struct {
-			ID string `json:"id"`
-		}
-		if err := json.Unmarshal(msg.Body, &sr); err != nil {
-			return
-		}
-		if sr.ID == "" {
-			return
-		}
-		a.handleSrNote(ctx, cfg, mkCfg, me, handler, sr.ID, dedup, dedupMu, tlCfg)
+		a.handleChannelEvent(ctx, cfg, me, handler, body, dedup, dedupMu, tlCfg)
+	case "noteUpdated":
+		// Misskey sends "noteUpdated" events for notes we subscribed to via
+		// "subNote"/"s" messages. These contain reaction updates, deletions, etc.
+		// Currently we don't subscribe to individual notes, so this is a no-op.
 	}
 }
 
-func (a *MisskeyAdapter) handleChannelEvent(ctx context.Context, cfg channel.ChannelConfig, mkCfg Config, me *meResponse, handler channel.InboundHandler, body streamChannelBody, dedup map[string]time.Time, dedupMu *sync.Mutex, tlCfg timelineConfig) {
+func (a *MisskeyAdapter) handleChannelEvent(ctx context.Context, cfg channel.ChannelConfig, me *meResponse, handler channel.InboundHandler, body streamChannelBody, dedup map[string]time.Time, dedupMu *sync.Mutex, tlCfg timelineConfig) {
 	switch body.Type {
 	case "note":
-		// Timeline note events from homeTimeline or localTimeline subscriptions.
-		// Main channel (body.ID == "memoh-main") also sends "note" events for
-		// renotes, but without the full renote data — only a renoteId. Fetch
-		// the note via REST API to get the complete data.
-		if body.ID != "memoh-home" && body.ID != "memoh-local" && body.ID != "memoh-main" {
-			return
-		}
-		if body.ID == "memoh-main" {
-			var note misskeyNote
-			if err := json.Unmarshal(body.Body, &note); err != nil {
-				return
-			}
-			// For main channel notes, the streaming data may lack the full
-			// renote object. Use notes/show to get the complete note with
-			// embedded renote content.
-			if note.ID != "" {
-				a.handleSrNote(ctx, cfg, mkCfg, me, handler, note.ID, dedup, dedupMu, tlCfg)
-			}
+		// Timeline note events from homeTimeline, localTimeline, globalTimeline,
+		// or hybridTimeline subscriptions. The main channel does NOT emit "note"
+		// events — it only emits "notification" and "mention" (per Misskey source).
+		if body.ID != "memoh-home" && body.ID != "memoh-local" && body.ID != "memoh-global" && body.ID != "memoh-hybrid" {
 			return
 		}
 		a.handleTimelineNote(ctx, cfg, me, handler, body, dedup, dedupMu, tlCfg)
@@ -722,6 +724,9 @@ func (*MisskeyAdapter) buildInboundMessage(me *meResponse, note misskeyNote) (ch
 		}
 	}
 
+	// Determine note interaction type for metadata.
+	noteType := classifyNoteType(note)
+
 	return channel.InboundMessage{
 		Channel: Type,
 		Message: channel.Message{
@@ -747,8 +752,28 @@ func (*MisskeyAdapter) buildInboundMessage(me *meResponse, note misskeyNote) (ch
 			"is_mentioned": isMentioned,
 			"visibility":   note.Visibility,
 			"note_id":      note.ID,
+			"note_type":    noteType,
+			"renote_id":    note.RenoteID, // empty if not a renote/quote
+			"reply_id":     note.ReplyID,  // empty if not a reply
 		},
 	}, true
+}
+
+// classifyNoteType determines the interaction type of a Misskey note.
+// Returns one of: "note" (original post), "reply", "renote" (pure boost),
+// "quote" (renote with commentary).
+func classifyNoteType(note misskeyNote) string {
+	if note.RenoteID != "" {
+		// Has a renote reference — determine if it's a pure renote or a quote.
+		if strings.TrimSpace(note.Text) == "" && len(note.Files) == 0 {
+			return "renote" // pure boost, no commentary
+		}
+		return "quote" // renote with added text/files (quote post)
+	}
+	if note.ReplyID != "" {
+		return "reply"
+	}
+	return "note" // original post
 }
 
 // noteReplyContext prepends reply and renote context to the given text so the
@@ -833,8 +858,13 @@ func (a *MisskeyAdapter) handleTimelineNote(ctx context.Context, cfg channel.Cha
 	}
 
 	source := "home"
-	if body.ID == "memoh-local" {
+	switch body.ID {
+	case "memoh-local":
 		source = "local"
+	case "memoh-global":
+		source = "global"
+	case "memoh-hybrid":
+		source = "hybrid"
 	}
 
 	inbound := a.buildTimelineInboundMessage(note, source, tlCfg.Discuss, me)
@@ -842,52 +872,6 @@ func (a *MisskeyAdapter) handleTimelineNote(ctx context.Context, cfg channel.Cha
 	go func() {
 		if err := handler(ctx, cfg, inbound); err != nil && a.logger != nil {
 			a.logger.Error("handle timeline inbound failed", slog.String("config_id", cfg.ID), slog.Any("error", err))
-		}
-	}()
-}
-
-// handleSrNote fetches a note by ID from the Misskey REST API and
-// processes it through the timeline handler. This handles "sr" streaming
-// events that Misskey sends for renotes and other timeline entries that
-// are not delivered as full "note" events.
-func (a *MisskeyAdapter) handleSrNote(ctx context.Context, cfg channel.ChannelConfig, mkCfg Config, me *meResponse, handler channel.InboundHandler, noteID string, dedup map[string]time.Time, dedupMu *sync.Mutex, tlCfg timelineConfig) {
-	// Dedup: skip if already processed from another source.
-	if dedup != nil {
-		dedupMu.Lock()
-		if ts, seen := dedup[noteID]; seen && time.Since(ts) < misskeyDedupTTL {
-			dedupMu.Unlock()
-			return
-		}
-		dedup[noteID] = time.Now()
-		dedupMu.Unlock()
-	}
-
-	note, err := fetchNoteByID(ctx, mkCfg, noteID)
-	if err != nil {
-		if a.logger != nil {
-			a.logger.Warn("sr note fetch failed", slog.String("config_id", cfg.ID), slog.String("note_id", noteID), slog.Any("error", err))
-		}
-		return
-	}
-
-	// Same filtering as handleTimelineNote.
-	if note.UserID == me.ID {
-		return
-	}
-	text := strings.TrimSpace(note.Text)
-	if text == "" && len(note.Files) == 0 && note.Renote == nil {
-		return
-	}
-	if note.Visibility == "specified" {
-		return
-	}
-
-	// Use "timeline" as source since sr events don't distinguish home vs local.
-	inbound := a.buildTimelineInboundMessage(*note, "timeline", tlCfg.Discuss, me)
-	a.logInbound(cfg.ID, inbound)
-	go func() {
-		if err := handler(ctx, cfg, inbound); err != nil && a.logger != nil {
-			a.logger.Error("sr note handle failed", slog.String("config_id", cfg.ID), slog.Any("error", err))
 		}
 	}()
 }
@@ -996,6 +980,9 @@ func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source stri
 			"timeline_source":     source,
 			"visibility":          note.Visibility,
 			"note_id":             note.ID,
+			"note_type":           classifyNoteType(note),
+			"renote_id":           note.RenoteID,
+			"reply_id":            note.ReplyID,
 		},
 	}
 }
@@ -1075,6 +1062,16 @@ func (a *MisskeyAdapter) Send(ctx context.Context, cfg channel.ChannelConfig, ms
 		replyID = strings.TrimSpace(msg.Message.Message.Reply.MessageID)
 	}
 
+	// Extract renoteId from message metadata for renote/quote support.
+	// When renoteId is set with text, it creates a quote note.
+	// When renoteId is set without text, it creates a pure renote (boost).
+	var renoteID string
+	if msg.Message.Message.Metadata != nil {
+		if rid, ok := msg.Message.Message.Metadata["renote_id"].(string); ok {
+			renoteID = strings.TrimSpace(rid)
+		}
+	}
+
 	// Auto-mention: prepend all participants from the replied note, excluding self/reply/renote authors.
 	if replyID != "" {
 		if auto := a.getMentions(replyID); len(auto) > 0 {
@@ -1095,13 +1092,16 @@ func (a *MisskeyAdapter) Send(ctx context.Context, cfg channel.ChannelConfig, ms
 		visibility = "home"
 	}
 
+	// Build note options for renote/quote.
+	opts := createNoteOptions{RenoteID: renoteID}
+
 	// Upload attachments to Misskey Drive and collect file IDs.
 	fileIDs, err := a.uploadAttachments(ctx, mkCfg, msg.Message.Attachments)
 	if err != nil && a.logger != nil {
 		a.logger.Warn("misskey: some attachments failed to upload", slog.Any("error", err))
 	}
 
-	_, err = createNote(ctx, mkCfg, text, replyID, visibility, fileIDs...)
+	_, err = createNote(ctx, mkCfg, text, replyID, visibility, opts, fileIDs...)
 	if err != nil {
 		// Fallback: if the reply target note was deleted or is otherwise invalid,
 		// retry as an independent note without the reply reference.
@@ -1112,7 +1112,7 @@ func (a *MisskeyAdapter) Send(ctx context.Context, cfg channel.ChannelConfig, ms
 					slog.String("config_id", cfg.ID),
 					slog.Any("original_error", err))
 			}
-			_, retryErr := createNote(ctx, mkCfg, text, "", "public", fileIDs...)
+			_, retryErr := createNote(ctx, mkCfg, text, "", "public", opts, fileIDs...)
 			if retryErr == nil {
 				return nil
 			}
@@ -1290,9 +1290,29 @@ func (s *misskeyBlockStream) Push(_ context.Context, event channel.PreparedStrea
 // --- Timeline configuration ---
 
 // timelineConfig holds timeline subscription settings parsed from routing.
+//
+// Routing configuration format (in ChannelConfig.Routing):
+//
+//	{
+//	  "timeline": {
+//	    "home":    true,  // homeTimeline: notes from followed users
+//	    "local":   true,  // localTimeline: all notes from the local instance
+//	    "global":  true,  // globalTimeline: all notes from the federated network
+//	    "hybrid":  true,  // hybridTimeline: local + followed users (social timeline)
+//	    "discuss": true   // enable discuss mode for timeline sessions (smart timing)
+//	  }
+//	}
+//
+// Note types in inbound metadata ("note_type"):
+//   - "note":   original post
+//   - "reply":  reply to another note (has replyId)
+//   - "renote": pure boost/repost without commentary (has renoteId, no text)
+//   - "quote":  quote post with commentary (has renoteId + text)
 type timelineConfig struct {
 	Home    bool `json:"home"`
 	Local   bool `json:"local"`
+	Global  bool `json:"global"`  // subscribe to globalTimeline (federated)
+	Hybrid  bool `json:"hybrid"`  // subscribe to hybridTimeline (local + follows)
 	Discuss bool `json:"discuss"` // use discuss mode for timeline sessions (smart timing)
 }
 
@@ -1316,6 +1336,12 @@ func parseTimelineConfig(routing map[string]any) timelineConfig {
 	if local, ok := v["local"]; ok {
 		cfg.Local = toBool(local)
 	}
+	if global, ok := v["global"]; ok {
+		cfg.Global = toBool(global)
+	}
+	if hybrid, ok := v["hybrid"]; ok {
+		cfg.Hybrid = toBool(hybrid)
+	}
 	if discuss, ok := v["discuss"]; ok {
 		cfg.Discuss = toBool(discuss)
 	}
@@ -1338,13 +1364,17 @@ func toBool(v any) bool {
 }
 
 // subscribeChannel sends a channel connect message over the WebSocket.
-func subscribeChannel(conn *websocket.Conn, channelName, id string) error {
+func subscribeChannel(conn *websocket.Conn, channelName, id string, params ...map[string]any) error {
+	body := map[string]any{
+		"channel": channelName,
+		"id":      id,
+	}
+	if len(params) > 0 && params[0] != nil {
+		body["params"] = params[0]
+	}
 	return conn.WriteJSON(map[string]any{
 		"type": "connect",
-		"body": map[string]any{
-			"channel": channelName,
-			"id":      id,
-		},
+		"body": body,
 	})
 }
 

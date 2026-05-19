@@ -52,6 +52,7 @@ type createNoteRequest struct {
 	Text       string   `json:"text,omitempty"`
 	Visibility string   `json:"visibility,omitempty"`
 	ReplyID    string   `json:"replyId,omitempty"`
+	RenoteID   string   `json:"renoteId,omitempty"` // set for renote (pure boost) or quote (renote + text)
 	CW         string   `json:"cw,omitempty"`
 	FileIDs    []string `json:"fileIds,omitempty"`
 }
@@ -77,8 +78,15 @@ type meResponse struct {
 	AvatarURL string `json:"avatarUrl"`
 }
 
+// createNoteOptions holds optional parameters for createNote.
+type createNoteOptions struct {
+	RenoteID string // set to create a renote (boost) or quote (renote + text)
+}
+
 // createNote creates a note on the Misskey instance.
-func createNote(ctx context.Context, cfg Config, text, replyID, visibility string, fileIDs ...string) (*createNoteResponse, error) {
+// When opts.RenoteID is set and text is empty, a pure renote (boost) is created.
+// When opts.RenoteID is set and text is non-empty, a quote note is created.
+func createNote(ctx context.Context, cfg Config, text, replyID, visibility string, opts createNoteOptions, fileIDs ...string) (*createNoteResponse, error) {
 	if visibility == "" {
 		visibility = "public"
 	}
@@ -87,6 +95,7 @@ func createNote(ctx context.Context, cfg Config, text, replyID, visibility strin
 		Text:       text,
 		Visibility: visibility,
 		ReplyID:    replyID,
+		RenoteID:   opts.RenoteID,
 	}
 	for _, id := range fileIDs {
 		if id != "" {

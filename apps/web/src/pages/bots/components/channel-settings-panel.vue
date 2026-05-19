@@ -290,38 +290,104 @@
         >
           {{ $t('bots.channels.discussModePrivateNote') }}
         </p>
+        <p
+          v-if="platformType === 'misskey'"
+          class="text-xs text-muted-foreground rounded-md border border-border bg-muted/50 px-3 py-2"
+        >
+          {{ $t('bots.channels.discussModeMisskeyNote') }}
+        </p>
       </div>
     </template>
 
     <!-- Timeline Settings (Misskey only) -->
     <template v-if="isEditMode && platformType === 'misskey'">
       <Separator />
-      <div class="space-y-3">
-        <h4 class="text-xs font-medium">
-          {{ $t('bots.channels.timelineSettings') }}
-        </h4>
-        <p class="text-xs text-muted-foreground">
-          {{ $t('bots.channels.timelineHint') }}
-        </p>
-        <div class="space-y-2">
-          <label class="flex items-center gap-2 text-xs cursor-pointer">
+      <div class="space-y-4">
+        <div>
+          <h4 class="text-xs font-medium">
+            {{ $t('bots.channels.timelineSettings') }}
+          </h4>
+          <p class="text-xs text-muted-foreground mt-0.5">
+            {{ $t('bots.channels.timelineHint') }}
+          </p>
+        </div>
+        <div class="space-y-3">
+          <!-- Home Timeline -->
+          <label class="flex items-start gap-2 text-xs cursor-pointer">
             <input
               type="checkbox"
-              class="size-3.5 rounded border-border"
+              class="size-3.5 rounded border-border mt-0.5"
               :checked="form.timelineHome"
               @change="form.timelineHome = ($event.target as HTMLInputElement).checked"
             >
-            {{ $t('bots.channels.homeTimeline') }}
+            <div>
+              <span class="font-medium">{{ $t('bots.channels.homeTimeline') }}</span>
+              <p class="text-muted-foreground mt-0.5">
+                {{ $t('bots.channels.homeTimelineHint') }}
+              </p>
+            </div>
           </label>
-          <label class="flex items-center gap-2 text-xs cursor-pointer">
+          <!-- Local Timeline -->
+          <label class="flex items-start gap-2 text-xs cursor-pointer">
             <input
               type="checkbox"
-              class="size-3.5 rounded border-border"
+              class="size-3.5 rounded border-border mt-0.5"
               :checked="form.timelineLocal"
               @change="form.timelineLocal = ($event.target as HTMLInputElement).checked"
             >
-            {{ $t('bots.channels.localTimeline') }}
+            <div>
+              <span class="font-medium">{{ $t('bots.channels.localTimeline') }}</span>
+              <p class="text-muted-foreground mt-0.5">
+                {{ $t('bots.channels.localTimelineHint') }}
+              </p>
+            </div>
           </label>
+          <!-- Global Timeline -->
+          <label class="flex items-start gap-2 text-xs cursor-pointer">
+            <input
+              type="checkbox"
+              class="size-3.5 rounded border-border mt-0.5"
+              :checked="form.timelineGlobal"
+              @change="form.timelineGlobal = ($event.target as HTMLInputElement).checked"
+            >
+            <div>
+              <span class="font-medium">{{ $t('bots.channels.globalTimeline') }}</span>
+              <p class="text-muted-foreground mt-0.5">
+                {{ $t('bots.channels.globalTimelineHint') }}
+              </p>
+            </div>
+          </label>
+          <!-- Hybrid Timeline -->
+          <label class="flex items-start gap-2 text-xs cursor-pointer">
+            <input
+              type="checkbox"
+              class="size-3.5 rounded border-border mt-0.5"
+              :checked="form.timelineHybrid"
+              @change="form.timelineHybrid = ($event.target as HTMLInputElement).checked"
+            >
+            <div>
+              <span class="font-medium">{{ $t('bots.channels.hybridTimeline') }}</span>
+              <p class="text-muted-foreground mt-0.5">
+                {{ $t('bots.channels.hybridTimelineHint') }}
+              </p>
+            </div>
+          </label>
+        </div>
+        <!-- Discuss mode for timeline -->
+        <Separator />
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h4 class="text-xs font-medium">
+              {{ $t('bots.channels.timelineDiscuss') }}
+            </h4>
+            <p class="text-xs text-muted-foreground mt-0.5">
+              {{ $t('bots.channels.timelineDiscussHint') }}
+            </p>
+          </div>
+          <Switch
+            :model-value="form.timelineDiscuss"
+            @update:model-value="(val) => form.timelineDiscuss = !!val"
+          />
         </div>
       </div>
     </template>
@@ -457,6 +523,9 @@ const form = reactive<{
   discussMode: boolean
   timelineHome: boolean
   timelineLocal: boolean
+  timelineGlobal: boolean
+  timelineHybrid: boolean
+  timelineDiscuss: boolean
 }>({
   credentials: {},
   disabled: false,
@@ -464,6 +533,9 @@ const form = reactive<{
   discussMode: false,
   timelineHome: false,
   timelineLocal: false,
+  timelineGlobal: false,
+  timelineHybrid: false,
+  timelineDiscuss: false,
 })
 
 const visibleSecrets = reactive<Record<string, boolean>>({})
@@ -562,6 +634,9 @@ function initForm() {
   const timeline = (routing?.timeline ?? {}) as Record<string, unknown>
   form.timelineHome = !!timeline.home
   form.timelineLocal = !!timeline.local
+  form.timelineGlobal = !!timeline.global
+  form.timelineHybrid = !!timeline.hybrid
+  form.timelineDiscuss = !!timeline.discuss
   lastSavedConfigId.value = String(props.channelItem.config?.id || '').trim()
 }
 
@@ -654,7 +729,13 @@ async function saveChannel(disabled: boolean, nextAction: 'save' | 'toggle') {
       routing.discuss = true
     }
     if (platformType.value === 'misskey') {
-      routing.timeline = { home: form.timelineHome, local: form.timelineLocal }
+      routing.timeline = {
+        home: form.timelineHome,
+        local: form.timelineLocal,
+        global: form.timelineGlobal,
+        hybrid: form.timelineHybrid,
+        discuss: form.timelineDiscuss,
+      }
     }
     const result = await upsertChannel({
       platform: platformType.value,
