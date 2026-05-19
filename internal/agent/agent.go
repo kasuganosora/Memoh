@@ -955,7 +955,9 @@ func pruneOldToolResults(p *sdk.GenerateParams, keepSteps, threshold int) *sdk.G
 		contentSize := 0
 		for _, part := range msgs[i].Content {
 			if tr, ok := part.(sdk.ToolResultPart); ok {
-				contentSize += len(fmt.Sprintf("%v", tr.Result))
+				if b, err := json.Marshal(tr.Result); err == nil {
+					contentSize += len(b)
+				}
 			}
 		}
 		if contentSize > 512 { // only prune if content is large enough
