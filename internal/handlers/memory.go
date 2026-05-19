@@ -292,6 +292,11 @@ func (h *MemoryHandler) ChatGetAll(c echo.Context) error {
 	}
 
 	noStats := strings.EqualFold(c.QueryParam("no_stats"), "true")
+
+	// Parse pagination parameters.
+	page, _ := strconv.Atoi(c.QueryParam("page"))
+	pageSize, _ := strconv.Atoi(c.QueryParam("page_size"))
+
 	scopes, err := h.resolveEnabledScopes(botID)
 	if err != nil {
 		return err
@@ -315,6 +320,27 @@ func (h *MemoryHandler) ChatGetAll(c echo.Context) error {
 		allResults = append(allResults, resp.Results...)
 	}
 	allResults = deduplicateMemoryItems(allResults)
+
+	// Apply pagination if requested.
+	if page > 0 && pageSize > 0 {
+		total := len(allResults)
+		offset := (page - 1) * pageSize
+		if offset >= total {
+			allResults = []memprovider.MemoryItem{}
+		} else {
+			end := offset + pageSize
+			if end > total {
+				end = total
+			}
+			allResults = allResults[offset:end]
+		}
+		return c.JSON(http.StatusOK, memprovider.PaginatedSearchResponse{
+			Results:  allResults,
+			Total:    total,
+			Page:     page,
+			PageSize: pageSize,
+		})
+	}
 
 	return c.JSON(http.StatusOK, memprovider.SearchResponse{Results: allResults})
 }

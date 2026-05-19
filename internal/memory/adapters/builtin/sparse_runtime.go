@@ -162,7 +162,9 @@ func (r *sparseRuntime) GetAll(ctx context.Context, req adapters.GetAllRequest) 
 		mem.BotID = botID
 		result = append(result, mem)
 	}
-	r.populateExplainStats(ctx, sparseMemoryItemPointers(result))
+	if !req.NoStats {
+		r.populateExplainStats(ctx, sparseMemoryItemPointers(result))
+	}
 	sort.Slice(result, func(i, j int) bool { return result[i].UpdatedAt > result[j].UpdatedAt })
 	if req.Limit > 0 && len(result) > req.Limit {
 		result = result[:req.Limit]

@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -36,6 +37,7 @@ type scanEntry struct {
 type Service struct {
 	provider bridge.Provider
 	logger   *slog.Logger
+	cache    *memoryCache
 }
 
 type MemoryItem struct {
@@ -63,7 +65,11 @@ func New(log *slog.Logger, provider bridge.Provider) *Service {
 	if log == nil {
 		log = slog.Default()
 	}
-	return &Service{provider: provider, logger: log.With(slog.String("component", "storefs"))}
+	return &Service{
+		provider: provider,
+		logger:   log.With(slog.String("component", "storefs")),
+		cache:    newMemoryCache(defaultCacheTTL),
+	}
 }
 
 func (s *Service) client(ctx context.Context, botID string) (*bridge.Client, error) {
@@ -164,6 +170,8 @@ func (s *Service) PersistMemories(ctx context.Context, botID string, items []Mem
 	if len(items) == 0 {
 		return nil
 	}
+	// Invalidate cache on write
+	defer s.cache.invalidate(botID)
 	index, err := s.buildScanIndex(ctx, botID)
 	if err != nil {
 		return err
@@ -212,6 +220,9 @@ func (s *Service) RebuildFiles(ctx context.Context, botID string, items []Memory
 	if s.provider == nil {
 		return ErrNotConfigured
 	}
+	// Invalidate cache on rebuild
+	defer s.cache.invalidate(botID)
+
 	if err := s.deleteFile(ctx, botID, memoryDirPath(), true); err != nil && !isNotFound(err) {
 		return err
 	}
@@ -242,6 +253,8 @@ func (s *Service) RemoveMemories(ctx context.Context, botID string, ids []string
 	if len(ids) == 0 {
 		return nil
 	}
+	// Invalidate cache on remove
+	defer s.cache.invalidate(botID)
 	index, err := s.buildScanIndex(ctx, botID)
 	if err != nil {
 		return err
@@ -273,6 +286,9 @@ func (s *Service) RemoveAllMemories(ctx context.Context, botID string) error {
 	if s.provider == nil {
 		return ErrNotConfigured
 	}
+	// Invalidate cache on remove all
+	defer s.cache.invalidate(botID)
+
 	if err := s.deleteFile(ctx, botID, memoryDirPath(), true); err != nil && !isNotFound(err) {
 		return err
 	}
@@ -283,6 +299,12 @@ func (s *Service) ReadAllMemoryFiles(ctx context.Context, botID string) ([]Memor
 	if s.provider == nil {
 		return nil, ErrNotConfigured
 	}
+
+	// Check cache first
+	if cached, ok := s.cache.get(botID); ok {
+		return cached, nil
+	}
+
 	c, err := s.client(ctx, botID)
 	if err != nil {
 		return nil, err
@@ -294,29 +316,74 @@ func (s *Service) ReadAllMemoryFiles(ctx context.Context, botID string) ([]Memor
 		}
 		return nil, err
 	}
-	items := make([]MemoryItem, 0, len(entries))
-	seen := map[string]struct{}{}
+
+	// Filter to only .md files
+	type mdEntry struct {
+		path string
+	}
+	mdFiles := make([]mdEntry, 0, len(entries))
 	for _, entry := range entries {
 		if entry.GetIsDir() || !strings.HasSuffix(entry.GetPath(), ".md") {
 			continue
 		}
-		entryPath := path.Join(memoryDirPath(), entry.GetPath())
-		content, readErr := s.readFile(ctx, botID, entryPath)
-		if readErr != nil {
+		mdFiles = append(mdFiles, mdEntry{path: path.Join(memoryDirPath(), entry.GetPath())})
+	}
+
+	if len(mdFiles) == 0 {
+		// Cache empty result to avoid repeated gRPC calls for empty directories
+		s.cache.set(botID, []MemoryItem{})
+		return []MemoryItem{}, nil
+	}
+
+	// Concurrently read and parse all memory files
+	type fileResult struct {
+		items        []MemoryItem
+		needsMigrate bool
+		entryPath    string
+	}
+
+	const maxConcurrency = 8
+	sem := make(chan struct{}, maxConcurrency)
+	results := make([]fileResult, len(mdFiles))
+	var wg sync.WaitGroup
+
+	for i, mf := range mdFiles {
+		wg.Add(1)
+		go func(idx int, entryPath string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			content, readErr := s.readFile(ctx, botID, entryPath)
+			if readErr != nil {
+				return
+			}
+			parsed, parseErr := parseMemoryDayMD(content)
+			if parseErr != nil {
+				jsonItems, jsonErr := parseJSONMemoryItems(content)
+				if jsonErr != nil {
+					return
+				}
+				results[idx] = fileResult{items: jsonItems, needsMigrate: true, entryPath: entryPath}
+				return
+			}
+			results[idx] = fileResult{items: parsed, entryPath: entryPath}
+		}(i, mf.path)
+	}
+	wg.Wait()
+
+	// Process results sequentially: deduplicate and collect migrations
+	items := make([]MemoryItem, 0, len(mdFiles)*4)
+	seen := map[string]struct{}{}
+	var pendingMigrations []fileResult
+	for _, res := range results {
+		if res.items == nil {
 			continue
 		}
-		parsed, parseErr := parseMemoryDayMD(content)
-		if parseErr != nil {
-			jsonItems, jsonErr := parseJSONMemoryItems(content)
-			if jsonErr != nil {
-				continue
-			}
-			if err := s.writeMemoryDay(ctx, botID, entryPath, jsonItems); err != nil {
-				return nil, err
-			}
-			parsed = jsonItems
+		if res.needsMigrate {
+			pendingMigrations = append(pendingMigrations, res)
 		}
-		for _, item := range parsed {
+		for _, item := range res.items {
 			if strings.TrimSpace(item.ID) == "" {
 				continue
 			}
@@ -327,9 +394,34 @@ func (s *Service) ReadAllMemoryFiles(ctx context.Context, botID string) ([]Memor
 			items = append(items, item)
 		}
 	}
+
+	// Migrate legacy JSON files in background (non-blocking for reads)
+	if len(pendingMigrations) > 0 {
+		go func(migrations []fileResult) {
+			defer func() {
+				if r := recover(); r != nil {
+					s.logger.Error("ReadAllMemoryFiles: background migration panicked",
+						slog.String("bot_id", botID), slog.Any("panic", r))
+				}
+			}()
+			bgCtx := context.Background()
+			for _, m := range migrations {
+				if err := s.writeMemoryDay(bgCtx, botID, m.entryPath, m.items); err != nil {
+					s.logger.Warn("ReadAllMemoryFiles: background migration failed",
+						slog.String("bot_id", botID), slog.String("path", m.entryPath), slog.Any("error", err))
+				}
+			}
+			// Invalidate cache after migration so next read picks up the migrated format
+			s.cache.invalidate(botID)
+		}(pendingMigrations)
+	}
 	sort.Slice(items, func(i, j int) bool {
 		return memoryTime(items[i]).Before(memoryTime(items[j]))
 	})
+
+	// Store in cache
+	s.cache.set(botID, items)
+
 	return items, nil
 }
 

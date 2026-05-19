@@ -948,6 +948,7 @@ async function loadMemories() {
   try {
     const { data } = await getBotsByBotIdMemory({
       path: { bot_id: props.botId },
+      query: { no_stats: 'true' },
       throwOnError: true,
     })
     memories.value = (data.results ?? [])

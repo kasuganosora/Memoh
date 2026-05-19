@@ -111,6 +111,7 @@ type GetAllRequest struct {
 	AgentID string         `json:"agent_id,omitempty"`
 	RunID   string         `json:"run_id,omitempty"`
 	Limit   int            `json:"limit,omitempty"`
+	Page    int            `json:"page,omitempty"`
 	Filters map[string]any `json:"filters,omitempty"`
 	NoStats bool           `json:"no_stats,omitempty"`
 }
@@ -177,6 +178,15 @@ type CDFPoint struct {
 
 type SearchResponse struct {
 	Results   []MemoryItem `json:"results"`
+	Relations []any        `json:"relations,omitempty"`
+}
+
+// PaginatedSearchResponse extends SearchResponse with pagination metadata.
+type PaginatedSearchResponse struct {
+	Results   []MemoryItem `json:"results"`
+	Total     int          `json:"total"`
+	Page      int          `json:"page"`
+	PageSize  int          `json:"page_size"`
 	Relations []any        `json:"relations,omitempty"`
 }
 
