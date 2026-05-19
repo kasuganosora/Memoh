@@ -397,7 +397,7 @@ func (s *Service) ReadAllMemoryFiles(ctx context.Context, botID string) ([]Memor
 
 	// Migrate legacy JSON files in background (non-blocking for reads)
 	if len(pendingMigrations) > 0 {
-		go func(migrations []fileResult) {
+		go func(migrations []fileResult) { //nolint:gosec,contextcheck // intentionally detached from request ctx
 			defer func() {
 				if r := recover(); r != nil {
 					s.logger.Error("ReadAllMemoryFiles: background migration panicked",

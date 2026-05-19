@@ -5,9 +5,10 @@ import (
 	"log/slog"
 	"testing"
 
+	sdk "github.com/memohai/twilight-ai/sdk"
+
 	"github.com/memohai/memoh/internal/channel"
 	"github.com/memohai/memoh/internal/messaging"
-	sdk "github.com/memohai/twilight-ai/sdk"
 )
 
 // fakeSender captures send requests for testing.

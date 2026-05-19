@@ -128,6 +128,8 @@ func getMe(ctx context.Context, cfg Config) (*meResponse, error) {
 
 // fetchNoteByID retrieves a single note from the Misskey REST API.
 // Used to resolve "sr" streaming events that only contain a note ID.
+//
+//nolint:unused // reserved for future streaming event resolution
 func fetchNoteByID(ctx context.Context, cfg Config, noteID string) (*misskeyNote, error) {
 	raw, err := apiRequest(ctx, cfg, "notes/show", map[string]string{
 		"i":      cfg.AccessToken,

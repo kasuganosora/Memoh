@@ -1047,7 +1047,7 @@ func startDreamScheduler(lc fx.Lifecycle, log *slog.Logger, dreamService *dream.
 
 // runDreamDaily runs the dream cycle once per day at midnight,
 // and also listens for SIGUSR1 to trigger an immediate run for testing.
-// Send: docker kill -s USR1 memoh-server
+// Send: docker kill -s USR1 memoh-server.
 func runDreamDaily(ctx context.Context, log *slog.Logger, ds *dream.Service, queries *dbsqlc.Queries) {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGUSR1)

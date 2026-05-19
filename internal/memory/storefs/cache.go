@@ -87,6 +87,8 @@ func (c *memoryCache) invalidate(botID string) {
 }
 
 // invalidateAll clears the entire cache.
+//
+//nolint:unused // reserved for future bulk invalidation scenarios
 func (c *memoryCache) invalidateAll() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
