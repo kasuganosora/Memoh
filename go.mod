@@ -196,3 +196,5 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 	tags.cncf.io/container-device-interface/specs-go v1.1.0 // indirect
 )
+
+replace github.com/memohai/twilight-ai => github.com/kasuganosora/twilight-ai v0.0.0-20260519044037-a4b6ff557be8

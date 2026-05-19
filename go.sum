@@ -279,6 +279,8 @@ github.com/jackc/puddle/v2 v2.2.2 h1:PR8nw+E/1w0GLuRFSmiioY6UooMp6KJv0/61nB7icHo
 github.com/jackc/puddle/v2 v2.2.2/go.mod h1:vriiEXHvEE654aYKXXjOvZM39qJ0q+azkZFrfEOc3H4=
 github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
+github.com/kasuganosora/twilight-ai v0.0.0-20260519044037-a4b6ff557be8 h1:gAy3mf7H4qQFLeRnazzFeQeMGZRMlVhDLqRqlGM+LUQ=
+github.com/kasuganosora/twilight-ai v0.0.0-20260519044037-a4b6ff557be8/go.mod h1:s5s03jeYgK56SaHH9oVHua73xCmiSG4uyfCZKi9fCHk=
 github.com/kenshaw/emoji v0.4.1 h1:w0SQHeU4iLt+6UCulY88Zr3uIjBU23mjOlbDs4trif8=
 github.com/kenshaw/emoji v0.4.1/go.mod h1:elpkKAS92j09SJvW/0sXfdMgltL7TQi7ToZD4tehPko=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
@@ -319,8 +321,6 @@ github.com/memohai/acgo v0.0.0-20260221232113-babac0d6acd7 h1:beehwOQperqGWj4m4E
 github.com/memohai/acgo v0.0.0-20260221232113-babac0d6acd7/go.mod h1:OvmxM7JmnXBmwJWWVqtreL3HSHSKuzPbtbhlg5MvBg0=
 github.com/memohai/dingtalk-stream-sdk-go v0.0.0-20260405113102-87e23096b978 h1:6gD8DvZkimGmU0e3PjlusJPyw55SyeoE12CZQoYUa8g=
 github.com/memohai/dingtalk-stream-sdk-go v0.0.0-20260405113102-87e23096b978/go.mod h1:2LMgK5QYFlTSvrGY+sI/j+jK2WK+YGHv4IMuiW+iPSc=
-github.com/memohai/twilight-ai v0.3.4-0.20260419121757-8ac67fb0bc04 h1:8TnRoVU7u2aSvXDLMmlGt4l92TjjP7LYWqu73Rx0uGo=
-github.com/memohai/twilight-ai v0.3.4-0.20260419121757-8ac67fb0bc04/go.mod h1:s5s03jeYgK56SaHH9oVHua73xCmiSG4uyfCZKi9fCHk=
 github.com/microcosm-cc/bluemonday v1.0.27 h1:MpEUotklkwCSLeH+Qdx1VJgNqLlpY2KXwXFM08ygZfk=
 github.com/microcosm-cc/bluemonday v1.0.27/go.mod h1:jFi9vgW+H7c3V0lb6nR74Ib/DIB5OBs92Dimizgw2cA=
 github.com/moby/docker-image-spec v1.3.1 h1:jMKff3w6PgbfSa69GfNg+zN/XLhfXJGnEx3Nl2EsFP0=

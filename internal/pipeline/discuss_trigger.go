@@ -159,12 +159,30 @@ func (d *DiscussTrigger) HasSession(sessionID string) bool {
 
 const discussIdleTimeout = 10 * time.Minute
 
+// discussWatchdogTimeout is the maximum lifetime of a session goroutine.
+// It acts as a safety net in case the idle timer fails to fire due to
+// runtime edge cases (e.g. GC pressure, scheduling delays).
+const discussWatchdogTimeout = discussIdleTimeout*2 + 1*time.Minute // ~21 minutes
+
 func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 	sessionID := sess.config.SessionID
 	log := d.logger.With(slog.String("session_id", sessionID), slog.String("bot_id", sess.config.BotID))
 	log.Info("discuss session started")
+
+	startTime := time.Now()
+	var messagesProcessed int
+
+	// Watchdog: set a hard deadline on the session context as a backup exit mechanism.
+	// Even if the idle timer fails to fire, this guarantees the goroutine exits.
+	ctx, watchdogCancel := context.WithTimeout(ctx, discussWatchdogTimeout)
+	defer watchdogCancel()
+
 	defer func() {
-		log.Info("discuss session stopped")
+		elapsed := time.Since(startTime)
+		log.Info("discuss session stopped",
+			slog.Duration("alive_duration", elapsed),
+			slog.Int("messages_processed", messagesProcessed),
+		)
 		d.mu.Lock()
 		if cur, ok := d.sessions[sessionID]; ok && cur == sess {
 			delete(d.sessions, sessionID)
@@ -192,11 +210,22 @@ func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 		select {
 		case <-sess.stopCh:
 			return
+		case <-ctx.Done():
+			log.Warn("discuss session watchdog timeout, forcing exit",
+				slog.Duration("alive_duration", time.Since(startTime)),
+				slog.Int("messages_processed", messagesProcessed),
+				slog.Time("last_agent_call_at", sess.lastAgentCallAt),
+			)
+			return
 		case <-idleCh:
-			log.Info("discuss session idle timeout, exiting")
+			log.Info("discuss session idle timeout, exiting",
+				slog.Duration("alive_duration", time.Since(startTime)),
+				slog.Int("messages_processed", messagesProcessed),
+			)
 			return
 		case rc := <-sess.rcCh:
 			latestRC = rc
+			messagesProcessed++
 			log.Info("discuss: received new RC in session loop",
 				slog.Int("rc_segments", len(rc)),
 				slog.Int("queue_depth", len(sess.rcCh)))
@@ -368,9 +397,21 @@ func (d *DiscussTrigger) handleReplyWithAgent(ctx context.Context, sess *discuss
 	// Hard deadline so the session loop always returns to select, even if the
 	// LLM provider or outbound send hangs indefinitely.
 	const maxAgentCallDuration = 5 * time.Minute
+	agentCallStart := time.Now()
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithTimeout(ctx, maxAgentCallDuration)
-	defer cancel()
+	defer func() {
+		cancel()
+		elapsed := time.Since(agentCallStart)
+		if ctx.Err() == context.DeadlineExceeded {
+			log.Error("discuss: handleReplyWithAgent hard timeout triggered",
+				slog.Duration("elapsed", elapsed),
+				slog.Duration("max_duration", maxAgentCallDuration),
+				slog.Time("last_agent_call_at", sess.lastAgentCallAt),
+				slog.String("session_id", sess.config.SessionID),
+			)
+		}
+	}()
 
 	cfg := sess.config
 	sess.lastAgentCallAt = time.Now()
