@@ -1891,46 +1891,6 @@ func TestIsDataURL(t *testing.T) {
 	}
 }
 
-func TestExtractStorageKey(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		accessPath string
-		botID      string
-		want       string
-	}{
-		{"/data/media/26da/26da0cc7.jpg", "bot-1", "26da/26da0cc7.jpg"},
-		{"/data/media/abcd/abcd1234.pdf", "bot-2", "abcd/abcd1234.pdf"},
-		{"https://example.com/img.png", "bot-1", ""},
-		{"", "bot-1", ""},
-	}
-	for _, tt := range tests {
-		got := extractStorageKey(tt.accessPath, tt.botID)
-		if got != tt.want {
-			t.Errorf("extractStorageKey(%q, %q) = %q, want %q", tt.accessPath, tt.botID, got, tt.want)
-		}
-	}
-}
-
-func TestIsHTTPURL(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		input string
-		want  bool
-	}{
-		{"https://example.com/img.png", true},
-		{"http://localhost:8080/test", true},
-		{"HTTP://EXAMPLE.COM", true},
-		{"/data/media/img.png", false},
-		{"data:image/png;base64,abc", false},
-		{"", false},
-	}
-	for _, tt := range tests {
-		if got := isHTTPURL(tt.input); got != tt.want {
-			t.Errorf("isHTTPURL(%q) = %v, want %v", tt.input, got, tt.want)
-		}
-	}
-}
-
 func TestIngestOutboundAttachments_ContainerPath(t *testing.T) {
 	t.Parallel()
 

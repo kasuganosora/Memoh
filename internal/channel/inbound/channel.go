@@ -688,7 +688,6 @@ func (p *ChannelInboundProcessor) HandleInbound(ctx context.Context, cfg channel
 			case ModeQueue:
 				p.persistPassiveMessage(ctx, identity, msg, text, attachments, routeID, sessionID, eventID)
 				p.dispatcher.Enqueue(routeID, QueuedTask{
-					Ctx:     ctx,
 					Cfg:     cfg,
 					Msg:     msg,
 					Sender:  sender,
@@ -878,13 +877,36 @@ startStream:
 		return result
 	}
 
-	// Mark this route as active in the dispatcher so subsequent messages
-	// can be injected or queued. Produces the inject channel for this stream.
+	// Atomically mark this route as active in the dispatcher so subsequent
+	// messages can be injected or queued. TryMarkActive returns nil when
+	// another goroutine already activated the route between our earlier
+	// IsActive check and now (TOCTOU race). In that case, fall back to
+	// injecting the message into the already-active stream.
 	// Parallel mode (/now) skips the dispatcher entirely — it must not
 	// interfere with the active flag or drain the queue of another stream.
 	var injectCh <-chan conversation.InjectMessage
 	if p.dispatcher != nil && !isLocalChannelType(msg.Channel) && inboundMode != ModeParallel {
-		injectCh = p.dispatcher.MarkActive(routeID)
+		injectCh = p.dispatcher.TryMarkActive(routeID)
+		if injectCh == nil {
+			// Another goroutine won the race — inject into the active stream.
+			headerifiedText := flow.FormatUserHeader(flow.UserMessageHeaderInput{
+				MessageID:         strings.TrimSpace(msg.Message.ID),
+				ChannelIdentityID: strings.TrimSpace(identity.ChannelIdentityID),
+				DisplayName:       strings.TrimSpace(identity.DisplayName),
+				Channel:           msg.Channel.String(),
+				ConversationType:  strings.TrimSpace(msg.Conversation.Type),
+				ConversationName:  strings.TrimSpace(msg.Conversation.Name),
+				Target:            strings.TrimSpace(msg.ReplyTarget),
+				AttachmentPaths:   collectAttachmentPaths(attachments),
+				Time:              time.Now().UTC(),
+			}, text)
+			p.dispatcher.Inject(routeID, InjectMessage{
+				Text:            text,
+				Attachments:     attachments,
+				HeaderifiedText: headerifiedText,
+			})
+			return nil
+		}
 		defer func() {
 			p.drainQueue(context.WithoutCancel(ctx), routeID)
 		}()
@@ -2231,24 +2253,6 @@ func (p *ChannelInboundProcessor) ingestOutboundAttachments(ctx context.Context,
 
 func isDataURL(raw string) bool {
 	return channel.IsDataURL(raw)
-}
-
-func isHTTPURL(raw string) bool {
-	return channel.IsHTTPURL(raw)
-}
-
-// extractStorageKey derives the media storage key from a container-internal
-// access path. The expected path format is /data/media/<storage_key>.
-func extractStorageKey(accessPath string, _ string) string {
-	marker := filepath.Join("/data", "media")
-	if !strings.HasSuffix(marker, "/") {
-		marker += "/"
-	}
-	idx := strings.Index(accessPath, marker)
-	if idx < 0 {
-		return ""
-	}
-	return accessPath[idx+len(marker):]
 }
 
 // isLocalChannelType returns true for channels that already publish to RouteHub
