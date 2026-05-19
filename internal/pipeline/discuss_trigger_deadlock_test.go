@@ -20,7 +20,7 @@ type blockingChatRunner struct {
 	ctxDone bool
 }
 
-func (f *blockingChatRunner) StreamChat(ctx context.Context, req conversation.ChatRequest) (<-chan conversation.StreamChunk, <-chan error) {
+func (f *blockingChatRunner) StreamChat(ctx context.Context, _ conversation.ChatRequest) (<-chan conversation.StreamChunk, <-chan error) {
 	f.mu.Lock()
 	f.called = true
 	f.mu.Unlock()
