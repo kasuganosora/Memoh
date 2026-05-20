@@ -113,7 +113,7 @@
                     :style="{ transform: `translateY(${virtualScrollState.startIndex * VIRTUAL_SCROLL_CONFIG.itemHeight}px)` }"
                   >
                     <MessageItem
-                      v-for="msg in virtualScrollState.visibleMessages"
+                      v-for="msg in virtualScrollVisibleMessages"
                       :key="msg.id"
                       :message="msg"
                       :session-type="activeSession?.type"
@@ -520,16 +520,18 @@ const VIRTUAL_SCROLL_CONFIG = {
 const virtualScrollState = ref({
   startIndex: 0,
   endIndex: 0,
-  visibleMessages: computed(() => {
-    return messages.value.slice(virtualScrollState.value.startIndex, virtualScrollState.value.endIndex)
-  })
+})
+// visibleMessages must be a separate computed to avoid self-referencing
+// virtualScrollState before its initialization completes.
+const virtualScrollVisibleMessages = computed(() => {
+  return messages.value.slice(virtualScrollState.value.startIndex, virtualScrollState.value.endIndex)
 })
 
 // 计算虚拟滚动范围
 function updateVirtualScrollRange() {
-  if (!scrollEl.value || messages.value.length === 0) return
+  if (!scrollEl?.value || messages.value.length === 0) return
   
-  const scrollTop = y.value
+  const scrollTop = y?.value ?? 0
   const containerHeight = scrollEl.value.clientHeight
   
   const startIndex = Math.max(0, Math.floor(scrollTop / VIRTUAL_SCROLL_CONFIG.itemHeight) - VIRTUAL_SCROLL_CONFIG.bufferSize)
@@ -541,20 +543,6 @@ function updateVirtualScrollRange() {
   virtualScrollState.value.startIndex = startIndex
   virtualScrollState.value.endIndex = endIndex
 }
-
-// 监听滚动更新虚拟滚动
-watchEffect(() => {
-  if (y.value !== undefined) {
-    updateVirtualScrollRange()
-  }
-})
-
-// 监听消息变化更新虚拟滚动
-watch(messages, () => {
-  nextTick(() => {
-    updateVirtualScrollRange()
-  })
-})
 
 // ---- Content recycling and memory optimization ----
 const MEMORY_THRESHOLD = 1000 // 内存阈值，超过此数量启动回收机制
@@ -610,15 +598,11 @@ function startContentRecycling() {
   recycleState.value.isRecyclingActive = false
 }
 
-// 监听消息数量和滚动位置变化，触发内存检查
-watch([() => messages.value.length, () => virtualScrollState.value.startIndex], () => {
-  checkMemoryThreshold()
-})
-
-// 定期内存检查
-setInterval(() => {
-  checkMemoryThreshold()
-}, 30000) // 每30秒检查一次
+// NOTE: watchEffect/watch for virtual scroll and memory recycling are
+// registered inside onMounted to avoid accessing `scrollEl`, `y`, and
+// `messages` (declared later in this setup) before their initialization.
+// See: ReferenceError: Cannot access 'X' before initialization.
+let memoryCheckInterval: ReturnType<typeof setInterval> | null = null
 
 // ---- Right sidebar panel ----
 
@@ -973,7 +957,33 @@ onBeforeUnmount(() => {
   if (scrollTimeout) {
     clearTimeout(scrollTimeout)
   }
+  if (memoryCheckInterval) {
+    clearInterval(memoryCheckInterval)
+    memoryCheckInterval = null
+  }
 })
+
+// Register virtual scroll and memory recycling watchers here (after
+// scrollEl, y, messages are declared) to avoid TDZ errors.
+watchEffect(() => {
+  if (y.value !== undefined) {
+    updateVirtualScrollRange()
+  }
+})
+
+watch(messages, () => {
+  nextTick(() => {
+    updateVirtualScrollRange()
+  })
+})
+
+watch([() => messages.value.length, () => virtualScrollState.value.startIndex], () => {
+  checkMemoryThreshold()
+})
+
+memoryCheckInterval = setInterval(() => {
+  checkMemoryThreshold()
+}, 30000)
 
 function handleKeydown(e: KeyboardEvent) {
   if (e.isComposing || e.keyCode === 229) return
