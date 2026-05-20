@@ -28,11 +28,53 @@
                 <!-- Load older indicator -->
                 <div
                   v-if="loadingOlder"
-                  class="flex justify-center py-2"
+                  class="flex justify-center py-4"
                 >
-                  <LoaderCircle
-                    class="size-3.5 animate-spin text-muted-foreground"
-                  />
+                  <div class="flex items-center gap-2 px-4 py-2 bg-muted/50 rounded-full">
+                    <LoaderCircle
+                      class="size-4 animate-spin text-primary"
+                    />
+                    <span class="text-xs text-muted-foreground">加载中...</span>
+                  </div>
+                </div>
+
+                <!-- New message notification -->
+                <div
+                  v-if="showNewMessageNotification"
+                  class="sticky top-4 z-10 flex justify-center"
+                >
+                  <button
+                    class="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm rounded-full shadow-lg hover:bg-primary/90 transition-all duration-200 transform hover:scale-105"
+                    @click="scrollToNewMessages"
+                  >
+                    <Send class="size-3.5" />
+                    <span>{{ newMessageCount }} 条新消息</span>
+                  </button>
+                </div>
+
+                <!-- Error state -->
+                <div
+                  v-if="errorState.hasError"
+                  class="sticky top-4 z-10 flex justify-center"
+                >
+                  <div class="flex items-center gap-3 px-4 py-2 bg-destructive/10 text-destructive text-sm rounded-full shadow-lg backdrop-blur-sm">
+                    <AlertCircle class="size-4" />
+                    <span>{{ errorState.errorMessage }}</span>
+                    <button
+                      v-if="errorState.retryCount < MAX_RETRY_COUNT"
+                      class="underline hover:no-underline font-medium"
+                      @click="retryLoadOlderMessages"
+                    >
+                      重试
+                    </button>
+                    <button
+                      v-else
+                      class="underline hover:no-underline font-medium"
+                      @click="clearErrorState"
+                    >
+                      关闭
+                    </button>
+                  </div>
                 </div>
 
                 <!-- Empty state -->
@@ -61,14 +103,35 @@
                 </div>
 
                 <!-- Message list -->
-                <MessageItem
-                  v-for="msg in messages"
-                  :key="msg.id"
-                  :message="msg"
-                  :session-type="activeSession?.type"
-                  :bot-id="currentBotId"
-                  :on-open-media="galleryOpenBySrc"
-                />
+                <div
+                  v-if="messages.length > VIRTUAL_SCROLL_CONFIG.visibleCount * 2"
+                  class="virtual-scroll-container"
+                  :style="{ height: `${messages.length * VIRTUAL_SCROLL_CONFIG.itemHeight}px` }"
+                >
+                  <div
+                    class="virtual-scroll-content"
+                    :style="{ transform: `translateY(${virtualScrollState.startIndex * VIRTUAL_SCROLL_CONFIG.itemHeight}px)` }"
+                  >
+                    <MessageItem
+                      v-for="msg in virtualScrollState.visibleMessages"
+                      :key="msg.id"
+                      :message="msg"
+                      :session-type="activeSession?.type"
+                      :bot-id="currentBotId"
+                      :on-open-media="galleryOpenBySrc"
+                    />
+                  </div>
+                </div>
+                <div v-else>
+                  <MessageItem
+                    v-for="msg in messages"
+                    :key="msg.id"
+                    :message="msg"
+                    :session-type="activeSession?.type"
+                    :bot-id="currentBotId"
+                    :on-open-media="galleryOpenBySrc"
+                  />
+                </div>
               </div>
             </ScrollArea>
           </section>
@@ -382,7 +445,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onBeforeUnmount, provide, useTemplateRef, watchEffect, watch, type Component } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
-import { LoaderCircle, Image as ImageIcon, File as FileIcon, X, Paperclip, FolderOpen, Send, ChevronDown, Lightbulb, TerminalSquare, BarChart3, Trash2 } from 'lucide-vue-next'
+import { LoaderCircle, Image as ImageIcon, File as FileIcon, X, Paperclip, FolderOpen, Send, ChevronDown, Lightbulb, TerminalSquare, BarChart3, Trash2, AlertCircle } from 'lucide-vue-next'
 import { ScrollArea, Button, InputGroup, InputGroupAddon, InputGroupTextarea, Popover, PopoverContent, PopoverTrigger, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@memohai/ui'
 import { useChatStore } from '@/store/chat-list'
 import { storeToRefs } from 'pinia'
@@ -397,7 +460,7 @@ import { EFFORT_LABELS, EFFORT_OPACITY } from '@/pages/bots/components/reasoning
 import { useMediaGallery } from '../composables/useMediaGallery'
 import { openInFileManagerKey } from '../composables/useFileManagerProvider'
 import type { ChatAttachment } from '@/composables/api/useChat'
-import { useScroll, useElementBounding } from '@vueuse/core'
+import { useScroll, useElementBounding, useDebounceFn } from '@vueuse/core'
 import { useQuery } from '@pinia/colada'
 import { getModels, getProviders, getBotsByBotIdSettings } from '@memohai/sdk'
 import type { ModelsGetResponse, ProvidersGetResponse } from '@memohai/sdk'
@@ -410,6 +473,152 @@ const pendingFiles = ref<File[]>([])
 const fileManagerRef = ref<InstanceType<typeof FileManager> | null>(null)
 const modelPopoverOpen = ref(false)
 const reasoningPopoverOpen = ref(false)
+
+// 性能监控相关
+interface PerformanceMetrics {
+  loadStartTime: number
+  loadEndTime: number
+  messageCount: number
+  loadDuration: number
+}
+
+const performanceLogs = ref<PerformanceMetrics[]>([])
+const isMonitoringEnabled = ref(true)
+
+// 记录性能指标
+function logPerformanceMetrics(startTime: number, endTime: number, messageCount: number) {
+  if (!isMonitoringEnabled.value) return
+  
+  const metrics: PerformanceMetrics = {
+    loadStartTime: startTime,
+    loadEndTime: endTime,
+    messageCount,
+    loadDuration: endTime - startTime
+  }
+  
+  performanceLogs.value.push(metrics)
+  
+  // 只保留最近10次记录
+  if (performanceLogs.value.length > 10) {
+    performanceLogs.value.shift()
+  }
+  
+  // 开发环境下输出性能信息
+  if (import.meta.env.DEV) {
+    console.log(`[Performance] Loaded ${messageCount} messages in ${metrics.loadDuration}ms`)
+  }
+}
+
+// 虚拟滚动相关配置
+const VIRTUAL_SCROLL_CONFIG = {
+  bufferSize: 5, // 缓冲区大小
+  itemHeight: 100, // 预估消息高度
+  visibleCount: 20, // 可见区域消息数量
+}
+
+// 虚拟滚动状态
+const virtualScrollState = ref({
+  startIndex: 0,
+  endIndex: 0,
+  visibleMessages: computed(() => {
+    return messages.value.slice(virtualScrollState.value.startIndex, virtualScrollState.value.endIndex)
+  })
+})
+
+// 计算虚拟滚动范围
+function updateVirtualScrollRange() {
+  if (!scrollEl.value || messages.value.length === 0) return
+  
+  const scrollTop = y.value
+  const containerHeight = scrollEl.value.clientHeight
+  
+  const startIndex = Math.max(0, Math.floor(scrollTop / VIRTUAL_SCROLL_CONFIG.itemHeight) - VIRTUAL_SCROLL_CONFIG.bufferSize)
+  const endIndex = Math.min(
+    messages.value.length,
+    Math.ceil((scrollTop + containerHeight) / VIRTUAL_SCROLL_CONFIG.itemHeight) + VIRTUAL_SCROLL_CONFIG.bufferSize
+  )
+  
+  virtualScrollState.value.startIndex = startIndex
+  virtualScrollState.value.endIndex = endIndex
+}
+
+// 监听滚动更新虚拟滚动
+watchEffect(() => {
+  if (y.value !== undefined) {
+    updateVirtualScrollRange()
+  }
+})
+
+// 监听消息变化更新虚拟滚动
+watch(messages, () => {
+  nextTick(() => {
+    updateVirtualScrollRange()
+  })
+})
+
+// ---- Content recycling and memory optimization ----
+const MEMORY_THRESHOLD = 1000 // 内存阈值，超过此数量启动回收机制
+const RECYCLE_BUFFER = 50 // 回收缓冲区大小
+
+// 内容回收状态
+const recycleState = ref({
+  recycledMessages: new Set<string>(), // 已回收的消息ID
+  isRecyclingActive: false,
+  lastRecycleTime: 0
+})
+
+// 检查是否需要启动内容回收
+function checkMemoryThreshold() {
+  if (messages.value.length > MEMORY_THRESHOLD && !recycleState.value.isRecyclingActive) {
+    startContentRecycling()
+  }
+}
+
+// 启动内容回收
+function startContentRecycling() {
+  if (recycleState.value.isRecyclingActive) return
+  
+  recycleState.value.isRecyclingActive = true
+  recycleState.value.lastRecycleTime = Date.now()
+  
+  // 回收远离当前视口的消息
+  const visibleStart = virtualScrollState.value.startIndex
+  const visibleEnd = virtualScrollState.value.endIndex
+  
+  // 回收缓冲区之外的消息
+  const recycleStart = Math.max(0, visibleStart - RECYCLE_BUFFER)
+  const recycleEnd = Math.min(messages.value.length, visibleEnd + RECYCLE_BUFFER)
+  
+  // 标记需要回收的消息
+  for (let i = 0; i < messages.value.length; i++) {
+    if (i < recycleStart || i > recycleEnd) {
+      recycleState.value.recycledMessages.add(messages.value[i].id)
+    } else {
+      recycleState.value.recycledMessages.delete(messages.value[i].id)
+    }
+  }
+  
+  // 触发垃圾回收（如果可用）
+  if ('gc' in window) {
+    try {
+      (window as any).gc()
+    } catch (e) {
+      // GC不可用，忽略
+    }
+  }
+  
+  recycleState.value.isRecyclingActive = false
+}
+
+// 监听消息数量和滚动位置变化，触发内存检查
+watch([() => messages.value.length, () => virtualScrollState.value.startIndex], () => {
+  checkMemoryThreshold()
+})
+
+// 定期内存检查
+setInterval(() => {
+  checkMemoryThreshold()
+}, 30000) // 每30秒检查一次
 
 // ---- Right sidebar panel ----
 
@@ -677,6 +886,40 @@ const isInstant = ref(false)
 const { y, directions, arrivedState } = useScroll(scrollEl, { behavior: computed(() => isAutoScroll.value && isInstant.value ? 'smooth' : 'instant') })
 const { height, bottom } = useElementBounding(descEl)
 
+// 防抖机制配置
+const DEBOUNCE_DELAY = 500 // 防抖延迟时间（毫秒）
+const SCROLL_THRESHOLD = 150 // 距离顶部触发加载的阈值（像素）
+
+// 防抖函数：避免频繁触发加载
+const debouncedLoadOlderMessages = useDebounceFn(async () => {
+  if (hasMoreOlder.value && !loadingOlder.value) {
+    const prevBottom = bottom.value
+    const startTime = performance.now()
+    
+    try {
+      const count = await chatStore.loadOlderMessages()
+      const endTime = performance.now()
+      
+      // 记录性能指标
+      logPerformanceMetrics(startTime, endTime, count)
+      
+      if (count > 0) {
+        // 保持滚动位置
+        y.value = height.value - prevBottom
+      }
+    } catch (error) {
+      const endTime = performance.now()
+      // 记录失败的性能指标
+      logPerformanceMetrics(startTime, endTime, 0)
+      console.error('Failed to load older messages:', error)
+    }
+  }
+}, DEBOUNCE_DELAY)
+
+// 滚动检测逻辑
+let isScrolling = false
+let scrollTimeout: number | null = null
+
 watchEffect(() => {
   if (directions.top) {
     isAutoScroll.value = false
@@ -692,20 +935,43 @@ watchEffect(() => {
   }
 })
 
-let Throttle = true
-
+// 优化的滚动检测逻辑
 watchEffect(() => {
-  if (directions.top && arrivedState.top && Throttle && hasMoreOlder.value && !loadingOlder.value) {
-    const prev = bottom.value
-    Throttle = false
-    chatStore.loadOlderMessages().then((count) => {
-      setTimeout(() => {
-        if (count > 0) {
-          y.value = height.value - prev
-          Throttle = true
+  if (directions.top && arrivedState.top && hasMoreOlder.value && !loadingOlder.value) {
+    // 检查是否接近顶部（阈值检测）
+    const distanceFromTop = y.value
+    if (distanceFromTop <= SCROLL_THRESHOLD) {
+      // 标记滚动状态
+      isScrolling = true
+      
+      // 清除之前的超时
+      if (scrollTimeout) {
+        clearTimeout(scrollTimeout)
+      }
+      
+      // 设置新的超时，如果用户停止滚动则触发加载
+      scrollTimeout = window.setTimeout(() => {
+        if (isScrolling) {
+          debouncedLoadOlderMessages()
+          isScrolling = false
         }
-      })
-    })
+      }, 100)
+    }
+  }
+})
+
+// 监听滚动停止
+watchEffect(() => {
+  if (!directions.top && !directions.bottom) {
+    // 用户停止滚动
+    isScrolling = false
+  }
+})
+
+// 清理函数
+onBeforeUnmount(() => {
+  if (scrollTimeout) {
+    clearTimeout(scrollTimeout)
   }
 })
 
@@ -767,5 +1033,130 @@ async function handleSend() {
   }
 
   chatStore.sendMessage(text, attachments)
+}
+
+// ---- New message notification ----
+const showNewMessageNotification = ref(false)
+const newMessageCount = ref(0)
+const lastScrollPosition = ref(0)
+
+// 监听新消息到达
+watch(messages, (newMessages, oldMessages) => {
+  if (oldMessages && newMessages.length > oldMessages.length) {
+    // 有新消息到达
+    const newCount = newMessages.length - oldMessages.length
+    
+    // 检查用户是否正在查看历史记录（不在底部）
+    if (!arrivedState.bottom.value) {
+      showNewMessageNotification.value = true
+      newMessageCount.value += newCount
+    }
+  }
+}, { deep: true })
+
+// 滚动到底部查看新消息
+function scrollToNewMessages() {
+  isAutoScroll.value = true
+  showNewMessageNotification.value = false
+  newMessageCount.value = 0
+}
+
+// 监听滚动状态，当用户滚动到底部时隐藏通知
+watch(arrivedState.bottom, (isBottom) => {
+  if (isBottom && showNewMessageNotification.value) {
+    showNewMessageNotification.value = false
+    newMessageCount.value = 0
+  }
+})
+
+// ---- Error handling and boundary conditions ----
+const errorState = ref({
+  hasError: false,
+  errorMessage: '',
+  retryCount: 0,
+  lastErrorTime: 0
+})
+
+const MAX_RETRY_COUNT = 3
+const RETRY_DELAY = 2000 // 2秒重试延迟
+
+// 错误处理函数
+function handleLoadError(error: any, operation: 'loadOlder' | 'sendMessage' | 'initialLoad') {
+  console.error(`${operation} failed:`, error)
+  
+  const now = Date.now()
+  const timeSinceLastError = now - errorState.value.lastErrorTime
+  
+  // 如果距离上次错误超过1分钟，重置重试计数
+  if (timeSinceLastError > 60000) {
+    errorState.value.retryCount = 0
+  }
+  
+  errorState.value.hasError = true
+  errorState.value.lastErrorTime = now
+  
+  // 根据错误类型设置友好的错误消息
+  if (error?.response?.status === 429) {
+    errorState.value.errorMessage = '请求过于频繁，请稍后再试'
+  } else if (error?.response?.status >= 400 && error.response.status < 500) {
+    errorState.value.errorMessage = '请求错误，请检查网络连接'
+  } else if (error?.response?.status >= 500) {
+    errorState.value.errorMessage = '服务器错误，请稍后再试'
+  } else if (error?.message?.includes('Network Error')) {
+    errorState.value.errorMessage = '网络连接失败，请检查网络设置'
+  } else {
+    errorState.value.errorMessage = '操作失败，请重试'
+  }
+  
+  // 自动重试逻辑
+  if (errorState.value.retryCount < MAX_RETRY_COUNT && operation === 'loadOlder') {
+    errorState.value.retryCount++
+    setTimeout(() => {
+      if (errorState.value.hasError) {
+        retryLoadOlderMessages()
+      }
+    }, RETRY_DELAY * errorState.value.retryCount)
+  }
+}
+
+// 重试加载历史消息
+async function retryLoadOlderMessages() {
+  if (!hasMoreOlder.value || loadingOlder.value) return
+  
+  try {
+    const startTime = performance.now()
+    const count = await chatStore.loadOlderMessages()
+    const endTime = performance.now()
+    
+    logPerformanceMetrics(startTime, endTime, count)
+    
+    // 清除错误状态
+    errorState.value.hasError = false
+    errorState.value.errorMessage = ''
+    errorState.value.retryCount = 0
+    
+  } catch (error) {
+    handleLoadError(error, 'loadOlder')
+  }
+}
+
+// 清除错误状态
+function clearErrorState() {
+  errorState.value.hasError = false
+  errorState.value.errorMessage = ''
+  errorState.value.retryCount = 0
+}
+
+// 监听网络状态变化
+if (typeof window !== 'undefined' && 'ononline' in window) {
+  window.addEventListener('online', () => {
+    if (errorState.value.hasError) {
+      clearErrorState()
+      // 网络恢复后自动重试
+      if (hasMoreOlder.value && !loadingOlder.value) {
+        retryLoadOlderMessages()
+      }
+    }
+  })
 }
 </script>

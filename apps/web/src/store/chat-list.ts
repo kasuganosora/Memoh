@@ -520,7 +520,7 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  const PAGE_SIZE = 30
+  const PAGE_SIZE = 50
 
   async function loadMessages(botId: string, sid: string) {
     const turns = await fetchMessagesUI(botId, sid, { limit: PAGE_SIZE })
