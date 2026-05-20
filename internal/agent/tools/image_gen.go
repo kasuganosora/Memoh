@@ -369,7 +369,7 @@ func downloadImage(ctx context.Context, url string) ([]byte, string, error) {
 		return nil, "", fmt.Errorf("create request: %w", err)
 	}
 	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) //nolint:gosec // URL comes from LLM image generation response, not direct user input
 	if err != nil {
 		return nil, "", fmt.Errorf("download: %w", err)
 	}

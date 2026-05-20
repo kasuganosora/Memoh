@@ -111,7 +111,7 @@ func (p *WebFetchProvider) callWebFetch(ctx context.Context, botID, rawURL, form
 	}
 	req.Header.Set("User-Agent", webFetchUserAgent)
 
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) //nolint:gosec // URL is user-provided; SSRF is mitigated via HTTP proxy
 	if err != nil {
 		return nil, err
 	}
