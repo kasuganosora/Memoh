@@ -602,7 +602,7 @@ function startContentRecycling() {
   if ('gc' in window) {
     try {
       (window as unknown as { gc: () => void }).gc()
-    } catch (_e) {
+    } catch {
       // GC not available, ignore
     }
   }
