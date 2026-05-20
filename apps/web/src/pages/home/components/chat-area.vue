@@ -103,35 +103,14 @@
                 </div>
 
                 <!-- Message list -->
-                <div
-                  v-if="messages.length > VIRTUAL_SCROLL_CONFIG.visibleCount * 2"
-                  class="virtual-scroll-container"
-                  :style="{ height: `${messages.length * VIRTUAL_SCROLL_CONFIG.itemHeight}px` }"
-                >
-                  <div
-                    class="virtual-scroll-content"
-                    :style="{ transform: `translateY(${virtualScrollState.startIndex * VIRTUAL_SCROLL_CONFIG.itemHeight}px)` }"
-                  >
-                    <MessageItem
-                      v-for="msg in virtualScrollVisibleMessages"
-                      :key="msg.id"
-                      :message="msg"
-                      :session-type="activeSession?.type"
-                      :bot-id="currentBotId"
-                      :on-open-media="galleryOpenBySrc"
-                    />
-                  </div>
-                </div>
-                <div v-else>
-                  <MessageItem
-                    v-for="msg in messages"
-                    :key="msg.id"
-                    :message="msg"
-                    :session-type="activeSession?.type"
-                    :bot-id="currentBotId"
-                    :on-open-media="galleryOpenBySrc"
-                  />
-                </div>
+                <MessageItem
+                  v-for="msg in messages"
+                  :key="msg.id"
+                  :message="msg"
+                  :session-type="activeSession?.type"
+                  :bot-id="currentBotId"
+                  :on-open-media="galleryOpenBySrc"
+                />
               </div>
             </ScrollArea>
           </section>
@@ -509,100 +488,7 @@ function logPerformanceMetrics(startTime: number, endTime: number, messageCount:
   }
 }
 
-// 虚拟滚动相关配置
-const VIRTUAL_SCROLL_CONFIG = {
-  bufferSize: 5, // 缓冲区大小
-  itemHeight: 100, // 预估消息高度
-  visibleCount: 20, // 可见区域消息数量
-}
 
-// 虚拟滚动状态
-const virtualScrollState = ref({
-  startIndex: 0,
-  endIndex: 0,
-})
-// visibleMessages must be a separate computed to avoid self-referencing
-// virtualScrollState before its initialization completes.
-const virtualScrollVisibleMessages = computed(() => {
-  return messages.value.slice(virtualScrollState.value.startIndex, virtualScrollState.value.endIndex)
-})
-
-// 计算虚拟滚动范围
-function updateVirtualScrollRange() {
-  if (!scrollEl?.value || messages.value.length === 0) return
-  
-  const scrollTop = y?.value ?? 0
-  const containerHeight = scrollEl.value.clientHeight
-  
-  const startIndex = Math.max(0, Math.floor(scrollTop / VIRTUAL_SCROLL_CONFIG.itemHeight) - VIRTUAL_SCROLL_CONFIG.bufferSize)
-  const endIndex = Math.min(
-    messages.value.length,
-    Math.ceil((scrollTop + containerHeight) / VIRTUAL_SCROLL_CONFIG.itemHeight) + VIRTUAL_SCROLL_CONFIG.bufferSize
-  )
-  
-  virtualScrollState.value.startIndex = startIndex
-  virtualScrollState.value.endIndex = endIndex
-}
-
-// ---- Content recycling and memory optimization ----
-const MEMORY_THRESHOLD = 1000 // 内存阈值，超过此数量启动回收机制
-const RECYCLE_BUFFER = 50 // 回收缓冲区大小
-
-// 内容回收状态
-const recycleState = ref({
-  recycledMessages: new Set<string>(), // 已回收的消息ID
-  isRecyclingActive: false,
-  lastRecycleTime: 0
-})
-
-// 检查是否需要启动内容回收
-function checkMemoryThreshold() {
-  if (messages.value.length > MEMORY_THRESHOLD && !recycleState.value.isRecyclingActive) {
-    startContentRecycling()
-  }
-}
-
-// 启动内容回收
-function startContentRecycling() {
-  if (recycleState.value.isRecyclingActive) return
-  
-  recycleState.value.isRecyclingActive = true
-  recycleState.value.lastRecycleTime = Date.now()
-  
-  // 回收远离当前视口的消息
-  const visibleStart = virtualScrollState.value.startIndex
-  const visibleEnd = virtualScrollState.value.endIndex
-  
-  // 回收缓冲区之外的消息
-  const recycleStart = Math.max(0, visibleStart - RECYCLE_BUFFER)
-  const recycleEnd = Math.min(messages.value.length, visibleEnd + RECYCLE_BUFFER)
-  
-  // 标记需要回收的消息
-  for (let i = 0; i < messages.value.length; i++) {
-    if (i < recycleStart || i > recycleEnd) {
-      recycleState.value.recycledMessages.add(messages.value[i].id)
-    } else {
-      recycleState.value.recycledMessages.delete(messages.value[i].id)
-    }
-  }
-  
-  // 触发垃圾回收（如果可用）
-  if ('gc' in window) {
-    try {
-      (window as unknown as { gc: () => void }).gc()
-    } catch {
-      // GC not available, ignore
-    }
-  }
-  
-  recycleState.value.isRecyclingActive = false
-}
-
-// NOTE: watchEffect/watch for virtual scroll and memory recycling are
-// registered inside onMounted to avoid accessing `scrollEl`, `y`, and
-// `messages` (declared later in this setup) before their initialization.
-// See: ReferenceError: Cannot access 'X' before initialization.
-let memoryCheckInterval: ReturnType<typeof setInterval> | null = null
 
 // ---- Right sidebar panel ----
 
@@ -957,33 +843,10 @@ onBeforeUnmount(() => {
   if (scrollTimeout) {
     clearTimeout(scrollTimeout)
   }
-  if (memoryCheckInterval) {
-    clearInterval(memoryCheckInterval)
-    memoryCheckInterval = null
-  }
+
 })
 
-// Register virtual scroll and memory recycling watchers here (after
-// scrollEl, y, messages are declared) to avoid TDZ errors.
-watchEffect(() => {
-  if (y.value !== undefined) {
-    updateVirtualScrollRange()
-  }
-})
 
-watch(messages, () => {
-  nextTick(() => {
-    updateVirtualScrollRange()
-  })
-})
-
-watch([() => messages.value.length, () => virtualScrollState.value.startIndex], () => {
-  checkMemoryThreshold()
-})
-
-memoryCheckInterval = setInterval(() => {
-  checkMemoryThreshold()
-}, 30000)
 
 function handleKeydown(e: KeyboardEvent) {
   if (e.isComposing || e.keyCode === 229) return
