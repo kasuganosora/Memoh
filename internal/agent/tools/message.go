@@ -438,9 +438,6 @@ func toMessagingSession(s SessionContext) messaging.SessionContext {
 	}
 }
 
-func truncateForLog(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "..."
-}
+// truncateForLog is an alias for truncateStr for backward compatibility.
+// Both functions truncate a string to n bytes, appending "..." if truncated.
+var truncateForLog = truncateStr

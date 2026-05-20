@@ -15,6 +15,9 @@ import (
 	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown/v2"
 	readability "github.com/go-shiori/go-readability"
 	sdk "github.com/memohai/twilight-ai/sdk"
+
+	"github.com/memohai/memoh/internal/channel/common"
+	"github.com/memohai/memoh/internal/settings"
 )
 
 const (
@@ -24,21 +27,22 @@ const (
 )
 
 type WebFetchProvider struct {
-	logger *slog.Logger
-	client *http.Client
+	logger   *slog.Logger
+	settings *settings.Service
 }
 
-func NewWebFetchProvider(log *slog.Logger) *WebFetchProvider {
+func NewWebFetchProvider(log *slog.Logger, settingsSvc *settings.Service) *WebFetchProvider {
 	if log == nil {
 		log = slog.Default()
 	}
 	return &WebFetchProvider{
-		logger: log.With(slog.String("tool", "webfetch")),
-		client: &http.Client{Timeout: webFetchTimeout},
+		logger:   log.With(slog.String("tool", "webfetch")),
+		settings: settingsSvc,
 	}
 }
 
-func (p *WebFetchProvider) Tools(_ context.Context, _ SessionContext) ([]sdk.Tool, error) {
+func (p *WebFetchProvider) Tools(_ context.Context, session SessionContext) ([]sdk.Tool, error) {
+	sess := session
 	return []sdk.Tool{
 		{
 			Name:        "web_fetch",
@@ -68,20 +72,46 @@ func (p *WebFetchProvider) Tools(_ context.Context, _ SessionContext) ([]sdk.Too
 				if format == "" {
 					format = "auto"
 				}
-				return p.callWebFetch(ctx.Context, rawURL, format)
+				return p.callWebFetch(ctx.Context, sess.BotID, rawURL, format)
 			},
 		},
 	}, nil
 }
 
-func (p *WebFetchProvider) callWebFetch(ctx context.Context, rawURL, format string) (any, error) {
+// buildHTTPClient creates an HTTP client with optional proxy support.
+// If the bot has an http_proxy_url configured, it routes requests through
+// that proxy to mitigate SSRF risks (the proxy can enforce network policies).
+// Otherwise, it falls back to ProxyFromEnvironment (HTTP_PROXY/HTTPS_PROXY).
+func (p *WebFetchProvider) buildHTTPClient(ctx context.Context, botID string) *http.Client {
+	var proxyURL string
+	if p.settings != nil && strings.TrimSpace(botID) != "" {
+		if botSettings, err := p.settings.GetBot(ctx, botID); err == nil {
+			proxyURL = botSettings.HttpProxyUrl
+		}
+	}
+
+	proxyCfg := common.HTTPProxyConfig{URL: proxyURL}
+	client, err := common.NewHTTPClient(webFetchTimeout, proxyCfg)
+	if err != nil {
+		p.logger.Warn("failed to build proxy-aware HTTP client, falling back to default",
+			slog.String("proxy_url", proxyURL),
+			slog.Any("error", err),
+		)
+		return &http.Client{Timeout: webFetchTimeout}
+	}
+	return client
+}
+
+func (p *WebFetchProvider) callWebFetch(ctx context.Context, botID, rawURL, format string) (any, error) {
+	client := p.buildHTTPClient(ctx, botID)
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("invalid url: %w", err)
 	}
 	req.Header.Set("User-Agent", webFetchUserAgent)
 
-	resp, err := p.client.Do(req) //nolint:gosec // intentionally fetches user-specified URLs
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}

@@ -139,6 +139,9 @@ func (s *Service) UpsertBot(ctx context.Context, botID string, req UpsertRequest
 			current.Persona = *req.Persona
 		}
 	}
+	if req.HttpProxyUrl != nil {
+		current.HttpProxyUrl = strings.TrimSpace(*req.HttpProxyUrl)
+	}
 	timezoneValue := pgtype.Text{}
 	if req.Timezone != nil {
 		normalized, err := normalizeOptionalTimezone(*req.Timezone)
@@ -265,6 +268,7 @@ func (s *Service) UpsertBot(ctx context.Context, botID string, req UpsertRequest
 		ShowToolCallsInIm:      current.ShowToolCallsInIM,
 		ChatTiming:             marshalChatTiming(current.ChatTiming),
 		Persona:                []byte(current.Persona),
+		HttpProxyUrl:           current.HttpProxyUrl,
 	})
 	if err != nil {
 		return Settings{}, err
@@ -364,6 +368,7 @@ func normalizeBotSettingsReadRow(row sqlc.GetSettingsByBotIDRow) Settings {
 		row.ShowToolCallsInIm,
 		row.ChatTiming,
 		row.Persona,
+		row.HttpProxyUrl,
 	)
 }
 
@@ -393,6 +398,7 @@ func normalizeBotSettingsWriteRow(row sqlc.UpsertBotSettingsRow) Settings {
 		row.ShowToolCallsInIm,
 		row.ChatTiming,
 		row.Persona,
+		row.HttpProxyUrl,
 	)
 }
 
@@ -421,6 +427,7 @@ func normalizeBotSettingsFields(
 	showToolCallsInIM bool,
 	chatTimingRaw []byte,
 	personaRaw []byte,
+	httpProxyUrl string,
 ) Settings {
 	settings := normalizeBotSetting(language, "", reasoningEnabled, reasoningEffort, heartbeatEnabled, heartbeatInterval, compactionEnabled, compactionThreshold, compactionRatio)
 	if timezone.Valid {
@@ -463,6 +470,7 @@ func normalizeBotSettingsFields(
 	settings.ShowToolCallsInIM = showToolCallsInIM
 	settings.ChatTiming = unmarshalChatTiming(chatTimingRaw)
 	settings.Persona = unmarshalJSONBRaw(personaRaw)
+	settings.HttpProxyUrl = strings.TrimSpace(httpProxyUrl)
 	return settings
 }
 

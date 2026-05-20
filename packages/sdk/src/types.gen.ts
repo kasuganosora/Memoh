@@ -1761,6 +1761,7 @@ export type SettingsSettings = {
     heartbeat_enabled?: boolean;
     heartbeat_interval?: number;
     heartbeat_model_id?: string;
+    http_proxy_url?: string;
     image_model_id?: string;
     language?: string;
     memory_provider_id?: string;
@@ -1793,6 +1794,7 @@ export type SettingsUpsertRequest = {
     heartbeat_enabled?: boolean;
     heartbeat_interval?: number;
     heartbeat_model_id?: string;
+    http_proxy_url?: string;
     image_model_id?: string;
     language?: string;
     memory_provider_id?: string;

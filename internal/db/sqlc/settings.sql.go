@@ -37,6 +37,7 @@ SET language = 'auto',
     chat_timing = '{}'::jsonb,
     show_tool_calls_in_im = false,
     persona = '{}'::jsonb,
+    http_proxy_url = '',
     updated_at = now()
 WHERE id = $1
 `
@@ -73,7 +74,8 @@ SELECT
   bots.persist_full_tool_results,
   bots.chat_timing,
   bots.show_tool_calls_in_im,
-  bots.persona
+  bots.persona,
+  bots.http_proxy_url
 FROM bots
 LEFT JOIN models AS chat_models ON chat_models.id = bots.chat_model_id
 LEFT JOIN models AS heartbeat_models ON heartbeat_models.id = bots.heartbeat_model_id
@@ -116,6 +118,7 @@ type GetSettingsByBotIDRow struct {
 	ChatTiming             []byte      `json:"chat_timing"`
 	ShowToolCallsInIm      bool        `json:"show_tool_calls_in_im"`
 	Persona                []byte      `json:"persona"`
+	HttpProxyUrl           string      `json:"http_proxy_url"`
 }
 
 func (q *Queries) GetSettingsByBotID(ctx context.Context, id pgtype.UUID) (GetSettingsByBotIDRow, error) {
@@ -148,6 +151,7 @@ func (q *Queries) GetSettingsByBotID(ctx context.Context, id pgtype.UUID) (GetSe
 		&i.ChatTiming,
 		&i.ShowToolCallsInIm,
 		&i.Persona,
+		&i.HttpProxyUrl,
 	)
 	return i, err
 }
@@ -251,6 +255,7 @@ type UpsertBotSettingsParams struct {
 	ChatTiming             []byte      `json:"chat_timing"`
 	ShowToolCallsInIm      bool        `json:"show_tool_calls_in_im"`
 	Persona                []byte      `json:"persona"`
+	HttpProxyUrl           string      `json:"http_proxy_url"`
 	ID                     pgtype.UUID `json:"id"`
 }
 
@@ -281,6 +286,7 @@ type UpsertBotSettingsRow struct {
 	ChatTiming             []byte      `json:"chat_timing"`
 	ShowToolCallsInIm      bool        `json:"show_tool_calls_in_im"`
 	Persona                []byte      `json:"persona"`
+	HttpProxyUrl           string      `json:"http_proxy_url"`
 }
 
 func (q *Queries) UpsertBotSettings(ctx context.Context, arg UpsertBotSettingsParams) (UpsertBotSettingsRow, error) {
@@ -310,6 +316,7 @@ func (q *Queries) UpsertBotSettings(ctx context.Context, arg UpsertBotSettingsPa
 		arg.ChatTiming,
 		arg.ShowToolCallsInIm,
 		arg.Persona,
+		arg.HttpProxyUrl,
 		arg.ID,
 	)
 	var i UpsertBotSettingsRow
@@ -340,6 +347,7 @@ func (q *Queries) UpsertBotSettings(ctx context.Context, arg UpsertBotSettingsPa
 		&i.ChatTiming,
 		&i.ShowToolCallsInIm,
 		&i.Persona,
+		&i.HttpProxyUrl,
 	)
 	return i, err
 }

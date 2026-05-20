@@ -327,6 +327,22 @@
       />
     </div>
 
+    <Separator />
+
+    <!-- HTTP Proxy -->
+    <div class="space-y-2">
+      <Label>{{ $t('bots.settings.httpProxyUrl') }}</Label>
+      <p class="text-xs text-muted-foreground">
+        {{ $t('bots.settings.httpProxyUrlDescription') }}
+      </p>
+      <Input
+        v-model="form.http_proxy_url"
+        type="text"
+        placeholder="http://proxy.example.com:8080"
+        :aria-label="$t('bots.settings.httpProxyUrl')"
+      />
+    </div>
+
     <!-- Save -->
     <div class="flex justify-end">
       <Button
@@ -577,6 +593,7 @@ const form = reactive({
   reasoning_enabled: false,
   reasoning_effort: 'medium',
   show_tool_calls_in_im: false,
+  http_proxy_url: '',
 })
 
 const selectedMemoryProvider = computed(() =>
@@ -720,6 +737,7 @@ watch(settings, (val) => {
     form.reasoning_enabled = val.reasoning_enabled ?? false
     form.reasoning_effort = val.reasoning_effort || 'medium'
     form.show_tool_calls_in_im = val.show_tool_calls_in_im ?? false
+    form.http_proxy_url = val.http_proxy_url ?? ''
   }
 }, { immediate: true })
 
@@ -746,6 +764,7 @@ const hasSettingsChanges = computed(() => {
     || form.reasoning_enabled !== (s.reasoning_enabled ?? false)
     || form.reasoning_effort !== (s.reasoning_effort || 'medium')
     || form.show_tool_calls_in_im !== (s.show_tool_calls_in_im ?? false)
+    || form.http_proxy_url !== (s.http_proxy_url ?? '')
   )
 })
 

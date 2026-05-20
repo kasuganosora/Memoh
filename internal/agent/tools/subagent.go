@@ -504,6 +504,9 @@ func (p *SpawnProvider) runSubagentTask(
 	}
 
 	var lastErr error
+	deadline := time.NewTimer(subagentTimeout)
+	defer deadline.Stop()
+
 	for attempt := 0; attempt <= subagentMaxRetries; attempt++ {
 		p.logger.Info("subagent attempt start",
 			slog.String("session_id", sessionID),
@@ -520,11 +523,10 @@ func (p *SpawnProvider) runSubagentTask(
 				slog.String("error", lastErr.Error()),
 			)
 			delayTimer := time.NewTimer(delay)
-			deadlineTimer := time.NewTimer(subagentTimeout)
 			select {
 			case <-delayTimer.C:
-				deadlineTimer.Stop()
-			case <-deadlineTimer.C:
+				// Delay elapsed, proceed with retry.
+			case <-deadline.C:
 				delayTimer.Stop()
 				// Hard deadline: don't retry indefinitely.
 				p.logger.Warn("subagent retry deadline exceeded",

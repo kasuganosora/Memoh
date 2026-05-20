@@ -1000,6 +1000,8 @@
       "personaNotObject": "必须是 JSON 对象（不能是数组或原始值）",
       "showToolCallsInIM": "在 IM 中显示工具调用",
       "showToolCallsInIMDescription": "在 IM 频道中以单条消息持续展示工具执行的状态（进行中 / 已完成 / 失败）。默认关闭。",
+      "httpProxyUrl": "HTTP 代理",
+      "httpProxyUrlDescription": "为 Web Fetch 工具配置 HTTP 代理地址，通过代理转发请求以防止 SSRF 攻击。留空则使用系统环境变量中的代理设置。",
       "browserContext": "浏览器上下文",
       "browserContextPlaceholder": "选择浏览器上下文（未配置时不启用）",
       "allowGuest": "ACL 默认行为",

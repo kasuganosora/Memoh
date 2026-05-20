@@ -1004,6 +1004,8 @@
       "personaNotObject": "Must be a JSON object (not an array or primitive)",
       "showToolCallsInIM": "Show Tool Calls in IM",
       "showToolCallsInIMDescription": "Surface tool execution status (running / completed / failed) as a single message in IM channels. Off by default.",
+      "httpProxyUrl": "HTTP Proxy",
+      "httpProxyUrlDescription": "Configure an HTTP proxy for the Web Fetch tool. Requests will be routed through this proxy to mitigate SSRF risks. Leave empty to use system environment proxy settings.",
       "browserContext": "Browser Context",
       "browserContextPlaceholder": "Select browser context (disabled if empty)",
       "allowGuest": "Default ACL Effect",

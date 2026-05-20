@@ -150,7 +150,7 @@ func callBraveSearch(ctx context.Context, configJSON []byte, query string, count
 	params.Set("q", query)
 	params.Set("count", strconv.Itoa(count))
 	reqURL.RawQuery = params.Encode()
-	timeout := parseSearchTimeout(configJSON, 15*time.Second)
+	timeout := parseSearchTimeoutFromConfig(cfg, 15*time.Second)
 	client := &http.Client{Timeout: timeout}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL.String(), nil)
 	if err != nil {
@@ -195,7 +195,7 @@ func callBingSearch(ctx context.Context, configJSON []byte, query string, count 
 	params.Set("q", query)
 	params.Set("count", strconv.Itoa(count))
 	reqURL.RawQuery = params.Encode()
-	timeout := parseSearchTimeout(configJSON, 15*time.Second)
+	timeout := parseSearchTimeoutFromConfig(cfg, 15*time.Second)
 	client := &http.Client{Timeout: timeout}
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, reqURL.String(), nil)
 	req.Header.Set("Accept", "application/json")
@@ -247,7 +247,7 @@ func callGoogleSearch(ctx context.Context, configJSON []byte, query string, coun
 		params.Set("key", apiKey)
 	}
 	reqURL.RawQuery = params.Encode()
-	timeout := parseSearchTimeout(configJSON, 15*time.Second)
+	timeout := parseSearchTimeoutFromConfig(cfg, 15*time.Second)
 	client := &http.Client{Timeout: timeout}
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, reqURL.String(), nil)
 	req.Header.Set("Accept", "application/json")
@@ -283,7 +283,7 @@ func callTavilySearch(ctx context.Context, configJSON []byte, query string, coun
 		return nil, errors.New("tavily API key is required")
 	}
 	payload, _ := json.Marshal(map[string]any{"query": query, "max_results": count})
-	timeout := parseSearchTimeout(configJSON, 15*time.Second)
+	timeout := parseSearchTimeoutFromConfig(cfg, 15*time.Second)
 	client := &http.Client{Timeout: timeout}
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
@@ -339,7 +339,7 @@ func callSogouSearch(ctx context.Context, configJSON []byte, query string, count
 	secretSigning := hmacSHA256(secretService, []byte("tc3_request"))
 	signature := hex.EncodeToString(hmacSHA256(secretSigning, []byte(stringToSign)))
 	authorization := fmt.Sprintf("TC3-HMAC-SHA256 Credential=%s/%s, SignedHeaders=%s, Signature=%s", secretID, credentialScope, signedHeaders, signature)
-	timeout := parseSearchTimeout(configJSON, 15*time.Second)
+	timeout := parseSearchTimeoutFromConfig(cfg, 15*time.Second)
 	client := &http.Client{Timeout: timeout}
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, "https://"+host+"/", bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
@@ -407,7 +407,7 @@ func callSerperSearch(ctx context.Context, configJSON []byte, query string, coun
 		return nil, errors.New("serper API key is required")
 	}
 	payload, _ := json.Marshal(map[string]any{"q": query})
-	timeout := parseSearchTimeout(configJSON, 15*time.Second)
+	timeout := parseSearchTimeoutFromConfig(cfg, 15*time.Second)
 	client := &http.Client{Timeout: timeout}
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
@@ -463,7 +463,7 @@ func callSearXNGSearch(ctx context.Context, configJSON []byte, query string, cou
 		params.Set("categories", cats)
 	}
 	reqURL.RawQuery = params.Encode()
-	timeout := parseSearchTimeout(configJSON, 15*time.Second)
+	timeout := parseSearchTimeoutFromConfig(cfg, 15*time.Second)
 	client := &http.Client{Timeout: timeout}
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, reqURL.String(), nil)
 	req.Header.Set("Accept", "application/json")
@@ -507,7 +507,7 @@ func callJinaSearch(ctx context.Context, configJSON []byte, query string, count 
 		count = 10
 	}
 	payload, _ := json.Marshal(map[string]any{"q": query, "count": count})
-	timeout := parseSearchTimeout(configJSON, 15*time.Second)
+	timeout := parseSearchTimeoutFromConfig(cfg, 15*time.Second)
 	client := &http.Client{Timeout: timeout}
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
@@ -544,7 +544,7 @@ func callExaSearch(ctx context.Context, configJSON []byte, query string, count i
 		return nil, errors.New("exa API key is required")
 	}
 	payload, _ := json.Marshal(map[string]any{"query": query, "numResults": count, "contents": map[string]any{"text": true, "highlights": true}, "type": "auto"})
-	timeout := parseSearchTimeout(configJSON, 15*time.Second)
+	timeout := parseSearchTimeoutFromConfig(cfg, 15*time.Second)
 	client := &http.Client{Timeout: timeout}
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
@@ -580,7 +580,7 @@ func callBochaSearch(ctx context.Context, configJSON []byte, query string, count
 		return nil, errors.New("bocha API key is required")
 	}
 	payload, _ := json.Marshal(map[string]any{"query": query, "summary": true, "freshness": "noLimit", "count": count})
-	timeout := parseSearchTimeout(configJSON, 15*time.Second)
+	timeout := parseSearchTimeoutFromConfig(cfg, 15*time.Second)
 	client := &http.Client{Timeout: timeout}
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
@@ -615,7 +615,7 @@ func callBochaSearch(ctx context.Context, configJSON []byte, query string, count
 func callDuckDuckGoSearch(ctx context.Context, configJSON []byte, query string, count int) (any, error) {
 	cfg := parseSearchConfig(configJSON)
 	endpoint := firstNonEmpty(stringValue(cfg["base_url"]), "https://html.duckduckgo.com/html/")
-	timeout := parseSearchTimeout(configJSON, 15*time.Second)
+	timeout := parseSearchTimeoutFromConfig(cfg, 15*time.Second)
 	client := &http.Client{Timeout: timeout}
 	form := url.Values{}
 	form.Set("q", query)
@@ -673,7 +673,7 @@ func callYandexSearch(ctx context.Context, configJSON []byte, query string, coun
 		"query":     map[string]any{"queryText": query, "searchType": searchType},
 		"groupSpec": map[string]any{"groupMode": "GROUP_MODE_DEEP", "groupsOnPage": count, "docsInGroup": 1},
 	})
-	timeout := parseSearchTimeout(configJSON, 15*time.Second)
+	timeout := parseSearchTimeoutFromConfig(cfg, 15*time.Second)
 	client := &http.Client{Timeout: timeout}
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
@@ -750,8 +750,7 @@ func extractJSONErrorMessage(body []byte) string {
 	return ""
 }
 
-func parseSearchTimeout(configJSON []byte, fallback time.Duration) time.Duration {
-	cfg := parseSearchConfig(configJSON)
+func parseSearchTimeoutFromConfig(cfg map[string]any, fallback time.Duration) time.Duration {
 	raw, ok := cfg["timeout_seconds"]
 	if !ok {
 		return fallback

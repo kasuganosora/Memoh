@@ -25,7 +25,8 @@ SELECT
   bots.persist_full_tool_results,
   bots.chat_timing,
   bots.show_tool_calls_in_im,
-  bots.persona
+  bots.persona,
+  bots.http_proxy_url
 FROM bots
 LEFT JOIN models AS chat_models ON chat_models.id = bots.chat_model_id
 LEFT JOIN models AS heartbeat_models ON heartbeat_models.id = bots.heartbeat_model_id
@@ -68,9 +69,10 @@ WITH updated AS (
       chat_timing = COALESCE(sqlc.narg(chat_timing)::jsonb, bots.chat_timing),
       show_tool_calls_in_im = sqlc.arg(show_tool_calls_in_im),
       persona = COALESCE(sqlc.narg(persona)::jsonb, bots.persona),
+      http_proxy_url = sqlc.arg(http_proxy_url),
       updated_at = now()
   WHERE bots.id = sqlc.arg(id)
-  RETURNING bots.id, bots.language, bots.reasoning_enabled, bots.reasoning_effort, bots.heartbeat_enabled, bots.heartbeat_interval, bots.heartbeat_prompt, bots.compaction_enabled, bots.compaction_threshold, bots.compaction_ratio, bots.timezone, bots.chat_model_id, bots.heartbeat_model_id, bots.compaction_model_id, bots.title_model_id, bots.vision_model_id, bots.image_model_id, bots.search_provider_id, bots.memory_provider_id, bots.tts_model_id, bots.transcription_model_id, bots.browser_context_id, bots.persist_full_tool_results, bots.chat_timing, bots.show_tool_calls_in_im, bots.persona
+  RETURNING bots.id, bots.language, bots.reasoning_enabled, bots.reasoning_effort, bots.heartbeat_enabled, bots.heartbeat_interval, bots.heartbeat_prompt, bots.compaction_enabled, bots.compaction_threshold, bots.compaction_ratio, bots.timezone, bots.chat_model_id, bots.heartbeat_model_id, bots.compaction_model_id, bots.title_model_id, bots.vision_model_id, bots.image_model_id, bots.search_provider_id, bots.memory_provider_id, bots.tts_model_id, bots.transcription_model_id, bots.browser_context_id, bots.persist_full_tool_results, bots.chat_timing, bots.show_tool_calls_in_im, bots.persona, bots.http_proxy_url
 )
 SELECT
   updated.id AS bot_id,
@@ -98,7 +100,8 @@ SELECT
   updated.persist_full_tool_results,
   updated.chat_timing,
   updated.show_tool_calls_in_im,
-  updated.persona
+  updated.persona,
+  updated.http_proxy_url
 FROM updated
 LEFT JOIN models AS chat_models ON chat_models.id = updated.chat_model_id
 LEFT JOIN models AS heartbeat_models ON heartbeat_models.id = updated.heartbeat_model_id
@@ -138,5 +141,6 @@ SET language = 'auto',
     chat_timing = '{}'::jsonb,
     show_tool_calls_in_im = false,
     persona = '{}'::jsonb,
+    http_proxy_url = '',
     updated_at = now()
 WHERE id = $1;

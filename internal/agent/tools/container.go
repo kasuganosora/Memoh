@@ -290,9 +290,14 @@ func (p *ContainerProvider) execRead(ctx context.Context, session SessionContext
 		readBuf := *readBufPtr
 		defer bufferPool.Put(readBufPtr)
 
+		totalRead := probeN
 		for {
 			n, err := reader.Read(readBuf)
 			if n > 0 {
+				totalRead += n
+				if totalRead > maxReadBytes {
+					return nil, fmt.Errorf("file is too large (exceeded %d bytes limit during read). Use exec with head/tail/sed for partial reads", maxReadBytes)
+				}
 				buf.Write(readBuf[:n])
 			}
 			if err == io.EOF {
@@ -451,9 +456,12 @@ func (p *ContainerProvider) execEdit(ctx context.Context, session SessionContext
 		return nil, err
 	}
 	defer func() { _ = reader.Close() }()
-	raw, err := io.ReadAll(reader)
+	raw, err := io.ReadAll(io.LimitReader(reader, maxReadBytes+1))
 	if err != nil {
 		return nil, err
+	}
+	if len(raw) > maxReadBytes {
+		return nil, fmt.Errorf("file is too large for edit (limit %d bytes). Use exec with sed for large file edits", maxReadBytes)
 	}
 
 	updated, err := applyEdit(string(raw), filePath, oldText, newText)

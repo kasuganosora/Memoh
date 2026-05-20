@@ -35,6 +35,7 @@ type Settings struct {
 	ShowToolCallsInIM      bool             `json:"show_tool_calls_in_im"`
 	ChatTiming             ChatTimingConfig `json:"chat_timing"`
 	Persona                json.RawMessage  `json:"persona,omitempty"`
+	HttpProxyUrl           string           `json:"http_proxy_url"`
 }
 
 type UpsertRequest struct {
@@ -69,6 +70,7 @@ type UpsertRequest struct {
 	EnableProfileTracking  *bool             `json:"enable_profile_tracking,omitempty"`
 	MemorySearchMode       *string           `json:"memory_search_mode,omitempty"`
 	Persona                *json.RawMessage  `json:"persona,omitempty"`
+	HttpProxyUrl           *string           `json:"http_proxy_url,omitempty"`
 }
 
 type ChatTimingConfig struct {
