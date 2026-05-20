@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/memohai/memoh/internal/workspace/bridge"
@@ -62,11 +63,15 @@ type ReadFileFunc func(ctx context.Context, path string) ([]byte, error)
 
 // Manager tracks background tasks and delivers completion notifications.
 type Manager struct {
-	mu            sync.Mutex
+	mu            sync.RWMutex     // Use RWMutex for better read performance
 	tasks         map[string]*Task // taskID -> Task
 	notifications []Notification   // pending notifications, protected by mu
 	logger        *slog.Logger
 	wakeFunc      func(botID, sessionID string) // optional callback to wake agent on new notification
+
+	// Performance monitoring
+	taskCount   int64 // atomic counter for total tasks created
+	activeTasks int64 // atomic counter for currently running tasks
 }
 
 // New creates a new background task Manager.
@@ -77,6 +82,35 @@ func New(logger *slog.Logger) *Manager {
 	return &Manager{
 		tasks:  make(map[string]*Task),
 		logger: logger.With(slog.String("service", "background")),
+	}
+}
+
+// Resource limits for background tasks.
+const (
+	maxActiveTasks = 50 // Maximum number of concurrently running tasks
+)
+
+// checkResourceLimits validates if new task can be spawned.
+func (m *Manager) checkResourceLimits() error {
+	active := atomic.LoadInt64(&m.activeTasks)
+	if active >= maxActiveTasks {
+		return fmt.Errorf("maximum active tasks reached (%d/%d)", active, maxActiveTasks)
+	}
+
+	return nil
+}
+
+// GetStats returns current performance statistics.
+func (m *Manager) GetStats() map[string]interface{} {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	return map[string]interface{}{
+		"total_tasks":   atomic.LoadInt64(&m.taskCount),
+		"active_tasks":  atomic.LoadInt64(&m.activeTasks),
+		"pending_tasks": len(m.tasks) - int(atomic.LoadInt64(&m.activeTasks)),
+		"notifications": len(m.notifications),
+		"max_active":    maxActiveTasks,
 	}
 }
 
@@ -130,6 +164,14 @@ func (m *Manager) Spawn(
 	writeFn WriteFileFunc,
 	readFn ReadFileFunc,
 ) (taskID, outputFile string) {
+	// Log warning if resource limits are exceeded but don't block task creation
+	if err := m.checkResourceLimits(); err != nil {
+		m.logger.Warn("resource limits exceeded for background task",
+			slog.String("bot_id", botID),
+			slog.Any("error", err),
+		)
+	}
+
 	m.mu.Lock()
 	taskID = m.newTaskIDLocked(botID)
 	outputFile = fmt.Sprintf("%s/%s.log", OutputLogDir, taskID)
@@ -148,10 +190,15 @@ func (m *Manager) Spawn(
 	m.tasks[taskID] = task
 	m.mu.Unlock()
 
+	// Update performance counters
+	atomic.AddInt64(&m.taskCount, 1)
+	atomic.AddInt64(&m.activeTasks, 1)
+
 	m.logger.Info("background task spawned",
 		slog.String("task_id", taskID),
 		slog.String("bot_id", botID),
 		slog.String("command", truncate(command, 120)),
+		slog.Int64("active_tasks", atomic.LoadInt64(&m.activeTasks)),
 	)
 
 	go m.run(parentCtx, task, execFn, writeFn, readFn)
@@ -186,10 +233,15 @@ func (m *Manager) SpawnAdopt(
 	m.tasks[taskID] = task
 	m.mu.Unlock()
 
+	// Update performance counters (consistent with Spawn)
+	atomic.AddInt64(&m.taskCount, 1)
+	atomic.AddInt64(&m.activeTasks, 1)
+
 	m.logger.Info("background task adopted",
 		slog.String("task_id", taskID),
 		slog.String("bot_id", botID),
 		slog.String("command", truncate(command, 120)),
+		slog.Int64("active_tasks", atomic.LoadInt64(&m.activeTasks)),
 	)
 
 	go m.runAdopt(parentCtx, task, resultCh, writeFn)
@@ -322,6 +374,9 @@ func (m *Manager) run(parentCtx context.Context, task *Task, execFn ExecFunc, wr
 }
 
 func (m *Manager) completeTask(task *Task, stdout, stderr string, execErr error, exitCode int32) {
+	// Decrement active tasks counter when task completes
+	atomic.AddInt64(&m.activeTasks, -1)
+
 	if execErr != nil {
 		task.AppendOutput(fmt.Sprintf("[error] %v\n", execErr))
 	} else {
@@ -402,9 +457,9 @@ func ensureOutputDir(ctx context.Context, writeFn WriteFileFunc) error {
 
 // Kill cancels a running background task.
 func (m *Manager) Kill(taskID string) error {
-	m.mu.Lock()
+	m.mu.RLock()
 	task, ok := m.tasks[taskID]
-	m.mu.Unlock()
+	m.mu.RUnlock()
 	if !ok {
 		return fmt.Errorf("task %s not found", taskID)
 	}
@@ -424,16 +479,16 @@ func (m *Manager) Kill(taskID string) error {
 
 // Get returns a task by ID, or nil if not found.
 func (m *Manager) Get(taskID string) *Task {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return m.tasks[taskID]
 }
 
 // GetForSession returns a task by ID only if it belongs to the provided
 // bot+session.
 func (m *Manager) GetForSession(botID, sessionID, taskID string) *Task {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	task := m.tasks[taskID]
 	if task == nil || task.BotID != botID || task.SessionID != sessionID {
 		return nil
@@ -443,8 +498,8 @@ func (m *Manager) GetForSession(botID, sessionID, taskID string) *Task {
 
 // ListForSession returns all tasks for a given bot+session, most recent first.
 func (m *Manager) ListForSession(botID, sessionID string) []*Task {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	var result []*Task
 	for _, t := range m.tasks {
 		if t.BotID == botID && t.SessionID == sessionID {
@@ -487,8 +542,8 @@ func (m *Manager) DrainNotifications(botID, sessionID string) []Notification {
 // HasNotifications reports whether there are pending notifications for the
 // given bot+session without consuming them.
 func (m *Manager) HasNotifications(botID, sessionID string) bool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	for _, n := range m.notifications {
 		if n.BotID == botID && n.SessionID == sessionID {
 			return true
@@ -501,8 +556,8 @@ func (m *Manager) HasNotifications(botID, sessionID string) bool {
 // for a given bot+session. This is injected into the system prompt so the
 // agent knows about ongoing background work.
 func (m *Manager) RunningTasksSummary(botID, sessionID string) string {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	var lines []string
 	for _, t := range m.tasks {
 		t.mu.Lock()

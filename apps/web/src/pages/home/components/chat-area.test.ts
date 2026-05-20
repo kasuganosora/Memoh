@@ -17,8 +17,21 @@ vi.mock('@/composables/api/useChat.message-api', () => ({
   })
 }))
 
+interface MockStore {
+  messages: Array<{ id: string; content: string; timestamp: Date }>
+  loadingOlder: boolean
+  hasMoreOlder: boolean
+  PAGE_SIZE: number
+  loadOlderMessages: ReturnType<typeof vi.fn>
+  loadNewerMessages: ReturnType<typeof vi.fn>
+  clearMessages: ReturnType<typeof vi.fn>
+  addMessage: ReturnType<typeof vi.fn>
+  updateMessage: ReturnType<typeof vi.fn>
+  removeMessage: ReturnType<typeof vi.fn>
+}
+
 describe('ChatArea - Dynamic Pagination', () => {
-  let store: any
+  let store: MockStore
 
   beforeEach(() => {
     setActivePinia(createPinia())

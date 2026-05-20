@@ -601,9 +601,9 @@ function startContentRecycling() {
   // 触发垃圾回收（如果可用）
   if ('gc' in window) {
     try {
-      (window as any).gc()
-    } catch (e) {
-      // GC不可用，忽略
+      (window as unknown as { gc: () => void }).gc()
+    } catch (_e) {
+      // GC not available, ignore
     }
   }
   
@@ -1038,7 +1038,7 @@ async function handleSend() {
 // ---- New message notification ----
 const showNewMessageNotification = ref(false)
 const newMessageCount = ref(0)
-const lastScrollPosition = ref(0)
+const _lastScrollPosition = ref(0)
 
 // 监听新消息到达
 watch(messages, (newMessages, oldMessages) => {
@@ -1081,7 +1081,7 @@ const MAX_RETRY_COUNT = 3
 const RETRY_DELAY = 2000 // 2秒重试延迟
 
 // 错误处理函数
-function handleLoadError(error: any, operation: 'loadOlder' | 'sendMessage' | 'initialLoad') {
+function handleLoadError(error: unknown, operation: 'loadOlder' | 'sendMessage' | 'initialLoad') {
   console.error(`${operation} failed:`, error)
   
   const now = Date.now()

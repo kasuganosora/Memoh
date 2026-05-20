@@ -11,7 +11,8 @@ vi.mock('@/store/chat-list', () => ({
 }))
 
 describe('ChatArea - Performance Tests', () => {
-  let store: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let store: Record<string, any>
 
   beforeEach(() => {
     setActivePinia(createPinia())

@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	sdk "github.com/memohai/twilight-ai/sdk"
@@ -34,6 +35,20 @@ const containerOpTimeout = 30 * time.Second
 // streaming (async chunked I/O) instead of loading fully into memory.
 // Files <= this threshold use the simpler synchronous gRPC calls.
 const largeFileThreshold = 512 * 1024 // 512 KB
+
+// maxReadBytes caps the maximum file size that can be read.
+const maxReadBytes = 16 * 1024 * 1024 // 16 MB
+
+// chunkSize defines the size of chunks for streaming operations.
+const chunkSize = 64 * 1024 // 64 KB
+
+// bufferPool is a pool of byte buffers for efficient memory reuse.
+var bufferPool = sync.Pool{
+	New: func() interface{} {
+		b := make([]byte, chunkSize)
+		return &b
+	},
+}
 
 type ContainerProvider struct {
 	clients     bridge.Provider
@@ -234,10 +249,7 @@ func (p *ContainerProvider) execRead(ctx context.Context, session SessionContext
 		nLines = n
 	}
 
-	// Pre-check file size to avoid loading excessively large files into
-	// memory. The gRPC transport is capped at 16 MB, so anything larger
-	// would fail anyway; reject early with a clear message.
-	const maxReadBytes = 16 * 1024 * 1024 // 16 MB
+	// Pre-check file size to avoid loading excessively large files into memory
 	if stat, err := client.Stat(opCtx, filePath); err == nil && stat != nil {
 		if stat.GetSize() > maxReadBytes {
 			return nil, fmt.Errorf("file is too large (%d bytes, limit %d bytes). Use exec with head/tail/sed for partial reads", stat.GetSize(), maxReadBytes)
@@ -251,28 +263,45 @@ func (p *ContainerProvider) execRead(ctx context.Context, session SessionContext
 	}
 	defer func() { _ = reader.Close() }()
 
-	// Probe for binary content.
-	probe := make([]byte, 8*1024)
-	probeN, probeErr := reader.Read(probe)
+	// Probe for binary content using pooled buffer.
+	probeBufPtr := bufferPool.Get().(*[]byte)
+	probeBuf := *probeBufPtr
+	defer bufferPool.Put(probeBufPtr)
+
+	probeN, probeErr := reader.Read(probeBuf)
 	if probeErr != nil && probeErr != io.EOF {
 		return nil, fmt.Errorf("read probe: %w", probeErr)
 	}
-	if bytes.IndexByte(probe[:probeN], 0) >= 0 {
+	if bytes.IndexByte(probeBuf[:probeN], 0) >= 0 {
 		if !session.SupportsImageInput {
 			return nil, errors.New("file appears to be binary. Read tool only supports text files (image reading not available for this model)")
 		}
 		return ReadImageFromContainer(opCtx, client, filePath, defaultReadMediaMaxBytes), nil
 	}
 
-	// Read remaining content after probe.
+	// Efficiently read remaining content using chunked reading
 	var buf strings.Builder
-	buf.Write(probe[:probeN])
+	buf.Grow(probeN + 32*1024) // Pre-allocate reasonable capacity
+	buf.Write(probeBuf[:probeN])
+
 	if probeErr != io.EOF {
-		remaining, readErr := io.ReadAll(reader)
-		if readErr != nil {
-			return nil, fmt.Errorf("read file: %w", readErr)
+		// Use chunked reading instead of io.ReadAll for better memory control.
+		readBufPtr := bufferPool.Get().(*[]byte)
+		readBuf := *readBufPtr
+		defer bufferPool.Put(readBufPtr)
+
+		for {
+			n, err := reader.Read(readBuf)
+			if n > 0 {
+				buf.Write(readBuf[:n])
+			}
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return nil, fmt.Errorf("read file: %w", err)
+			}
 		}
-		buf.Write(remaining)
 	}
 
 	fullContent := buf.String()
@@ -321,7 +350,7 @@ func (p *ContainerProvider) execWrite(ctx context.Context, session SessionContex
 			return nil, err
 		}
 	} else {
-		// Small content: simple synchronous write.
+		// Small content: simple synchronous write (single gRPC call, lower overhead).
 		if err := client.WriteFile(opCtx, filePath, data); err != nil {
 			return nil, err
 		}

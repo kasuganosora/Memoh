@@ -116,10 +116,25 @@ func (s *Sential) pushWindowChar(ch rune) {
 	if len(s.windowChars) <= s.windowSize {
 		return
 	}
-	s.windowChars = s.windowChars[1:]
+	// Instead of s.windowChars = s.windowChars[1:] which leaks memory
+	// (the underlying array never shrinks), copy the tail to a new slice
+	// when the capacity grows too large relative to the window size.
+	if cap(s.windowChars) > s.windowSize*3 {
+		newChars := make([]rune, len(s.windowChars)-1)
+		copy(newChars, s.windowChars[1:])
+		s.windowChars = newChars
+	} else {
+		s.windowChars = s.windowChars[1:]
+	}
 	if len(s.windowNgramQueue) > 0 {
 		removed := s.windowNgramQueue[0]
-		s.windowNgramQueue = s.windowNgramQueue[1:]
+		if cap(s.windowNgramQueue) > s.windowSize*3 {
+			newQueue := make([]string, len(s.windowNgramQueue)-1)
+			copy(newQueue, s.windowNgramQueue[1:])
+			s.windowNgramQueue = newQueue
+		} else {
+			s.windowNgramQueue = s.windowNgramQueue[1:]
+		}
 		s.removeHistoryGram(removed)
 	}
 }
@@ -300,11 +315,9 @@ func (b *TextLoopProbeBuffer) Flush() {
 // --- Tool Loop Guard ---
 
 var defaultVolatileKeys = []string{
-	"toolcallid", "toolcallid", "requestid", "requestid",
-	"traceid", "traceid", "spanid", "spanid",
-	"sessionid", "sessionid", "timestamp",
-	"createdat", "createdat", "updatedat", "updatedat",
-	"expiresat", "expiresat", "nonce",
+	"toolcallid", "requestid", "traceid", "spanid",
+	"sessionid", "timestamp", "createdat", "updatedat",
+	"expiresat", "nonce",
 }
 
 var volatileKeySuffixes = []string{
