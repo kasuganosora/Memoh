@@ -117,8 +117,12 @@ func (s SessionContext) FormatTime(t time.Time) string {
 }
 
 // maxSendsPerTurn is the maximum number of outbound message tool calls
-// (send, reply, speak) allowed per agent turn in discuss mode.
+// (send, reply, speak) allowed per agent turn.
 const maxSendsPerTurn int32 = 3
+
+// maxSendsPerTurnDiscuss is the hard limit for discuss mode — only ONE
+// outbound message per turn to prevent duplicate replies to the same note.
+const maxSendsPerTurnDiscuss int32 = 1
 
 // ErrSendLimitReached is returned when the per-turn send limit is exceeded.
 // Callers should surface this to the LLM as a stop signal, not a retryable error.
@@ -127,13 +131,19 @@ var ErrSendLimitReached = errors.New("send limit reached")
 // CheckSendLimit increments the per-turn send counter and returns
 // ErrSendLimitReached if the limit has been exceeded. It is safe to call
 // with a nil SendCount (no limit enforced).
+// In discuss mode the limit is 1 (prevent LLM from sending multiple replies
+// to the same note in a single turn).
 func CheckSendLimit(session SessionContext) error {
 	if session.SendCount == nil {
 		return nil
 	}
 	count := session.SendCount.Add(1)
-	if count > maxSendsPerTurn {
-		return fmt.Errorf("%w: maximum %d sends per turn — stop sending", ErrSendLimitReached, maxSendsPerTurn)
+	limit := maxSendsPerTurn
+	if session.SessionType == "discuss" {
+		limit = maxSendsPerTurnDiscuss
+	}
+	if count > limit {
+		return fmt.Errorf("%w: maximum %d sends per turn — stop sending", ErrSendLimitReached, limit)
 	}
 	return nil
 }

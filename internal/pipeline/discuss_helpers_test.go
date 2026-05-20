@@ -3,25 +3,27 @@ package pipeline
 import (
 	"context"
 	"testing"
+	"time"
 )
 
 func TestLatestReplyTarget_PrefersMentionsMe(t *testing.T) {
 	t.Parallel()
 
+	nowMs := time.Now().UnixMilli()
 	rc := RenderedContext{
 		{
-			ReceivedAtMs: 100,
+			ReceivedAtMs: nowMs - 60000, // 1 min ago
 			Content:      []RenderedContentPiece{{Type: "text", Text: "normal msg"}},
 			Target:       "note-100",
 		},
 		{
-			ReceivedAtMs: 200,
+			ReceivedAtMs: nowMs - 30000, // 30s ago
 			Content:      []RenderedContentPiece{{Type: "text", Text: "@bot hello"}},
 			MentionsMe:   true,
 			Target:       "note-200",
 		},
 		{
-			ReceivedAtMs: 300,
+			ReceivedAtMs: nowMs - 10000, // 10s ago
 			Content:      []RenderedContentPiece{{Type: "text", Text: "another msg"}},
 			Target:       "note-300",
 		},
@@ -36,14 +38,15 @@ func TestLatestReplyTarget_PrefersMentionsMe(t *testing.T) {
 func TestLatestReplyTarget_FallsBackToLatestNonSelf(t *testing.T) {
 	t.Parallel()
 
+	nowMs := time.Now().UnixMilli()
 	rc := RenderedContext{
 		{
-			ReceivedAtMs: 100,
+			ReceivedAtMs: nowMs - 60000,
 			Content:      []RenderedContentPiece{{Type: "text", Text: "msg1"}},
 			Target:       "note-100",
 		},
 		{
-			ReceivedAtMs: 200,
+			ReceivedAtMs: nowMs - 30000,
 			Content:      []RenderedContentPiece{{Type: "text", Text: "msg2"}},
 			Target:       "note-200",
 		},
@@ -58,14 +61,15 @@ func TestLatestReplyTarget_FallsBackToLatestNonSelf(t *testing.T) {
 func TestLatestReplyTarget_SkipsSelfMessages(t *testing.T) {
 	t.Parallel()
 
+	nowMs := time.Now().UnixMilli()
 	rc := RenderedContext{
 		{
-			ReceivedAtMs: 100,
+			ReceivedAtMs: nowMs - 60000,
 			Content:      []RenderedContentPiece{{Type: "text", Text: "user msg"}},
 			Target:       "note-100",
 		},
 		{
-			ReceivedAtMs: 200,
+			ReceivedAtMs: nowMs - 30000,
 			Content:      []RenderedContentPiece{{Type: "text", Text: "my reply"}},
 			IsMyself:     true,
 			Target:       "note-200",
@@ -114,9 +118,10 @@ func TestLatestReplyTarget_EmptyRC(t *testing.T) {
 func TestLatestReplyTarget_NoTarget(t *testing.T) {
 	t.Parallel()
 
+	nowMs := time.Now().UnixMilli()
 	rc := RenderedContext{
 		{
-			ReceivedAtMs: 100,
+			ReceivedAtMs: nowMs - 30000,
 			Content:      []RenderedContentPiece{{Type: "text", Text: "msg without target"}},
 			// Target is empty
 		},
@@ -131,20 +136,21 @@ func TestLatestReplyTarget_NoTarget(t *testing.T) {
 func TestLatestReplyTarget_RepliesToMeAlsoPreferred(t *testing.T) {
 	t.Parallel()
 
+	nowMs := time.Now().UnixMilli()
 	rc := RenderedContext{
 		{
-			ReceivedAtMs: 100,
+			ReceivedAtMs: nowMs - 60000,
 			Content:      []RenderedContentPiece{{Type: "text", Text: "normal"}},
 			Target:       "note-100",
 		},
 		{
-			ReceivedAtMs: 200,
+			ReceivedAtMs: nowMs - 30000,
 			Content:      []RenderedContentPiece{{Type: "text", Text: "reply to bot"}},
 			RepliesToMe:  true,
 			Target:       "note-200",
 		},
 		{
-			ReceivedAtMs: 300,
+			ReceivedAtMs: nowMs - 10000,
 			Content:      []RenderedContentPiece{{Type: "text", Text: "later msg"}},
 			Target:       "note-300",
 		},
@@ -153,6 +159,26 @@ func TestLatestReplyTarget_RepliesToMeAlsoPreferred(t *testing.T) {
 	got := latestReplyTarget(rc, 0)
 	if got != "note-200" {
 		t.Fatalf("expected note-200 (replies_to_me), got %q", got)
+	}
+}
+
+func TestLatestReplyTarget_IgnoresStaleSegmentsOnNewSession(t *testing.T) {
+	t.Parallel()
+
+	// Segments older than 5 minutes should be ignored when afterMs=0.
+	staleMs := time.Now().Add(-10 * time.Minute).UnixMilli()
+	rc := RenderedContext{
+		{
+			ReceivedAtMs: staleMs,
+			Content:      []RenderedContentPiece{{Type: "text", Text: "old mention"}},
+			MentionsMe:   true,
+			Target:       "note-stale",
+		},
+	}
+
+	got := latestReplyTarget(rc, 0)
+	if got != "" {
+		t.Fatalf("expected empty string for stale segments, got %q", got)
 	}
 }
 
@@ -264,20 +290,21 @@ func TestHandleReplyWithAgent_UpdatesReplyTargetFromRC(t *testing.T) {
 		StreamChunkParser: testStreamChunkParser,
 	})
 
+	nowMs := time.Now().UnixMilli()
 	rc := RenderedContext{
 		{
-			ReceivedAtMs: 100,
+			ReceivedAtMs: nowMs - 60000,
 			Content:      []RenderedContentPiece{{Type: "text", Text: "old msg"}},
 			Target:       "note-old",
 		},
 		{
-			ReceivedAtMs: 200,
+			ReceivedAtMs: nowMs - 30000,
 			Content:      []RenderedContentPiece{{Type: "text", Text: "@bot new mention"}},
 			MentionsMe:   true,
 			Target:       "note-mention",
 		},
 		{
-			ReceivedAtMs: 300,
+			ReceivedAtMs: nowMs - 10000,
 			Content:      []RenderedContentPiece{{Type: "text", Text: "latest msg"}},
 			Target:       "note-latest",
 		},
@@ -315,14 +342,15 @@ func TestHandleReplyWithAgent_FallsBackToLatestTarget(t *testing.T) {
 		StreamChunkParser: testStreamChunkParser,
 	})
 
+	nowMs := time.Now().UnixMilli()
 	rc := RenderedContext{
 		{
-			ReceivedAtMs: 100,
+			ReceivedAtMs: nowMs - 60000,
 			Content:      []RenderedContentPiece{{Type: "text", Text: "msg1"}},
 			Target:       "note-100",
 		},
 		{
-			ReceivedAtMs: 200,
+			ReceivedAtMs: nowMs - 30000,
 			Content:      []RenderedContentPiece{{Type: "text", Text: "msg2"}},
 			Target:       "note-200",
 		},

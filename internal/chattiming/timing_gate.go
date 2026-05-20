@@ -71,17 +71,31 @@ func NewTimingGate(agent *agentpkg.Agent, logger *slog.Logger) *TimingGate {
 	}
 }
 
+const (
+	// timingGateMaxTimeout is the absolute maximum time allowed for a timing gate call.
+	timingGateMaxTimeout = 3 * time.Minute
+	// timingGateIdleTimeout is how long we wait without receiving any token
+	// before considering the LLM stalled. As long as tokens keep arriving,
+	// the idle timer resets and we never hit this.
+	timingGateIdleTimeout = 30 * time.Second
+)
+
 // Evaluate runs the timing gate check. If isMentioned is true, it skips the
 // LLM call entirely and returns TimingContinue immediately (the bot must respond).
 // On error, it fails open by returning TimingContinue.
+//
+// The call uses streaming with an activity-based timeout: as long as the LLM
+// keeps producing tokens the idle timer resets. Only if no token arrives for
+// timingGateIdleTimeout (or the absolute timingGateMaxTimeout is reached) does
+// the call abort.
 func (tg *TimingGate) Evaluate(ctx context.Context, params TimingGateParams, runConfig agentpkg.RunConfig) TimingGateResult {
 	// @mention always forces a response.
 	if params.IsMentioned {
 		return TimingGateResult{Decision: TimingContinue, Reason: "mentioned"}
 	}
 
-	// Short-circuit runaway LLM latency.
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	// Absolute deadline to prevent unbounded waits.
+	ctx, cancel := context.WithTimeout(ctx, timingGateMaxTimeout)
 	defer cancel()
 
 	prompt := buildTimingGatePrompt(params)
@@ -93,14 +107,75 @@ func (tg *TimingGate) Evaluate(ctx context.Context, params TimingGateParams, run
 	cfg.LoopDetection.Enabled = false
 	cfg.Retry = agentpkg.RetryConfig{MaxAttempts: 1}
 
-	result, err := tg.agent.Generate(ctx, cfg)
-	if err != nil {
-		tg.logger.Warn("timing gate error, failing open to continue",
-			slog.Any("error", err))
-		return TimingGateResult{Decision: TimingContinue, Reason: "error: " + err.Error()}
-	}
+	// Use streaming so we can detect token activity and apply an idle timeout.
+	ch := tg.agent.Stream(ctx, cfg)
 
-	parsed := parseTimingGateResult(result.Text)
+	var textBuilder strings.Builder
+	idleTimer := time.NewTimer(timingGateIdleTimeout)
+	defer idleTimer.Stop()
+
+	for {
+		select {
+		case evt, ok := <-ch:
+			if !ok {
+				// Stream closed — parse whatever we collected.
+				return tg.finalizeResult(textBuilder.String())
+			}
+			// Reset idle timer on any meaningful activity.
+			switch evt.Type {
+			case agentpkg.EventTextDelta, agentpkg.EventReasoningDelta:
+				if !idleTimer.Stop() {
+					select {
+					case <-idleTimer.C:
+					default:
+					}
+				}
+				idleTimer.Reset(timingGateIdleTimeout)
+				if evt.Type == agentpkg.EventTextDelta {
+					textBuilder.WriteString(evt.Delta)
+				}
+			case agentpkg.EventAgentEnd, agentpkg.EventAgentAbort:
+				return tg.finalizeResult(textBuilder.String())
+			case agentpkg.EventError:
+				tg.logger.Warn("timing gate stream error, failing open to continue",
+					slog.String("error", evt.Error))
+				return TimingGateResult{Decision: TimingContinue, Reason: "error: " + evt.Error}
+			}
+
+		case <-idleTimer.C:
+			// No token activity for timingGateIdleTimeout — treat as stall.
+			tg.logger.Warn("timing gate idle timeout, failing open to continue",
+				slog.Duration("idle_timeout", timingGateIdleTimeout))
+			cancel()
+			// Drain remaining events to avoid goroutine leak.
+			go func() {
+				for range ch {
+				}
+			}()
+			if textBuilder.Len() > 0 {
+				return tg.finalizeResult(textBuilder.String())
+			}
+			return TimingGateResult{Decision: TimingContinue, Reason: "idle timeout"}
+
+		case <-ctx.Done():
+			// Absolute timeout or parent context cancelled.
+			tg.logger.Warn("timing gate absolute timeout, failing open to continue",
+				slog.Duration("max_timeout", timingGateMaxTimeout))
+			go func() {
+				for range ch {
+				}
+			}()
+			if textBuilder.Len() > 0 {
+				return tg.finalizeResult(textBuilder.String())
+			}
+			return TimingGateResult{Decision: TimingContinue, Reason: "timeout"}
+		}
+	}
+}
+
+// finalizeResult parses the collected text and logs the decision.
+func (tg *TimingGate) finalizeResult(text string) TimingGateResult {
+	parsed := parseTimingGateResult(text)
 	tg.logger.Info("timing gate decision",
 		slog.String("decision", string(parsed.Decision)),
 		slog.Int("wait_seconds", parsed.WaitSeconds),

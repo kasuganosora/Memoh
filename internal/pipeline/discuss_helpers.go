@@ -83,11 +83,27 @@ func latestRCReceivedAtMs(rc RenderedContext) int64 {
 	return latest
 }
 
+// replyTargetMaxAge is the maximum age of a segment to be considered as a
+// reply target when afterMs is 0 (new session). This prevents the bot from
+// replying to very old notes that happen to mention it.
+const replyTargetMaxAge = 5 * time.Minute
+
 // latestReplyTarget extracts the best reply target from a RenderedContext.
 // It prefers the latest non-self segment with MentionsMe or RepliesToMe set.
 // If none found, it falls back to the latest non-self segment's Target.
 // Returns empty string if no suitable target is found.
+//
+// When afterMs is 0 (new session), only segments received within the last
+// replyTargetMaxAge are considered, preventing replies to stale notes.
 func latestReplyTarget(rc RenderedContext, afterMs int64) string {
+	// When afterMs is 0 (new session), compute a floor timestamp to avoid
+	// picking up very old segments as reply targets.
+	effectiveAfterMs := afterMs
+	if effectiveAfterMs == 0 {
+		floor := time.Now().Add(-replyTargetMaxAge).UnixMilli()
+		effectiveAfterMs = floor
+	}
+
 	var mentionTarget string
 	var mentionMs int64
 	var latestTarget string
@@ -97,7 +113,7 @@ func latestReplyTarget(rc RenderedContext, afterMs int64) string {
 		if seg.IsMyself || seg.Target == "" {
 			continue
 		}
-		if afterMs > 0 && seg.ReceivedAtMs <= afterMs {
+		if seg.ReceivedAtMs <= effectiveAfterMs {
 			continue
 		}
 		if seg.ReceivedAtMs > latestMs {

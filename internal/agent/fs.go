@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -79,11 +80,19 @@ func (f *FSClient) LoadSystemFiles(ctx context.Context) []SystemFile {
 	for i, name := range filenames {
 		content, err := f.ReadText(ctx, home+"/"+name)
 		if err != nil {
-			f.logger.Warn("failed to read container file",
-				slog.String("bot_id", f.botID),
-				slog.String("file", name),
-				slog.Any("error", err),
-			)
+			// File-not-found is expected (e.g. today's memory file not yet created).
+			if errors.Is(err, bridge.ErrNotFound) {
+				f.logger.Debug("container file not found (expected)",
+					slog.String("bot_id", f.botID),
+					slog.String("file", name),
+				)
+			} else {
+				f.logger.Warn("failed to read container file",
+					slog.String("bot_id", f.botID),
+					slog.String("file", name),
+					slog.Any("error", err),
+				)
+			}
 			content = ""
 		}
 		files[i] = SystemFile{

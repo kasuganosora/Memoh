@@ -117,7 +117,7 @@ func (a *Agent) runStream(ctx context.Context, cfg RunConfig, ch chan<- StreamEv
 			slog.Int("final_tool_count", len(sdkTools)),
 		)
 	} else {
-		a.logger.Warn("runStream: tool calling disabled for this run",
+		a.logger.Debug("runStream: tool calling disabled for this run",
 			slog.String("bot_id", cfg.Identity.BotID),
 			slog.String("session_type", cfg.SessionType),
 			slog.String("model", modelID(cfg)),
@@ -528,7 +528,7 @@ func (a *Agent) runGenerate(ctx context.Context, cfg RunConfig) (*GenerateResult
 			slog.Int("final_tool_count", len(sdkTools)),
 		)
 	} else {
-		a.logger.Warn("runGenerate: tool calling disabled for this run",
+		a.logger.Debug("runGenerate: tool calling disabled for this run",
 			slog.String("bot_id", cfg.Identity.BotID),
 			slog.String("session_type", cfg.SessionType),
 			slog.String("model", modelID(cfg)),
