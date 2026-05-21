@@ -149,7 +149,9 @@ func Reduce(ic IntermediateContext, event CanonicalEvent) IntermediateContext {
 
 func cloneIC(ic IntermediateContext) IntermediateContext {
 	nodes := make([]ICNode, len(ic.Nodes))
-	copy(nodes, ic.Nodes)
+	for i, n := range ic.Nodes {
+		nodes[i] = cloneICNode(n)
+	}
 	users := make(map[string]ICUserState, len(ic.Users))
 	for k, v := range ic.Users {
 		users[k] = v
@@ -160,6 +162,29 @@ func cloneIC(ic IntermediateContext) IntermediateContext {
 		Users:     users,
 		ChatTitle: ic.ChatTitle,
 	}
+}
+
+func cloneICNode(n ICNode) ICNode {
+	var out ICNode
+	if n.Message != nil {
+		cp := *n.Message
+		// Deep copy slices that may be mutated by reduceEdit.
+		if cp.Content != nil {
+			cp.Content = append([]ContentNode(nil), cp.Content...)
+		}
+		if cp.Attachments != nil {
+			cp.Attachments = append([]Attachment(nil), cp.Attachments...)
+		}
+		out.Message = &cp
+	}
+	if n.SystemEvent != nil {
+		cp := *n.SystemEvent
+		if cp.Members != nil {
+			cp.Members = append([]CanonicalUser(nil), cp.Members...)
+		}
+		out.SystemEvent = &cp
+	}
+	return out
 }
 
 func reduceMessage(ic *IntermediateContext, event MessageEvent) {

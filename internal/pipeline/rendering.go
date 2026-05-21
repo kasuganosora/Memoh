@@ -244,23 +244,38 @@ func renderSystemEventXML(event *ICSystemEvent, contactNames map[string]string) 
 
 // --- Helpers ---
 
-func escapeXMLAttrValue(s string) string {
-	r := strings.NewReplacer(
+// Package-level pre-allocated replacers to avoid per-call allocation.
+var (
+	xmlAttrReplacer = strings.NewReplacer(
 		"&", "&amp;",
 		"<", "&lt;",
 		">", "&gt;",
 		"\"", "&quot;",
 	)
-	return r.Replace(s)
-}
-
-func escapeXMLText(s string) string {
-	r := strings.NewReplacer(
+	xmlTextReplacer = strings.NewReplacer(
 		"&", "&amp;",
 		"<", "&lt;",
 		">", "&gt;",
 	)
-	return r.Replace(s)
+)
+
+const (
+	xmlAttrSpecialChars = "&<>\""
+	xmlTextSpecialChars = "&<>"
+)
+
+func escapeXMLAttrValue(s string) string {
+	if !strings.ContainsAny(s, xmlAttrSpecialChars) {
+		return s
+	}
+	return xmlAttrReplacer.Replace(s)
+}
+
+func escapeXMLText(s string) string {
+	if !strings.ContainsAny(s, xmlTextSpecialChars) {
+		return s
+	}
+	return xmlTextReplacer.Replace(s)
 }
 
 func formatSender(user *CanonicalUser, contactNames map[string]string) string {

@@ -36,6 +36,10 @@ func NewEventStore(log *slog.Logger, queries *sqlc.Queries) *EventStore {
 // Returns the UUID of the persisted event row, or empty string if the event
 // was a duplicate (ON CONFLICT DO NOTHING).
 func (s *EventStore) PersistEvent(ctx context.Context, botID, sessionID string, event CanonicalEvent) (string, error) {
+	if event == nil {
+		return "", errors.New("pipeline: cannot persist nil event")
+	}
+
 	pgBotID, err := dbpkg.ParseUUID(botID)
 	if err != nil {
 		return "", fmt.Errorf("invalid bot id: %w", err)
@@ -100,6 +104,7 @@ func (s *EventStore) LoadEvents(ctx context.Context, sessionID string) ([]Canoni
 	}
 
 	events := make([]CanonicalEvent, 0, len(rows))
+	skipped := 0
 	for _, row := range rows {
 		event, parseErr := parseEventData(row.EventKind, row.EventData)
 		if parseErr != nil {
@@ -107,9 +112,18 @@ func (s *EventStore) LoadEvents(ctx context.Context, sessionID string) ([]Canoni
 				slog.String("session_id", sessionID),
 				slog.String("event_id", row.ID.String()),
 				slog.Any("error", parseErr))
+			skipped++
 			continue
 		}
 		events = append(events, event)
+	}
+
+	if skipped > 0 {
+		s.logger.Info("loaded session events",
+			slog.String("session_id", sessionID),
+			slog.Int("total", len(rows)),
+			slog.Int("loaded", len(events)),
+			slog.Int("skipped", skipped))
 	}
 
 	return events, nil

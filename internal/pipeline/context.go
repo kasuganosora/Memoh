@@ -102,12 +102,14 @@ func MergeContext(rc RenderedContext, trs []TurnResponseEntry) []ContextMessage 
 	for _, entry := range entries {
 		if entry.kind == "rc" {
 			for _, piece := range entry.rcContent {
-				if piece.Type == "text" {
-					if pendingText.Len() > 0 {
-						pendingText.WriteByte('\n')
-					}
-					pendingText.WriteString(piece.Text)
+				// Skip non-text pieces (e.g. image) and empty text pieces.
+				if piece.Type != "text" || piece.Text == "" {
+					continue
 				}
+				if pendingText.Len() > 0 {
+					pendingText.WriteByte('\n')
+				}
+				pendingText.WriteString(piece.Text)
 			}
 		} else {
 			flushRC()

@@ -260,3 +260,76 @@ func TestDecodeTurnResponseEntryLegacyToolCallsField(t *testing.T) {
 		t.Fatalf("arguments missing: %q", entry.Content)
 	}
 }
+
+// --- Robustness tests for malformed data ---
+
+func TestDecodeTurnResponseEntry_NilContent(t *testing.T) {
+	t.Parallel()
+
+	_, ok := DecodeTurnResponseEntry(messagepkg.Message{
+		Role:    "assistant",
+		Content: nil,
+	})
+	if ok {
+		t.Fatal("expected nil content to return false")
+	}
+}
+
+func TestDecodeTurnResponseEntry_EmptyContent(t *testing.T) {
+	t.Parallel()
+
+	_, ok := DecodeTurnResponseEntry(messagepkg.Message{
+		Role:    "assistant",
+		Content: json.RawMessage{},
+	})
+	if ok {
+		t.Fatal("expected empty content to return false")
+	}
+}
+
+func TestDecodeTurnResponseEntry_InvalidJSON(t *testing.T) {
+	t.Parallel()
+
+	_, ok := DecodeTurnResponseEntry(messagepkg.Message{
+		Role:    "assistant",
+		Content: json.RawMessage(`{not valid json`),
+	})
+	if ok {
+		t.Fatal("expected invalid JSON content to return false")
+	}
+}
+
+func TestDecodeTurnResponseEntry_InvalidRole(t *testing.T) {
+	t.Parallel()
+
+	modelMessage, _ := json.Marshal(conversation.ModelMessage{
+		Role:    "user",
+		Content: json.RawMessage(`"hello"`),
+	})
+
+	_, ok := DecodeTurnResponseEntry(messagepkg.Message{
+		Role:    "user",
+		Content: modelMessage,
+	})
+	if ok {
+		t.Fatal("expected non-assistant/tool role to return false")
+	}
+}
+
+func TestDecodeTurnResponseEntry_ContentNotStringNorArray(t *testing.T) {
+	t.Parallel()
+
+	// ModelMessage.Content is a number — neither a valid JSON string nor array.
+	modelMessage, _ := json.Marshal(conversation.ModelMessage{
+		Role:    "assistant",
+		Content: json.RawMessage(`12345`),
+	})
+
+	_, ok := DecodeTurnResponseEntry(messagepkg.Message{
+		Role:    "assistant",
+		Content: modelMessage,
+	})
+	if ok {
+		t.Fatal("expected numeric content to return false (no renderable output)")
+	}
+}

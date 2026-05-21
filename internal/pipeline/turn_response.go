@@ -27,6 +27,11 @@ func DecodeTurnResponseEntry(msg messagepkg.Message) (TurnResponseEntry, bool) {
 		return TurnResponseEntry{}, false
 	}
 
+	// Guard against nil or empty content to avoid unnecessary unmarshal attempts.
+	if len(msg.Content) == 0 {
+		return TurnResponseEntry{}, false
+	}
+
 	var modelMsg conversation.ModelMessage
 	if err := json.Unmarshal(msg.Content, &modelMsg); err != nil {
 		return TurnResponseEntry{}, false

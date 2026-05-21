@@ -104,19 +104,20 @@ func (d *DiscussTrigger) NotifyRC(ctx context.Context, sessionID string, rc Rend
 		}
 	}
 
+	// Use mutex to make the drop-oldest operation atomic, preventing
+	// concurrent callers from both draining the channel and losing RCs.
+	sess.rcMu.Lock()
 	select {
 	case sess.rcCh <- rc:
 	default:
-		// Drop oldest, push newest.
+		// Channel full: drop oldest, push newest.
 		select {
 		case <-sess.rcCh:
 		default:
 		}
-		select {
-		case sess.rcCh <- rc:
-		default:
-		}
+		sess.rcCh <- rc
 	}
+	sess.rcMu.Unlock()
 }
 
 // StopSession stops a single discuss session goroutine.
@@ -782,6 +783,9 @@ func (d *DiscussTrigger) extractPassiveMemory(_ context.Context, sess *discussSe
 			SourcePlatform:    sess.config.CurrentPlatform,
 			SourceSessionID:   sess.config.SessionID,
 		}
+		// Goroutine leak protection: the goroutine is bounded by a 2-minute
+		// timeout AND inherits d.parentCtx which is cancelled by StopAll(),
+		// ensuring timely exit on shutdown.
 		go func(parentCtx context.Context) { //nolint:contextcheck // intentionally detached from request context
 			memCtx, memCancel := context.WithTimeout(parentCtx, 2*time.Minute)
 			defer memCancel()

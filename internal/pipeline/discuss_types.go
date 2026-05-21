@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"sync"
 	"time"
 
 	agentpkg "github.com/memohai/memoh/internal/agent"
@@ -141,6 +142,7 @@ type DiscussSessionConfig struct {
 type discussSession struct {
 	config          DiscussSessionConfig
 	rcCh            chan RenderedContext
+	rcMu            sync.Mutex // protects drop-oldest on rcCh to prevent concurrent loss
 	stopCh          chan struct{}
 	cancel          context.CancelFunc
 	lastProcessedMs int64

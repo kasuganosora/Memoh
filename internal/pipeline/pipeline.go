@@ -91,6 +91,14 @@ func (p *Pipeline) DropSession(sessionID string) {
 	delete(p.rendered, sessionID)
 }
 
+// SessionCount returns the number of currently loaded sessions.
+// Useful for monitoring memory usage and detecting session accumulation.
+func (p *Pipeline) SessionCount() int {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return len(p.sessions)
+}
+
 // UpdateRenderParams replaces the default render params and re-renders all
 // loaded sessions.
 func (p *Pipeline) UpdateRenderParams(params RenderParams) {
