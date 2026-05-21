@@ -195,8 +195,12 @@ func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 	}()
 
 	// Use AfterFunc for idle detection — avoids time.Timer.Reset races.
+	idleTimeout := discussIdleTimeout
+	if sess.idleTimeout > 0 {
+		idleTimeout = sess.idleTimeout
+	}
 	idleCh := make(chan time.Time, 1)
-	idleTimer := time.AfterFunc(discussIdleTimeout, func() {
+	idleTimer := time.AfterFunc(idleTimeout, func() {
 		select {
 		case idleCh <- time.Now():
 		default:
@@ -205,7 +209,7 @@ func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 	defer idleTimer.Stop()
 
 	resetIdle := func() {
-		idleTimer.Reset(discussIdleTimeout)
+		idleTimer.Reset(idleTimeout)
 	}
 
 	var latestRC RenderedContext
@@ -233,7 +237,6 @@ func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 			log.Info("discuss: received new RC in session loop",
 				slog.Int("rc_segments", len(rc)),
 				slog.Int("queue_depth", len(sess.rcCh)))
-			resetIdle()
 		}
 
 		// Smart timing: debounce — wait for quiet period before processing.
@@ -271,7 +274,12 @@ func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 			sess.msgIntervals = computeMsgIntervals(latestRC, sess.lastProcessedMs)
 		}
 
-		d.handleReply(ctx, sess, latestRC, log)
+		// Only reset idle timer when handleReply triggers a meaningful interaction
+		// (i.e. the agent was actually called). When timing gate returns no_reply
+		// or threshold is not met, the session should still be allowed to idle out.
+		if d.handleReply(ctx, sess, latestRC, log) {
+			resetIdle()
+		}
 	}
 }
 
@@ -279,7 +287,11 @@ func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 // Timing strategy — decides whether to trigger the LLM
 // ---------------------------------------------------------------------------
 
-func (d *DiscussTrigger) handleReply(ctx context.Context, sess *discussSession, rc RenderedContext, log *slog.Logger) {
+// handleReply evaluates whether to trigger the LLM agent. Returns true if the
+// agent was actually called (meaningful interaction), false if the message was
+// skipped (threshold not met, timing gate no_reply, cooldown, etc.).
+// The caller uses this to decide whether to reset the idle timer.
+func (d *DiscussTrigger) handleReply(ctx context.Context, sess *discussSession, rc RenderedContext, log *slog.Logger) bool {
 	isMentioned := wasRecentlyMentioned(rc, sess.lastProcessedMs)
 	newMsgCount := countNewMessages(rc, sess.lastProcessedMs)
 
@@ -297,7 +309,7 @@ func (d *DiscussTrigger) handleReply(ctx context.Context, sess *discussSession, 
 			log.Debug("discuss: agent cooldown active, skipping",
 				slog.Duration("elapsed", elapsed),
 				slog.Duration("cooldown", minAgentCooldown))
-			return
+			return false
 		}
 	}
 
@@ -322,18 +334,19 @@ func (d *DiscussTrigger) handleReply(ctx context.Context, sess *discussSession, 
 			log.Debug("chat timing: talk_value threshold not met",
 				slog.Int("new_messages", newMsgCount), slog.Int("threshold", threshold))
 			d.extractPassiveMemory(ctx, sess, rc, log)
-			return
+			return false
 		}
 	}
 
 	// Smart timing: timing gate — lightweight LLM check before full agent call.
 	if sess.timingGate != nil && sess.chatTimingCfg.TimingGate && !isMentioned {
 		if d.evaluateTimingGate(ctx, sess, rc, newMsgCount, isMentioned, log) {
-			return // gate decided no_reply or wait-then-return
+			return false // gate decided no_reply or wait-then-return
 		}
 	}
 
 	d.handleReplyWithAgent(ctx, sess, rc, log)
+	return true
 }
 
 // evaluateTimingGate runs the lightweight LLM timing gate. Returns true if the
@@ -591,6 +604,12 @@ func (d *DiscussTrigger) consumeStream(
 	var textBuf strings.Builder
 	for chunkCh != nil || errCh != nil {
 		select {
+		case <-ctx.Done():
+			// Context cancelled (interrupt, timeout, or watchdog). Stop consuming
+			// immediately rather than relying on upstream to close channels.
+			log.Info("discuss: consumeStream context cancelled, stopping",
+				slog.Any("reason", ctx.Err()))
+			return
 		case chunk, ok := <-chunkCh:
 			if !ok {
 				chunkCh = nil

@@ -146,6 +146,10 @@ type discussSession struct {
 	lastProcessedMs int64
 	lastAgentCallAt time.Time
 
+	// idleTimeout overrides the default discussIdleTimeout for testing.
+	// Zero means use the default.
+	idleTimeout time.Duration
+
 	// Smart timing state (nil when feature disabled).
 	chatTimingCfg    *chattiming.Config
 	debounce         *chattiming.Debouncer
