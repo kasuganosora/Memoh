@@ -84,20 +84,45 @@ const (
 // LLM call entirely and returns TimingContinue immediately (the bot must respond).
 // On error, it fails open by returning TimingContinue.
 //
-// The call uses streaming with an activity-based timeout: as long as the LLM
-// keeps producing tokens the idle timer resets. Only if no token arrives for
-// timingGateIdleTimeout (or the absolute timingGateMaxTimeout is reached) does
-// the call abort.
+// The LLM call is wrapped in a separate goroutine with a wall-clock hard timeout
+// (time.After) so that the caller is not blocked even if the SDK's HTTP client
+// ignores context cancellation. When the goroutine returns its result or the
+// timeout fires earlier, we return immediately.
 func (tg *TimingGate) Evaluate(ctx context.Context, params TimingGateParams, runConfig agentpkg.RunConfig) TimingGateResult {
 	// @mention always forces a response.
 	if params.IsMentioned {
 		return TimingGateResult{Decision: TimingContinue, Reason: "mentioned"}
 	}
 
-	// Absolute deadline to prevent unbounded waits.
-	ctx, cancel := context.WithTimeout(ctx, timingGateMaxTimeout)
+	// Create a bounded context for the internal evaluation goroutine.
+	evalCtx, cancel := context.WithTimeout(ctx, timingGateMaxTimeout)
 	defer cancel()
 
+	// Channel for the goroutine to return its result.
+	resultCh := make(chan TimingGateResult, 1)
+	go func() {
+		resultCh <- tg.doEvaluate(evalCtx, params, runConfig)
+	}()
+
+	// Wait for the goroutine to finish, or time out via wall-clock.
+	select {
+	case result := <-resultCh:
+		return result
+	case <-time.After(timingGateMaxTimeout):
+		tg.logger.Warn("timing gate goroutine hard timeout, failing open",
+			slog.Duration("max_timeout", timingGateMaxTimeout),
+			slog.String("bot_name", params.BotName))
+		return TimingGateResult{Decision: TimingContinue, Reason: "goroutine timeout"}
+	case <-evalCtx.Done():
+		tg.logger.Warn("timing gate context cancelled, failing open",
+			slog.String("bot_name", params.BotName))
+		return TimingGateResult{Decision: TimingContinue, Reason: "context cancelled"}
+	}
+}
+
+// doEvaluate performs the actual timing gate evaluation — streaming an LLM call
+// with activity-based idle timeout. It is called inside a goroutine by Evaluate.
+func (tg *TimingGate) doEvaluate(ctx context.Context, params TimingGateParams, runConfig agentpkg.RunConfig) TimingGateResult {
 	prompt := buildTimingGatePrompt(params)
 
 	cfg := runConfig
@@ -146,7 +171,6 @@ func (tg *TimingGate) Evaluate(ctx context.Context, params TimingGateParams, run
 			// No token activity for timingGateIdleTimeout — treat as stall.
 			tg.logger.Warn("timing gate idle timeout, failing open to continue",
 				slog.Duration("idle_timeout", timingGateIdleTimeout))
-			cancel()
 			// Drain remaining events to avoid goroutine leak.
 			go func() {
 				for range ch {
@@ -159,7 +183,7 @@ func (tg *TimingGate) Evaluate(ctx context.Context, params TimingGateParams, run
 
 		case <-ctx.Done():
 			// Absolute timeout or parent context cancelled.
-			tg.logger.Warn("timing gate absolute timeout, failing open to continue",
+			tg.logger.Warn("timing gate context done, failing open",
 				slog.Duration("max_timeout", timingGateMaxTimeout))
 			go func() {
 				for range ch {
