@@ -275,11 +275,33 @@ func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 			sess.msgIntervals = computeMsgIntervals(latestRC, sess.lastProcessedMs)
 		}
 
-		// Only reset idle timer when handleReply triggers a meaningful interaction
-		// (i.e. the agent was actually called). When timing gate returns no_reply
-		// or threshold is not met, the session should still be allowed to idle out.
-		if d.handleReply(ctx, sess, latestRC, log) {
-			resetIdle()
+		// Run handleReply in a goroutine so the session loop can still respond
+		// to watchdog/stop signals even if handleReply blocks on an operation
+		// that doesn't respect context cancellation (e.g. sync.Mutex.Lock).
+		// This is a defensive measure — all current code paths in handleReply
+		// should respect ctx, but this guarantees the session always exits.
+		replyDone := make(chan bool, 1)
+		go func() {
+			replyDone <- d.handleReply(ctx, sess, latestRC, log)
+		}()
+
+		select {
+		case meaningful := <-replyDone:
+			// Only reset idle timer when handleReply triggers a meaningful interaction
+			// (i.e. the agent was actually called). When timing gate returns no_reply
+			// or threshold is not met, the session should still be allowed to idle out.
+			if meaningful {
+				resetIdle()
+			}
+		case <-ctx.Done():
+			log.Warn("discuss session watchdog timeout, forcing exit",
+				slog.Duration("alive_duration", time.Since(startTime)),
+				slog.Int("messages_processed", messagesProcessed),
+				slog.Time("last_agent_call_at", sess.lastAgentCallAt),
+			)
+			return
+		case <-sess.stopCh:
+			return
 		}
 	}
 }
