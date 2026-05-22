@@ -213,8 +213,11 @@ func TestNotifyRC_UpdatesReplyTarget(t *testing.T) {
 	if sess == nil {
 		t.Fatal("expected session to be created")
 	}
-	if sess.config.ReplyTarget != "note-first" {
-		t.Fatalf("expected ReplyTarget=note-first, got %q", sess.config.ReplyTarget)
+	sess.configMu.RLock()
+	firstTarget := sess.config.ReplyTarget
+	sess.configMu.RUnlock()
+	if firstTarget != "note-first" {
+		t.Fatalf("expected ReplyTarget=note-first, got %q", firstTarget)
 	}
 
 	// Second call should update ReplyTarget.
@@ -225,9 +228,9 @@ func TestNotifyRC_UpdatesReplyTarget(t *testing.T) {
 	}
 	driver.NotifyRC(context.Background(), "sess-1", rc, config2)
 
-	driver.mu.Lock()
+	sess.configMu.RLock()
 	updatedTarget := sess.config.ReplyTarget
-	driver.mu.Unlock()
+	sess.configMu.RUnlock()
 	if updatedTarget != "note-second" {
 		t.Fatalf("expected ReplyTarget=note-second after update, got %q", updatedTarget)
 	}
@@ -269,8 +272,10 @@ func TestNotifyRC_DoesNotClearReplyTarget(t *testing.T) {
 
 	driver.mu.Lock()
 	sess := driver.sessions["sess-2"]
-	target := sess.config.ReplyTarget
 	driver.mu.Unlock()
+	sess.configMu.RLock()
+	target := sess.config.ReplyTarget
+	sess.configMu.RUnlock()
 	if target != "note-original" {
 		t.Fatalf("expected ReplyTarget to remain note-original, got %q", target)
 	}

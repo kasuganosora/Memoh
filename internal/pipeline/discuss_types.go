@@ -141,6 +141,7 @@ type DiscussSessionConfig struct {
 // discussSession holds the runtime state for a single discuss-mode session goroutine.
 type discussSession struct {
 	config          DiscussSessionConfig
+	configMu        sync.RWMutex // protects config.ReplyTarget from concurrent NotifyRC writes vs handleReply reads
 	rcCh            chan RenderedContext
 	rcMu            sync.Mutex // protects drop-oldest on rcCh to prevent concurrent loss
 	stopCh          chan struct{}

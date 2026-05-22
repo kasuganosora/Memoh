@@ -83,7 +83,9 @@ func (d *DiscussTrigger) NotifyRC(ctx context.Context, sessionID string, rc Rend
 	} else if config.ReplyTarget != "" {
 		// Update ReplyTarget to track the latest inbound message's note ID.
 		// This ensures fallback reply mechanisms target the most recent message.
+		sess.configMu.Lock()
 		sess.config.ReplyTarget = config.ReplyTarget
+		sess.configMu.Unlock()
 	}
 	d.mu.Unlock()
 
@@ -483,10 +485,15 @@ func (d *DiscussTrigger) resolveProbeConfig(ctx context.Context, sess *discussSe
 	}
 	probeCfg := agentpkg.RunConfig{SupportsToolCall: false}
 	if d.deps.Resolver != nil {
+		sess.configMu.RLock()
+		botID, sessionID, channelID := sess.config.BotID, sess.config.SessionID, sess.config.ChannelIdentityID
+		platform, replyTarget := sess.config.CurrentPlatform, sess.config.ReplyTarget
+		convType, token := sess.config.ConversationType, sess.config.SessionToken
+		sess.configMu.RUnlock()
 		resolved, err := d.deps.Resolver.ResolveRunConfig(ctx,
-			sess.config.BotID, sess.config.SessionID, sess.config.ChannelIdentityID,
-			sess.config.CurrentPlatform, sess.config.ReplyTarget,
-			sess.config.ConversationType, sess.config.SessionToken)
+			botID, sessionID, channelID,
+			platform, replyTarget,
+			convType, token)
 		if err == nil {
 			probeCfg = resolved.RunConfig
 			sess.cachedProbeModel = &agentpkg.RunConfig{Model: resolved.RunConfig.Model}
@@ -524,7 +531,9 @@ func (d *DiscussTrigger) handleReplyWithAgent(ctx context.Context, sess *discuss
 		}
 	}()
 
+	sess.configMu.RLock()
 	cfg := sess.config
+	sess.configMu.RUnlock()
 	sess.lastAgentCallAt = time.Now()
 	isMentioned := wasRecentlyMentioned(rc, sess.lastProcessedMs)
 
@@ -533,7 +542,9 @@ func (d *DiscussTrigger) handleReplyWithAgent(ctx context.Context, sess *discuss
 	// to the latest non-self segment's target.
 	if bestTarget := latestReplyTarget(rc, sess.lastProcessedMs); bestTarget != "" {
 		cfg.ReplyTarget = bestTarget
+		sess.configMu.Lock()
 		sess.config.ReplyTarget = bestTarget
+		sess.configMu.Unlock()
 	}
 
 	// Mark route active in the dispatcher for inject/queue support.
