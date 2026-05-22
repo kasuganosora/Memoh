@@ -796,8 +796,15 @@ func (d *DiscussTrigger) extractPassiveMemory(_ context.Context, sess *discussSe
 	}
 
 	// Expression/jargon learning — accumulate messages for offline extraction.
+	// Run in a goroutine to prevent blocking the session loop. The underlying
+	// Learner.Accumulate() may block on a mutex held by a long-running
+	// LearnFromHistory LLM call, which would deadlock the session.
 	if d.deps.ExpressionAccumulator != nil {
-		d.deps.ExpressionAccumulator(context.WithoutCancel(d.parentCtx), sess.config.BotID, sess.config.SessionID, messages) //nolint:contextcheck // intentionally detached from request context
+		go func(parentCtx context.Context) { //nolint:contextcheck // intentionally detached from request context
+			exprCtx, exprCancel := context.WithTimeout(parentCtx, 2*time.Minute)
+			defer exprCancel()
+			d.deps.ExpressionAccumulator(exprCtx, sess.config.BotID, sess.config.SessionID, messages)
+		}(d.parentCtx)
 	}
 }
 
