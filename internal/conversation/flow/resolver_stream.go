@@ -97,10 +97,12 @@ func (r *Resolver) StreamChat(ctx context.Context, req conversation.ChatRequest)
 		defer close(chunkCh)
 		defer close(errCh)
 		streamReq := req
+		streamStart := time.Now()
 		doneTurn := r.enterSessionTurn(ctx, streamReq.BotID, streamReq.SessionID)
 		defer doneTurn()
 
-		r.logger.Info("StreamChat: starting agent stream",
+		r.logger.Info("chat_step: StreamChat entered",
+			slog.String("step", "stream_chat_enter"),
 			slog.String("bot_id", streamReq.BotID),
 			slog.String("session_id", streamReq.SessionID),
 			slog.String("session_type", streamReq.SessionType),
@@ -119,13 +121,23 @@ func (r *Resolver) StreamChat(ctx context.Context, req conversation.ChatRequest)
 		var lastRC resolvedContext
 
 		for attempt := 0; attempt < compactionMaxAttempts; attempt++ {
+			resolveStart := time.Now()
+			r.logger.Info("chat_step: resolve starting",
+				slog.String("step", "resolve_start"),
+				slog.String("bot_id", streamReq.BotID),
+				slog.String("session_id", streamReq.SessionID),
+				slog.Int("attempt", attempt+1),
+				slog.Duration("elapsed_since_stream_start", time.Since(streamStart)))
+
 			rc, err := r.resolve(ctx, streamReq)
 			if err != nil {
 				errMsg := fmt.Sprintf("resolve failed (attempt %d/%d): %v", attempt+1, compactionMaxAttempts, err)
-				r.logger.Error("agent stream resolve failed",
+				r.logger.Error("chat_step: resolve failed",
+					slog.String("step", "resolve_failed"),
 					slog.String("bot_id", streamReq.BotID),
 					slog.String("chat_id", streamReq.ChatID),
 					slog.Int("attempt", attempt+1),
+					slog.Duration("resolve_duration", time.Since(resolveStart)),
 					slog.Any("error", err),
 				)
 				if attempt == 0 {
@@ -135,6 +147,16 @@ func (r *Resolver) StreamChat(ctx context.Context, req conversation.ChatRequest)
 				}
 				return
 			}
+
+			r.logger.Info("chat_step: resolve completed",
+				slog.String("step", "resolve_done"),
+				slog.String("bot_id", streamReq.BotID),
+				slog.String("session_id", streamReq.SessionID),
+				slog.Int("attempt", attempt+1),
+				slog.Duration("resolve_duration", time.Since(resolveStart)),
+				slog.Int("message_count", len(rc.runConfig.Messages)),
+				slog.Int("estimated_tokens", rc.estimatedTokens))
+
 			streamReq.Query = rc.query
 			lastRC = rc
 
@@ -154,11 +176,31 @@ func (r *Resolver) StreamChat(ctx context.Context, req conversation.ChatRequest)
 			// Wrap with idle timeout: if no events arrive within the adaptive timeout, cancel the stream.
 			idleCtx, idleCancel := withIdleTimeout(ctx)
 
+			agentStreamStart := time.Now()
+			r.logger.Info("chat_step: agent stream starting",
+				slog.String("step", "agent_stream_start"),
+				slog.String("bot_id", streamReq.BotID),
+				slog.String("session_id", streamReq.SessionID),
+				slog.Int("attempt", attempt+1),
+				slog.String("model", rc.model.ID),
+				slog.Int("tool_count", len(cfg.Skills)),
+				slog.Duration("elapsed_since_stream_start", time.Since(streamStart)))
+
 			eventCh := r.agent.Stream(idleCtx, cfg)
 			stored := false
 			hadError := false
 			var toolCallCount int
+			var firstEventReceived bool
 			for event := range eventCh {
+				if !firstEventReceived {
+					firstEventReceived = true
+					r.logger.Info("chat_step: first agent event received",
+						slog.String("step", "agent_first_event"),
+						slog.String("bot_id", streamReq.BotID),
+						slog.String("session_id", streamReq.SessionID),
+						slog.String("event_type", string(event.Type)),
+						slog.Duration("time_to_first_event", time.Since(agentStreamStart)))
+				}
 				idleCancel.Reset() // each event resets the idle timer
 
 				// Track tool calls for adaptive idle timeout and progress events
@@ -206,14 +248,28 @@ func (r *Resolver) StreamChat(ctx context.Context, req conversation.ChatRequest)
 			lastToolCallCount = toolCallCount
 			idleCancel.Stop()
 
+			r.logger.Info("chat_step: agent stream ended",
+				slog.String("step", "agent_stream_end"),
+				slog.String("bot_id", streamReq.BotID),
+				slog.String("session_id", streamReq.SessionID),
+				slog.Int("attempt", attempt+1),
+				slog.Int("tool_calls", toolCallCount),
+				slog.Bool("stored", stored),
+				slog.Bool("had_error", hadError),
+				slog.Bool("idle_timeout_fired", lastIdleTimeout),
+				slog.Duration("agent_stream_duration", time.Since(agentStreamStart)),
+				slog.Duration("elapsed_since_stream_start", time.Since(streamStart)))
+
 			// If the stream produced a stored response and no error was
 			// observed, the round completed successfully.
 			if stored && !hadError {
-				r.logger.Info("stream chat: round completed",
+				r.logger.Info("chat_step: StreamChat completed successfully",
+					slog.String("step", "stream_chat_done"),
 					slog.String("bot_id", streamReq.BotID),
 					slog.String("session_id", streamReq.SessionID),
 					slog.Int("tool_calls", toolCallCount),
 					slog.Int("attempt", attempt+1),
+					slog.Duration("total_duration", time.Since(streamStart)),
 				)
 				return
 			}
@@ -233,17 +289,29 @@ func (r *Resolver) StreamChat(ctx context.Context, req conversation.ChatRequest)
 
 			// Stream ended without a clean store (or stored partial + error).
 			// Run compaction to shrink context, then retry.
+			compactionStart := time.Now()
+			r.logger.Info("chat_step: compaction starting",
+				slog.String("step", "compaction_start"),
+				slog.String("bot_id", streamReq.BotID),
+				slog.String("session_id", streamReq.SessionID),
+				slog.Int("attempt", attempt+1),
+				slog.Int("estimated_tokens", rc.estimatedTokens),
+				slog.Duration("elapsed_since_stream_start", time.Since(streamStart)))
+
 			if !r.runCompactionSyncWithResult(context.WithoutCancel(ctx), streamReq, rc.estimatedTokens) {
 				// Compaction didn't run or failed. No point retrying without it.
 				reason := "provider error"
 				if lastIdleTimeout {
 					reason = "provider idle timeout"
 				}
-				r.logger.Warn("stream chat: compaction unavailable, giving up",
+				r.logger.Warn("chat_step: compaction unavailable, giving up",
+					slog.String("step", "compaction_failed"),
 					slog.String("bot_id", streamReq.BotID),
 					slog.String("session_id", streamReq.SessionID),
 					slog.String("reason", reason),
 					slog.Int("attempt", attempt+1),
+					slog.Duration("compaction_duration", time.Since(compactionStart)),
+					slog.Duration("total_duration", time.Since(streamStart)),
 				)
 				r.persistFinalError(context.WithoutCancel(ctx), streamReq, rc, lastToolCallCount, lastIdleTimeout)
 				sendChunkErrorEvent(ctx, chunkCh, fmt.Sprintf("stream failed after %d tool calls: %s (compaction unavailable)", lastToolCallCount, reason))
@@ -251,10 +319,13 @@ func (r *Resolver) StreamChat(ctx context.Context, req conversation.ChatRequest)
 			}
 
 			// Compaction ran. Notify client and retry.
-			r.logger.Info("retrying agent stream after compaction",
+			r.logger.Info("chat_step: compaction completed, retrying",
+				slog.String("step", "compaction_done_retry"),
 				slog.String("bot_id", streamReq.BotID),
+				slog.String("session_id", streamReq.SessionID),
 				slog.Int("attempt", attempt+2),
 				slog.Int("max_attempts", compactionMaxAttempts),
+				slog.Duration("compaction_duration", time.Since(compactionStart)),
 			)
 			sendChunkErrorEvent(ctx, chunkCh, fmt.Sprintf("context compacted, retrying (attempt %d/%d)", attempt+2, compactionMaxAttempts))
 
@@ -270,11 +341,13 @@ func (r *Resolver) StreamChat(ctx context.Context, req conversation.ChatRequest)
 		}
 
 		// All retries exhausted. Persist a final error for the record.
-		r.logger.Warn("stream chat: all retry attempts exhausted",
+		r.logger.Warn("chat_step: StreamChat all retry attempts exhausted",
+			slog.String("step", "stream_chat_exhausted"),
 			slog.String("bot_id", streamReq.BotID),
 			slog.String("session_id", streamReq.SessionID),
 			slog.Int("attempts", compactionMaxAttempts),
 			slog.Int("last_tool_calls", lastToolCallCount),
+			slog.Duration("total_duration", time.Since(streamStart)),
 		)
 		r.persistFinalError(context.WithoutCancel(ctx), streamReq, lastRC, lastToolCallCount, lastIdleTimeout)
 		sendChunkErrorEvent(ctx, chunkCh, fmt.Sprintf("all %d attempts exhausted after compaction", compactionMaxAttempts))
@@ -290,8 +363,17 @@ func (r *Resolver) StreamChatWS(
 	eventCh chan<- WSStreamEvent,
 	abortCh <-chan struct{},
 ) error {
+	streamStart := time.Now()
 	doneTurn := r.enterSessionTurn(ctx, req.BotID, req.SessionID)
 	defer doneTurn()
+
+	r.logger.Info("chat_step: StreamChatWS entered",
+		slog.String("step", "stream_chat_ws_enter"),
+		slog.String("bot_id", req.BotID),
+		slog.String("session_id", req.SessionID),
+		slog.String("session_type", req.SessionType),
+		slog.String("platform", req.CurrentChannel),
+	)
 
 	if req.RawQuery == "" {
 		req.RawQuery = strings.TrimSpace(req.Query)
@@ -303,12 +385,15 @@ func (r *Resolver) StreamChatWS(
 	var lastRC resolvedContext
 
 	for attempt := 0; attempt < compactionMaxAttempts; attempt++ {
+		resolveStart := time.Now()
 		rc, err := r.resolve(ctx, req)
 		if err != nil {
 			errMsg := fmt.Sprintf("resolve failed (attempt %d/%d): %v", attempt+1, compactionMaxAttempts, err)
-			r.logger.Error("StreamChatWS: resolve failed",
+			r.logger.Error("chat_step: WS resolve failed",
+				slog.String("step", "ws_resolve_failed"),
 				slog.String("bot_id", req.BotID),
 				slog.Int("attempt", attempt+1),
+				slog.Duration("resolve_duration", time.Since(resolveStart)),
 				slog.Any("error", err),
 			)
 			sendWSErrorEvent(ctx, eventCh, errMsg)
@@ -317,6 +402,16 @@ func (r *Resolver) StreamChatWS(
 			}
 			return fmt.Errorf("resolve retry %d: %w", attempt+1, err)
 		}
+
+		r.logger.Info("chat_step: WS resolve completed",
+			slog.String("step", "ws_resolve_done"),
+			slog.String("bot_id", req.BotID),
+			slog.String("session_id", req.SessionID),
+			slog.Int("attempt", attempt+1),
+			slog.Duration("resolve_duration", time.Since(resolveStart)),
+			slog.Int("message_count", len(rc.runConfig.Messages)),
+		)
+
 		req.Query = rc.query
 		lastRC = rc
 
@@ -348,12 +443,31 @@ func (r *Resolver) StreamChatWS(
 		// Wrap with idle timeout: if no events arrive within the adaptive timeout, cancel the stream.
 		idleCtx, idleCancel := withIdleTimeout(streamCtx)
 
+		agentStreamStart := time.Now()
+		r.logger.Info("chat_step: WS agent stream starting",
+			slog.String("step", "ws_agent_stream_start"),
+			slog.String("bot_id", req.BotID),
+			slog.String("session_id", req.SessionID),
+			slog.Int("attempt", attempt+1),
+			slog.String("model", rc.model.ID),
+			slog.Duration("elapsed_since_stream_start", time.Since(streamStart)))
+
 		agentEventCh := r.agent.Stream(idleCtx, cfg)
 		modelID := rc.model.ID
 		stored := false
 		hadError := false
 		var toolCallCount int
+		var firstEventReceived bool
 		for event := range agentEventCh {
+			if !firstEventReceived {
+				firstEventReceived = true
+				r.logger.Info("chat_step: WS first agent event received",
+					slog.String("step", "ws_agent_first_event"),
+					slog.String("bot_id", req.BotID),
+					slog.String("session_id", req.SessionID),
+					slog.String("event_type", string(event.Type)),
+					slog.Duration("time_to_first_event", time.Since(agentStreamStart)))
+			}
 			idleCancel.Reset() // each event resets the idle timer
 
 			// Track tool calls for adaptive idle timeout
@@ -401,12 +515,26 @@ func (r *Resolver) StreamChatWS(
 		cancel()
 		<-abortDone // wait for abort goroutine to finish
 
+		r.logger.Info("chat_step: WS agent stream ended",
+			slog.String("step", "ws_agent_stream_end"),
+			slog.String("bot_id", req.BotID),
+			slog.String("session_id", req.SessionID),
+			slog.Int("attempt", attempt+1),
+			slog.Int("tool_calls", toolCallCount),
+			slog.Bool("stored", stored),
+			slog.Bool("had_error", hadError),
+			slog.Bool("idle_timeout_fired", lastIdleTimeout),
+			slog.Duration("agent_stream_duration", time.Since(agentStreamStart)),
+			slog.Duration("elapsed_since_stream_start", time.Since(streamStart)))
+
 		if stored && !hadError {
-			r.logger.Info("stream ws: round completed",
+			r.logger.Info("chat_step: StreamChatWS completed successfully",
+				slog.String("step", "stream_chat_ws_done"),
 				slog.String("bot_id", req.BotID),
 				slog.String("session_id", req.SessionID),
 				slog.Int("tool_calls", toolCallCount),
 				slog.Int("attempt", attempt+1),
+				slog.Duration("total_duration", time.Since(streamStart)),
 			)
 			return nil
 		}
@@ -424,17 +552,28 @@ func (r *Resolver) StreamChatWS(
 
 		// Stream ended without a clean store (or stored partial + error).
 		// Run compaction to shrink context, then retry.
+		compactionStart := time.Now()
+		r.logger.Info("chat_step: WS compaction starting",
+			slog.String("step", "ws_compaction_start"),
+			slog.String("bot_id", req.BotID),
+			slog.String("session_id", req.SessionID),
+			slog.Int("attempt", attempt+1),
+			slog.Duration("elapsed_since_stream_start", time.Since(streamStart)))
+
 		if !r.runCompactionSyncWithResult(context.WithoutCancel(ctx), req, rc.estimatedTokens) {
 			// Compaction didn't run or failed. No point retrying without it.
 			reason := "provider error"
 			if lastIdleTimeout {
 				reason = "provider idle timeout"
 			}
-			r.logger.Warn("stream ws: compaction unavailable, giving up",
+			r.logger.Warn("chat_step: WS compaction unavailable, giving up",
+				slog.String("step", "ws_compaction_failed"),
 				slog.String("bot_id", req.BotID),
 				slog.String("session_id", req.SessionID),
 				slog.String("reason", reason),
 				slog.Int("attempt", attempt+1),
+				slog.Duration("compaction_duration", time.Since(compactionStart)),
+				slog.Duration("total_duration", time.Since(streamStart)),
 			)
 			r.persistFinalError(context.WithoutCancel(ctx), req, rc, lastToolCallCount, lastIdleTimeout)
 			sendWSErrorEvent(ctx, eventCh, fmt.Sprintf("stream failed after %d tool calls: %s", lastToolCallCount, reason))
@@ -442,10 +581,13 @@ func (r *Resolver) StreamChatWS(
 		}
 
 		// Compaction ran. Notify client and retry.
-		r.logger.Info("retrying ws agent stream after compaction",
+		r.logger.Info("chat_step: WS compaction completed, retrying",
+			slog.String("step", "ws_compaction_done_retry"),
 			slog.String("bot_id", req.BotID),
+			slog.String("session_id", req.SessionID),
 			slog.Int("attempt", attempt+2),
 			slog.Int("max_attempts", compactionMaxAttempts),
+			slog.Duration("compaction_duration", time.Since(compactionStart)),
 		)
 		sendWSErrorEvent(ctx, eventCh, fmt.Sprintf("context compacted, retrying (attempt %d/%d)", attempt+2, compactionMaxAttempts))
 
@@ -461,11 +603,13 @@ func (r *Resolver) StreamChatWS(
 	}
 
 	// All retries exhausted. Persist a final error for the record.
-	r.logger.Warn("stream ws: all retry attempts exhausted",
+	r.logger.Warn("chat_step: StreamChatWS all retry attempts exhausted",
+		slog.String("step", "stream_chat_ws_exhausted"),
 		slog.String("bot_id", req.BotID),
 		slog.String("session_id", req.SessionID),
 		slog.Int("attempts", compactionMaxAttempts),
 		slog.Int("last_tool_calls", lastToolCallCount),
+		slog.Duration("total_duration", time.Since(streamStart)),
 	)
 	r.persistFinalError(context.WithoutCancel(ctx), req, lastRC, lastToolCallCount, lastIdleTimeout)
 	sendWSErrorEventWithTimeout(ctx, eventCh, fmt.Sprintf("all %d attempts exhausted after compaction", compactionMaxAttempts), 5*time.Second)

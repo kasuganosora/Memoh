@@ -126,7 +126,7 @@ func (d *DiscussTrigger) StopSession(sessionID string) {
 	sess, ok := d.sessions[sessionID]
 	if ok {
 		sess.cancel()
-		close(sess.stopCh)
+		sess.stopOnce.Do(func() { close(sess.stopCh) })
 		if sess.debounce != nil {
 			sess.debounce.Stop()
 		}
@@ -140,7 +140,7 @@ func (d *DiscussTrigger) StopAll() {
 	d.mu.Lock()
 	for id, sess := range d.sessions {
 		sess.cancel()
-		close(sess.stopCh)
+		sess.stopOnce.Do(func() { close(sess.stopCh) })
 		if sess.debounce != nil {
 			sess.debounce.Stop()
 		}
@@ -243,24 +243,38 @@ func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 		// Smart timing: debounce — wait for quiet period before processing.
 		// @-mentions bypass debounce so users get immediate responses.
 		if sess.debounce != nil && !wasRecentlyMentioned(latestRC, sess.lastProcessedMs) {
+			log.Info("discuss_step: debounce wait start",
+				slog.String("step", "debounce_wait_start"))
 			sess.debounce.Reset()
 			if err := sess.debounce.Wait(ctx); err != nil {
+				log.Info("discuss_step: debounce wait interrupted",
+					slog.String("step", "debounce_wait_interrupted"),
+					slog.Any("error", err))
 				continue
 			}
+			log.Info("discuss_step: debounce wait completed",
+				slog.String("step", "debounce_wait_end"))
 		}
 
 		// Drain any additional RCs that arrived during the debounce window.
+		drainCount := 0
 	drain:
 		for {
 			select {
 			case rc := <-sess.rcCh:
 				latestRC = rc
+				drainCount++
 				if sess.debounce != nil {
 					sess.debounce.Reset()
 				}
 			default:
 				break drain
 			}
+		}
+		if drainCount > 0 {
+			log.Info("discuss_step: drained additional RCs after debounce",
+				slog.String("step", "post_debounce_drain"),
+				slog.Int("drain_count", drainCount))
 		}
 
 		if len(latestRC) == 0 {
@@ -280,13 +294,24 @@ func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 		// that doesn't respect context cancellation (e.g. sync.Mutex.Lock).
 		// This is a defensive measure — all current code paths in handleReply
 		// should respect ctx, but this guarantees the session always exits.
+		//
+		// We create a per-call cancellable context so that if the session exits
+		// via stopCh (while the watchdog ctx is still alive), we can immediately
+		// cancel the handleReply goroutine instead of letting it run until the
+		// watchdog timeout (~21 min), which would be a goroutine leak.
+		log.Info("discuss_step: dispatching handleReply goroutine",
+			slog.String("step", "handleReply_dispatch"),
+			slog.Int("messages_processed", messagesProcessed),
+			slog.Int("rc_segments", len(latestRC)))
+		replyCtx, replyCancel := context.WithCancel(ctx)
 		replyDone := make(chan bool, 1)
 		go func() {
-			replyDone <- d.handleReply(ctx, sess, latestRC, log)
+			replyDone <- d.handleReply(replyCtx, sess, latestRC, log)
 		}()
 
 		select {
 		case meaningful := <-replyDone:
+			replyCancel()
 			// Only reset idle timer when handleReply triggers a meaningful interaction
 			// (i.e. the agent was actually called). When timing gate returns no_reply
 			// or threshold is not met, the session should still be allowed to idle out.
@@ -294,6 +319,7 @@ func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 				resetIdle()
 			}
 		case <-ctx.Done():
+			replyCancel()
 			log.Warn("discuss session watchdog timeout, forcing exit",
 				slog.Duration("alive_duration", time.Since(startTime)),
 				slog.Int("messages_processed", messagesProcessed),
@@ -301,6 +327,8 @@ func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 			)
 			return
 		case <-sess.stopCh:
+			replyCancel()
+			log.Info("discuss session stop requested, cancelling in-flight handleReply")
 			return
 		}
 	}
@@ -317,8 +345,10 @@ func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 func (d *DiscussTrigger) handleReply(ctx context.Context, sess *discussSession, rc RenderedContext, log *slog.Logger) bool {
 	isMentioned := wasRecentlyMentioned(rc, sess.lastProcessedMs)
 	newMsgCount := countNewMessages(rc, sess.lastProcessedMs)
+	handleReplyStart := time.Now()
 
-	log.Info("discuss: evaluating reply",
+	log.Info("discuss_step: handleReply entered",
+		slog.String("step", "handleReply_enter"),
 		slog.String("session_id", sess.config.SessionID),
 		slog.Bool("is_mentioned", isMentioned),
 		slog.Int("new_msg_count", newMsgCount),
@@ -329,9 +359,11 @@ func (d *DiscussTrigger) handleReply(ctx context.Context, sess *discussSession, 
 	const minAgentCooldown = 15 * time.Second
 	if !isMentioned && !sess.lastAgentCallAt.IsZero() {
 		if elapsed := time.Since(sess.lastAgentCallAt); elapsed < minAgentCooldown {
-			log.Debug("discuss: agent cooldown active, skipping",
+			log.Info("discuss_step: handleReply exit (cooldown)",
+				slog.String("step", "handleReply_exit_cooldown"),
 				slog.Duration("elapsed", elapsed),
-				slog.Duration("cooldown", minAgentCooldown))
+				slog.Duration("cooldown", minAgentCooldown),
+				slog.Duration("step_duration", time.Since(handleReplyStart)))
 			return false
 		}
 	}
@@ -354,8 +386,11 @@ func (d *DiscussTrigger) handleReply(ctx context.Context, sess *discussSession, 
 		}
 
 		if newMsgCount < threshold {
-			log.Debug("chat timing: talk_value threshold not met",
-				slog.Int("new_messages", newMsgCount), slog.Int("threshold", threshold))
+			log.Info("discuss_step: handleReply exit (threshold not met)",
+				slog.String("step", "handleReply_exit_threshold"),
+				slog.Int("new_messages", newMsgCount),
+				slog.Int("threshold", threshold),
+				slog.Duration("step_duration", time.Since(handleReplyStart)))
 			d.extractPassiveMemory(ctx, sess, rc, log)
 			return false
 		}
@@ -363,18 +398,35 @@ func (d *DiscussTrigger) handleReply(ctx context.Context, sess *discussSession, 
 
 	// Smart timing: timing gate — lightweight LLM check before full agent call.
 	if sess.timingGate != nil && sess.chatTimingCfg.TimingGate && !isMentioned {
+		log.Info("discuss_step: entering timing gate",
+			slog.String("step", "timing_gate_enter"),
+			slog.Duration("step_duration", time.Since(handleReplyStart)))
 		if d.evaluateTimingGate(ctx, sess, rc, newMsgCount, isMentioned, log) {
+			log.Info("discuss_step: handleReply exit (timing gate no_reply/wait)",
+				slog.String("step", "handleReply_exit_timing_gate"),
+				slog.Duration("step_duration", time.Since(handleReplyStart)))
 			return false // gate decided no_reply or wait-then-return
 		}
 	}
 
+	log.Info("discuss_step: entering agent call",
+		slog.String("step", "agent_call_enter"),
+		slog.Duration("step_duration", time.Since(handleReplyStart)))
 	d.handleReplyWithAgent(ctx, sess, rc, log)
+	log.Info("discuss_step: handleReply exit (agent call completed)",
+		slog.String("step", "handleReply_exit_agent_done"),
+		slog.Duration("step_duration", time.Since(handleReplyStart)))
 	return true
 }
 
 // evaluateTimingGate runs the lightweight LLM timing gate. Returns true if the
 // caller should NOT proceed to the full agent call (no_reply or wait handled).
 func (d *DiscussTrigger) evaluateTimingGate(ctx context.Context, sess *discussSession, rc RenderedContext, newMsgCount int, isMentioned bool, log *slog.Logger) bool {
+	gateStart := time.Now()
+	log.Info("discuss_step: timing gate evaluate start",
+		slog.String("step", "timing_gate_evaluate_start"),
+		slog.Int("new_msg_count", newMsgCount))
+
 	lastMsgMs := LatestExternalEventMs(rc, 0)
 	var timeSinceLast float64
 	if lastMsgMs > 0 {
@@ -392,6 +444,13 @@ func (d *DiscussTrigger) evaluateTimingGate(ctx context.Context, sess *discussSe
 	probeCfg := d.resolveProbeConfig(ctx, sess)
 	result := sess.timingGate.Evaluate(ctx, params, probeCfg)
 
+	log.Info("discuss_step: timing gate evaluate completed",
+		slog.String("step", "timing_gate_evaluate_end"),
+		slog.String("decision", string(result.Decision)),
+		slog.String("reason", result.Reason),
+		slog.Int("wait_seconds", result.WaitSeconds),
+		slog.Duration("gate_duration", time.Since(gateStart)))
+
 	switch result.Decision {
 	case chattiming.TimingNoReply:
 		log.Info("chat timing: gate decided no_reply", slog.String("reason", result.Reason))
@@ -399,11 +458,19 @@ func (d *DiscussTrigger) evaluateTimingGate(ctx context.Context, sess *discussSe
 		d.extractPassiveMemory(ctx, sess, rc, log)
 		return true
 	case chattiming.TimingWait:
-		log.Info("chat timing: gate decided wait",
-			slog.Int("wait_seconds", result.WaitSeconds), slog.String("reason", result.Reason))
+		log.Info("discuss_step: timing gate wait start",
+			slog.String("step", "timing_gate_wait_start"),
+			slog.Int("wait_seconds", result.WaitSeconds),
+			slog.String("reason", result.Reason))
 		select {
 		case <-time.After(time.Duration(result.WaitSeconds) * time.Second):
+			log.Info("discuss_step: timing gate wait completed",
+				slog.String("step", "timing_gate_wait_end"),
+				slog.Duration("total_gate_duration", time.Since(gateStart)))
 		case <-ctx.Done():
+			log.Info("discuss_step: timing gate wait cancelled by context",
+				slog.String("step", "timing_gate_wait_cancelled"),
+				slog.Duration("total_gate_duration", time.Since(gateStart)))
 			return true
 		}
 	}
@@ -443,6 +510,11 @@ func (d *DiscussTrigger) handleReplyWithAgent(ctx context.Context, sess *discuss
 	defer func() {
 		cancel()
 		elapsed := time.Since(agentCallStart)
+		log.Info("discuss_step: handleReplyWithAgent exit",
+			slog.String("step", "agent_call_exit"),
+			slog.Duration("agent_call_duration", elapsed),
+			slog.Bool("timeout", ctx.Err() == context.DeadlineExceeded),
+		)
 		if ctx.Err() == context.DeadlineExceeded {
 			log.Error("discuss: handleReplyWithAgent hard timeout triggered",
 				slog.Duration("elapsed", elapsed),
@@ -469,6 +541,9 @@ func (d *DiscussTrigger) handleReplyWithAgent(ctx context.Context, sess *discuss
 	routeID := cfg.RouteID
 	var injectCh <-chan conversation.InjectMessage
 	if d.deps.Dispatcher != nil && routeID != "" {
+		log.Info("discuss_step: marking route active",
+			slog.String("step", "route_mark_active"),
+			slog.String("route_id", routeID))
 		injectCh = d.deps.Dispatcher.MarkActive(routeID)
 		defer d.drainDiscussQueue(ctx, routeID, log)
 	}
@@ -485,6 +560,9 @@ func (d *DiscussTrigger) handleReplyWithAgent(ctx context.Context, sess *discuss
 		var agentCancel context.CancelFunc
 
 		if sess.interrupt != nil {
+			log.Info("discuss_step: binding interrupt controller",
+				slog.String("step", "interrupt_bind"),
+				slog.Int("round", round))
 			agentCtx, agentCancel = sess.interrupt.Bind(ctx)
 		} else {
 			agentCtx = ctx
@@ -539,11 +617,23 @@ func (d *DiscussTrigger) handleReplyWithAgent(ctx context.Context, sess *discuss
 			slog.Int("late_binding_prompt_len", len(chatReq.DiscussLateBindingPrompt)),
 		)
 
+		log.Info("discuss_step: StreamChat dispatched, consuming stream",
+			slog.String("step", "stream_consume_start"),
+			slog.Int("round", round),
+			slog.Duration("elapsed_since_agent_start", time.Since(agentCallStart)))
+
 		chunkCh, errCh := d.deps.ChatRunner.StreamChat(agentCtx, chatReq)
 
 		outStream := d.openOutboundStream(agentCtx, cfg, log)
 		hadOutput, finalMessages, streamErr := d.consumeStream(agentCtx, cfg, chunkCh, errCh, outStream, log)
 		d.finalizeOutboundStream(agentCtx, ctx, cfg, outStream, finalMessages, log)
+
+		log.Info("discuss_step: stream consumption completed",
+			slog.String("step", "stream_consume_end"),
+			slog.Int("round", round),
+			slog.Bool("had_output", hadOutput),
+			slog.Bool("has_error", streamErr != nil),
+			slog.Duration("elapsed_since_agent_start", time.Since(agentCallStart)))
 
 		agentCancel()
 
@@ -560,9 +650,13 @@ func (d *DiscussTrigger) handleReplyWithAgent(ctx context.Context, sess *discuss
 
 		if wasInterrupted && sess.interrupt != nil && sess.interrupt.CanRetry() {
 			if hadOutput {
-				log.Info("chat timing: agent interrupted but already produced output, skipping retry")
+				log.Info("discuss_step: interrupted but had output, no retry",
+					slog.String("step", "interrupt_skip_retry"),
+					slog.Int("round", round))
 			} else {
-				log.Info("chat timing: agent interrupted, waiting for quiet period before retry")
+				log.Info("discuss_step: interrupted, waiting for quiet period before retry",
+					slog.String("step", "interrupt_retry_debounce"),
+					slog.Int("round", round))
 				if sess.debounce != nil {
 					sess.debounce.Reset()
 					_ = sess.debounce.Wait(ctx)
@@ -625,6 +719,8 @@ func (d *DiscussTrigger) consumeStream(
 	log *slog.Logger,
 ) (hadOutput bool, finalMessages []conversation.ModelMessage, streamErr error) {
 	var textBuf strings.Builder
+	firstChunkReceived := false
+	streamStart := time.Now()
 	for chunkCh != nil || errCh != nil {
 		select {
 		case <-ctx.Done():
@@ -636,7 +732,16 @@ func (d *DiscussTrigger) consumeStream(
 		case chunk, ok := <-chunkCh:
 			if !ok {
 				chunkCh = nil
+				log.Info("discuss_step: stream chunkCh closed",
+					slog.String("step", "stream_chunk_ch_closed"),
+					slog.Duration("stream_duration", time.Since(streamStart)))
 				continue
+			}
+			if !firstChunkReceived {
+				firstChunkReceived = true
+				log.Info("discuss_step: first stream chunk received",
+					slog.String("step", "stream_first_chunk"),
+					slog.Duration("time_to_first_chunk", time.Since(streamStart)))
 			}
 			if len(chunk) == 0 || d.deps.StreamChunkParser == nil {
 				continue

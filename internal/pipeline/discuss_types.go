@@ -144,6 +144,7 @@ type discussSession struct {
 	rcCh            chan RenderedContext
 	rcMu            sync.Mutex // protects drop-oldest on rcCh to prevent concurrent loss
 	stopCh          chan struct{}
+	stopOnce        sync.Once // protects stopCh from double-close panic
 	cancel          context.CancelFunc
 	lastProcessedMs int64
 	lastAgentCallAt time.Time

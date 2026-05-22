@@ -87,6 +87,7 @@ func modelID(cfg RunConfig) string {
 }
 
 func (a *Agent) runStream(ctx context.Context, cfg RunConfig, ch chan<- StreamEvent) {
+	runStreamStart := time.Now()
 	streamCtx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
 
@@ -233,6 +234,12 @@ func (a *Agent) runStream(ctx context.Context, cfg RunConfig, ch chan<- StreamEv
 		var err error
 		streamResult, err = a.client.StreamText(streamCtx, opts...)
 		if err == nil {
+			a.logger.Info("agent_step: StreamText connected",
+				slog.String("step", "stream_text_connected"),
+				slog.String("bot_id", cfg.Identity.BotID),
+				slog.String("session_id", cfg.Identity.SessionID),
+				slog.Int("attempt", attempt+1),
+				slog.Duration("time_to_connect", time.Since(runStreamStart)))
 			break
 		}
 		if !isRetryableStreamError(err) {
@@ -267,8 +274,17 @@ func (a *Agent) runStream(ctx context.Context, cfg RunConfig, ch chan<- StreamEv
 
 	sendEvent(ctx, ch, StreamEvent{Type: EventAgentStart})
 
+	a.logger.Info("agent_step: stream processing started",
+		slog.String("step", "stream_processing_start"),
+		slog.String("bot_id", cfg.Identity.BotID),
+		slog.String("session_id", cfg.Identity.SessionID),
+		slog.String("model", modelID(cfg)),
+		slog.Int("input_messages", len(cfg.Messages)),
+		slog.Duration("elapsed_since_run_start", time.Since(runStreamStart)))
+
 	var allText strings.Builder
 	stepNumber := 0
+	var lastToolCallStart time.Time
 
 	for part := range streamResult.Stream {
 		if streamCtx.Err() != nil {
@@ -339,6 +355,15 @@ func (a *Agent) runStream(ctx context.Context, cfg RunConfig, ch chan<- StreamEv
 			if textLoopProbeBuffer != nil {
 				textLoopProbeBuffer.Flush()
 			}
+			lastToolCallStart = time.Now()
+			a.logger.Info("agent_step: tool call starting",
+				slog.String("step", "tool_call_start"),
+				slog.String("bot_id", cfg.Identity.BotID),
+				slog.String("session_id", cfg.Identity.SessionID),
+				slog.String("tool_name", p.ToolName),
+				slog.String("tool_call_id", p.ToolCallID),
+				slog.Int("step_number", stepNumber),
+				slog.Duration("elapsed_since_run_start", time.Since(runStreamStart)))
 			if !sendEvent(ctx, ch, StreamEvent{
 				Type:       EventToolCallStart,
 				ToolName:   p.ToolName,
@@ -361,6 +386,16 @@ func (a *Agent) runStream(ctx context.Context, cfg RunConfig, ch chan<- StreamEv
 		case *sdk.StreamToolResultPart:
 			shouldAbort := toolLoopAbortCallIDs.Take(p.ToolCallID)
 			stepNumber++
+			toolDuration := time.Since(lastToolCallStart)
+			a.logger.Info("agent_step: tool call completed",
+				slog.String("step", "tool_call_end"),
+				slog.String("bot_id", cfg.Identity.BotID),
+				slog.String("session_id", cfg.Identity.SessionID),
+				slog.String("tool_name", p.ToolName),
+				slog.String("tool_call_id", p.ToolCallID),
+				slog.Int("step_number", stepNumber),
+				slog.Duration("tool_duration", toolDuration),
+				slog.Duration("elapsed_since_run_start", time.Since(runStreamStart)))
 			if !sendEvent(ctx, ch, StreamEvent{
 				Type:       EventToolCallEnd,
 				ToolName:   p.ToolName,
@@ -385,6 +420,17 @@ func (a *Agent) runStream(ctx context.Context, cfg RunConfig, ch chan<- StreamEv
 			// Take before errors.Is so registry IDs from the loop guard are always cleared.
 			tookLoopAbort := toolLoopAbortCallIDs.Take(p.ToolCallID)
 			shouldAbort := errors.Is(p.Error, ErrToolLoopDetected) || tookLoopAbort
+			toolDuration := time.Since(lastToolCallStart)
+			a.logger.Warn("agent_step: tool call error",
+				slog.String("step", "tool_call_error"),
+				slog.String("bot_id", cfg.Identity.BotID),
+				slog.String("session_id", cfg.Identity.SessionID),
+				slog.String("tool_name", p.ToolName),
+				slog.String("tool_call_id", p.ToolCallID),
+				slog.String("error", p.Error.Error()),
+				slog.Bool("loop_abort", shouldAbort),
+				slog.Duration("tool_duration", toolDuration),
+				slog.Duration("elapsed_since_run_start", time.Since(runStreamStart)))
 			if !sendEvent(ctx, ch, StreamEvent{
 				Type:       EventToolCallEnd,
 				ToolName:   p.ToolName,
@@ -417,6 +463,14 @@ func (a *Agent) runStream(ctx context.Context, cfg RunConfig, ch chan<- StreamEv
 
 		case *sdk.ErrorPart:
 			errMsg := p.Error.Error()
+			a.logger.Error("agent_step: stream error received",
+				slog.String("step", "stream_error"),
+				slog.String("bot_id", cfg.Identity.BotID),
+				slog.String("session_id", cfg.Identity.SessionID),
+				slog.String("error", errMsg),
+				slog.Int("step_number", stepNumber),
+				slog.Bool("retryable", isRetryableStreamError(p.Error)),
+				slog.Duration("elapsed_since_run_start", time.Since(runStreamStart)))
 			sendEvent(ctx, ch, StreamEvent{Type: EventError, Error: errMsg})
 
 			// Mid-stream retry: if the error is retryable, attempt to continue
@@ -479,8 +533,26 @@ func (a *Agent) runStream(ctx context.Context, cfg RunConfig, ch chan<- StreamEv
 	}
 	if aborted {
 		termEvent.Type = EventAgentAbort
+		a.logger.Info("agent_step: stream completed (aborted)",
+			slog.String("step", "stream_end_aborted"),
+			slog.String("bot_id", cfg.Identity.BotID),
+			slog.String("session_id", cfg.Identity.SessionID),
+			slog.Int("steps_completed", stepNumber),
+			slog.Int("text_length", allText.Len()),
+			slog.Int("input_tokens", totalUsage.InputTokens),
+			slog.Int("output_tokens", totalUsage.OutputTokens),
+			slog.Duration("total_duration", time.Since(runStreamStart)))
 	} else {
 		termEvent.Type = EventAgentEnd
+		a.logger.Info("agent_step: stream completed successfully",
+			slog.String("step", "stream_end_success"),
+			slog.String("bot_id", cfg.Identity.BotID),
+			slog.String("session_id", cfg.Identity.SessionID),
+			slog.Int("steps_completed", stepNumber),
+			slog.Int("text_length", allText.Len()),
+			slog.Int("input_tokens", totalUsage.InputTokens),
+			slog.Int("output_tokens", totalUsage.OutputTokens),
+			slog.Duration("total_duration", time.Since(runStreamStart)))
 		// Warn if LLM produced no text and no tool calls — likely a context overflow.
 		if allText.Len() == 0 && stepNumber == 0 {
 			a.logger.Warn("agent produced empty response (no text, no tool calls)",
@@ -1020,8 +1092,19 @@ func (a *Agent) runMidStreamRetry(
 	}
 
 	retryCfg := DefaultRetryConfig()
+	a.logger.Info("agent_step: mid-stream retry starting",
+		slog.String("step", "mid_stream_retry_start"),
+		slog.String("bot_id", cfg.Identity.BotID),
+		slog.String("session_id", cfg.Identity.SessionID),
+		slog.Int("step_at_error", stepNumber),
+		slog.Int("max_attempts", retryCfg.MaxAttempts),
+		slog.String("error", errMsg))
+
 	for attempt := 0; attempt < retryCfg.MaxAttempts; attempt++ {
-		a.logger.Warn("mid-stream error, retrying",
+		a.logger.Warn("agent_step: mid-stream retry attempt",
+			slog.String("step", "mid_stream_retry_attempt"),
+			slog.String("bot_id", cfg.Identity.BotID),
+			slog.String("session_id", cfg.Identity.SessionID),
 			slog.Int("step", stepNumber),
 			slog.Int("attempt", attempt+1),
 			slog.Int("max_attempts", retryCfg.MaxAttempts),
@@ -1052,7 +1135,10 @@ func (a *Agent) runMidStreamRetry(
 
 		retryResult, retryErr := a.client.StreamText(streamCtx, retryOpts...)
 		if retryErr != nil {
-			a.logger.Warn("mid-stream retry failed to start",
+			a.logger.Warn("agent_step: mid-stream retry failed to connect",
+				slog.String("step", "mid_stream_retry_connect_failed"),
+				slog.String("bot_id", cfg.Identity.BotID),
+				slog.String("session_id", cfg.Identity.SessionID),
 				slog.Int("attempt", attempt+1),
 				slog.String("error", retryErr.Error()),
 			)
@@ -1060,6 +1146,12 @@ func (a *Agent) runMidStreamRetry(
 			errMsg = retryErr.Error()
 			continue
 		}
+
+		a.logger.Info("agent_step: mid-stream retry connected",
+			slog.String("step", "mid_stream_retry_connected"),
+			slog.String("bot_id", cfg.Identity.BotID),
+			slog.String("session_id", cfg.Identity.SessionID),
+			slog.Int("attempt", attempt+1))
 
 		// Drain the retry stream into the main event loop
 		aborted := false
