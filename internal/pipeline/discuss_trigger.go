@@ -320,10 +320,9 @@ func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 			}
 		case <-ctx.Done():
 			replyCancel()
-			log.Warn("discuss session watchdog timeout, forcing exit",
+			log.Warn("discuss session watchdog timeout, forcing exit (handleReply in-flight)",
 				slog.Duration("alive_duration", time.Since(startTime)),
 				slog.Int("messages_processed", messagesProcessed),
-				slog.Time("last_agent_call_at", sess.lastAgentCallAt),
 			)
 			return
 		case <-sess.stopCh:

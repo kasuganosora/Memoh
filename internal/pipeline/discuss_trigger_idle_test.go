@@ -110,7 +110,7 @@ func TestRunSession_IdleNotResetOnNoReply(t *testing.T) {
 		t.Fatal("Session did NOT exit before context deadline — idle timer was being reset by no-reply RCs (BUG REPRODUCED)")
 	}
 
-	if runner.lastReq == nil {
+	if runner.getLastReq() == nil {
 		t.Fatal("expected at least one agent call for the initial mention")
 	}
 }

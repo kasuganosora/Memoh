@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -142,11 +143,11 @@ func TestExtractPassiveMemory_NonBlocking(t *testing.T) {
 	t.Parallel()
 
 	blockCh := make(chan struct{})
-	var called int32
+	var called atomic.Int32
 
 	blockingAccumulator := func(_ context.Context, _, _ string, _ []adapters.Message) {
 		// Signal that we were called, then block forever.
-		called++
+		called.Add(1)
 		<-blockCh // block forever
 	}
 

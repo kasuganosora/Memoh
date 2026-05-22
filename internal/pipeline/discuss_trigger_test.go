@@ -206,11 +206,14 @@ func TestHandleReplyWithAgent_OutboundStreamDelivery(t *testing.T) {
 // --- Test helpers ---
 
 type fakeChatRunner struct {
+	mu      sync.Mutex
 	lastReq *conversation.ChatRequest
 }
 
 func (f *fakeChatRunner) StreamChat(_ context.Context, req conversation.ChatRequest) (<-chan conversation.StreamChunk, <-chan error) {
+	f.mu.Lock()
 	f.lastReq = &req
+	f.mu.Unlock()
 	chunkCh := make(chan conversation.StreamChunk, 1)
 	errCh := make(chan error, 1)
 
@@ -227,12 +230,21 @@ func (f *fakeChatRunner) StreamChat(_ context.Context, req conversation.ChatRequ
 	return chunkCh, errCh
 }
 
+func (f *fakeChatRunner) getLastReq() *conversation.ChatRequest {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.lastReq
+}
+
 type fakeChatRunnerWithTextDelta struct {
+	mu      sync.Mutex
 	lastReq *conversation.ChatRequest
 }
 
 func (f *fakeChatRunnerWithTextDelta) StreamChat(_ context.Context, req conversation.ChatRequest) (<-chan conversation.StreamChunk, <-chan error) {
+	f.mu.Lock()
 	f.lastReq = &req
+	f.mu.Unlock()
 	chunkCh := make(chan conversation.StreamChunk, 3)
 	errCh := make(chan error, 1)
 
