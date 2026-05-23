@@ -213,9 +213,33 @@ func (p *MessageProvider) execSend(ctx context.Context, session SessionContext, 
 		return nil, err
 	}
 
-	// Discuss mode auto-inject reply_to: when the bot doesn't specify reply_to
-	// and no cross-conversation target is set, automatically thread the reply
-	// under the session's ReplyTarget (the latest triggering note).
+	// Discuss mode protections — prevent the LLM from sending into a void
+	// when the inbound event has no valid ReplyTarget (e.g. pure renotes,
+	// which Misskey does not allow direct replies to).
+	//
+	// Protection 1: If both reply_to and target are empty AND ReplyTarget
+	// is also empty, the LLM has nowhere to send.  Return a clear result
+	// instead of letting SendDirect fail with a confusing "target is
+	// required" error that may tempt the LLM to retry.
+	//
+	// This guard was added May 23, 2026 after the 4d2b404d change (pure
+	// renotes → ReplyTarget="") exposed the empty-target send path. DO NOT
+	// remove this check without also ensuring the pipeline does not
+	// dispatch StreamChat for inbound events that lack a sendable target.
+	if session.SessionType == "discuss" &&
+		StringArg(args, "reply_to") == "" &&
+		StringArg(args, "target") == "" &&
+		strings.TrimSpace(session.ReplyTarget) == "" {
+		return map[string]any{
+			"ok":        false,
+			"delivered": "rejected",
+			"error":     "cannot send — this is a pure renote with no reply target; do not retry",
+		}, nil
+	}
+
+	// Protection 2: Auto-inject reply_to when the LLM hasn't specified one
+	// and no cross-conversation target is set, automatically thread the
+	// reply under the session's ReplyTarget (the latest triggering note).
 	if session.SessionType == "discuss" &&
 		StringArg(args, "reply_to") == "" &&
 		StringArg(args, "target") == "" &&

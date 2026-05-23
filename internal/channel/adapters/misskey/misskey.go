@@ -945,15 +945,26 @@ func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source stri
 	// All timeline notes aggregate into a single conversation.
 	convID := "timeline"
 
-	// Detect whether the bot is @-mentioned in the timeline note text
-	// or the renoted text. Misskey timeline events don't populate the
-	// Mentions[] array for timeline notes, so we check the raw text.
+	// Detect whether the bot is @-mentioned in the timeline note text.
+	// Misskey timeline events don't populate the Mentions[] array for
+	// timeline notes, so we check the raw text.
+	//
+	// IMPORTANT: We ONLY check note.Text (the user's own commentary), NOT
+	// note.Renote.Text (the renoted content). The renoted text is authored
+	// by a third party — the bot must not be triggered by accidental
+	// @-mentions in third-party renoted content. Treating third-party
+	// mentions as triggers would cause the discuss flow to dispatch
+	// StreamChat with an empty ReplyTarget (pure renotes have no target),
+	// which forces the LLM into a dead-end send-retry loop.
+	//
+	// This protection was added May 23, 2026 after the 4d2b404d change
+	// (pure renotes no longer set ReplyTarget) exposed the stale trigger
+	// logic. DO NOT re-add note.Renote.Text scanning without also ensuring
+	// the discuss flow can handle a missing ReplyTarget gracefully.
 	isMentioned := false
 	if me != nil && me.Username != "" {
 		needle := "@" + me.Username
 		if strings.Contains(note.Text, needle) {
-			isMentioned = true
-		} else if note.Renote != nil && strings.Contains(note.Renote.Text, needle) {
 			isMentioned = true
 		}
 	}
