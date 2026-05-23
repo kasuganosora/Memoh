@@ -195,8 +195,10 @@ func provideDefaultMemoryProvider(log *slog.Logger, llm memprovider.LLM, chatSer
 	return p
 }
 
-func providePipeline() *pipelinepkg.Pipeline {
-	return pipelinepkg.NewPipeline(pipelinepkg.RenderParams{})
+func providePipeline(log *slog.Logger) *pipelinepkg.Pipeline {
+	return pipelinepkg.NewPipeline(pipelinepkg.RenderParams{},
+		pipelinepkg.WithPipelineLogger(log),
+	)
 }
 
 func provideEventStore(log *slog.Logger, queries *dbsqlc.Queries) *pipelinepkg.EventStore {
@@ -946,8 +948,24 @@ func (a *dreamRuntimeAdapter) GetAll(ctx context.Context, req dream.GetAllReques
 	}
 	items := make([]dream.MemoryItem, len(resp.Results))
 	for i, r := range resp.Results {
+		// Normalize ID: ensure it has the "botID:" prefix expected by Update.
+		// Legacy memories may have plain IDs like "mem_20260516_005" without
+		// the botID prefix. Skip these since they cannot be updated.
+		id := r.ID
+		if id != "" && !strings.Contains(id, ":") {
+			// Plain ID without botID prefix — this is a legacy format that
+			// cannot be reliably updated (Update requires "botID:memID" format).
+			// Use BotID from the result or request to reconstruct the full ID.
+			if r.BotID != "" {
+				id = r.BotID + ":" + id
+			} else if req.BotID != "" {
+				id = req.BotID + ":" + id
+			}
+			// If neither BotID is available, keep the plain ID — Update will
+			// gracefully fail and log a warning.
+		}
 		items[i] = dream.MemoryItem{
-			ID:       r.ID,
+			ID:       id,
 			Memory:   r.Memory,
 			Metadata: r.Metadata,
 		}
@@ -967,27 +985,21 @@ func (a *dreamRuntimeAdapter) Delete(ctx context.Context, memoryID string) (drea
 }
 
 func (a *dreamRuntimeAdapter) Update(ctx context.Context, memoryID, newText string) error {
-	// Memory IDs can be in either format:
-	//  1. "botID:mem_NANO" (dense runtime format) — used by Add/GetAll
-	//  2. "mem_YYYYMMDD_NNN" (plain format) — returned by GetAll via some paths
-	// Try botID-prefixed format first, fall back to plain ID.
-	botID := contextkeys.BudgetBotID(ctx)
+	// Memory IDs should be in "botID:mem_NANO" format (as returned by GetAll).
+	// If the ID already contains ":", use it directly.
+	// If not (legacy edge case), try prefixing with botID from context.
 	fullID := memoryID
-	if botID != "" && !strings.Contains(memoryID, ":") {
-		fullID = botID + ":" + memoryID
+	if !strings.Contains(memoryID, ":") {
+		botID := contextkeys.BudgetBotID(ctx)
+		if botID != "" {
+			fullID = botID + ":" + memoryID
+		}
 	}
 
 	_, err := a.provider.Update(ctx, memprovider.UpdateRequest{
 		MemoryID: fullID,
 		Memory:   newText,
 	})
-	if err != nil && fullID != memoryID {
-		// Retry with plain ID if prefixed version failed.
-		_, err = a.provider.Update(ctx, memprovider.UpdateRequest{
-			MemoryID: memoryID,
-			Memory:   newText,
-		})
-	}
 	return err
 }
 

@@ -651,6 +651,19 @@ func (d *DiscussTrigger) handleReplyWithAgent(ctx context.Context, sess *discuss
 			log.Error("discuss stream error", slog.Any("error", streamErr))
 		}
 
+		// Detect empty response (no output, no error, no interrupt) — likely
+		// caused by context window overflow. Log a detailed warning for
+		// observability so operators can identify and tune the context budget.
+		if !hadOutput && streamErr == nil {
+			log.Warn("discuss: agent produced empty response (possible context overflow)",
+				slog.String("bot_id", cfg.BotID),
+				slog.String("session_id", cfg.SessionID),
+				slog.Int("rc_segments", len(rc)),
+				slog.Int("round", round),
+				slog.Duration("elapsed", time.Since(agentCallStart)),
+			)
+		}
+
 		// Check interrupt state.
 		wasInterrupted := false
 		if sess.interrupt != nil {

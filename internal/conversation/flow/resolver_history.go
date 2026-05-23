@@ -286,8 +286,18 @@ func (r *Resolver) buildMessagesFromPipeline(ctx context.Context, req conversati
 	}
 
 	// Apply context token budget trimming to pipeline path as well.
-	if contextTokenBudget > 0 && len(messages) > 0 {
-		messages = trimPipelineMessagesByTokens(r.logger, messages, contextTokenBudget)
+	// Reserve 30% of the context window for output tokens to prevent the LLM
+	// from returning empty responses when input tokens consume nearly all budget.
+	effectiveBudget := contextTokenBudget
+	if effectiveBudget == 0 {
+		// Fallback: if no context window configured, use a conservative default
+		// to prevent unbounded context from causing empty responses.
+		effectiveBudget = 128000
+	}
+	// Reserve 30% for output tokens — the LLM needs room to generate a response.
+	inputBudget := effectiveBudget * 70 / 100
+	if len(messages) > 0 {
+		messages = trimPipelineMessagesByTokens(r.logger, messages, inputBudget)
 	}
 
 	// Collect image refs from the RC for later inlining by the resolver.

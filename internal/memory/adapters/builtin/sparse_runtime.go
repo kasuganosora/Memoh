@@ -189,9 +189,16 @@ func (r *sparseRuntime) Update(ctx context.Context, req adapters.UpdateRequest) 
 	if err != nil {
 		return adapters.MemoryItem{}, err
 	}
+	// Extract the suffix part (after "botID:") for matching legacy items
+	// that were stored without the botID prefix.
+	memSuffix := memoryID
+	if idx := strings.Index(memoryID, ":"); idx >= 0 {
+		memSuffix = memoryID[idx+1:]
+	}
 	var existing *storefs.MemoryItem
 	for i := range items {
-		if strings.TrimSpace(items[i].ID) == memoryID {
+		storedID := strings.TrimSpace(items[i].ID)
+		if storedID == memoryID || storedID == memSuffix {
 			item := items[i]
 			existing = &item
 			break

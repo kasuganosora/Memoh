@@ -10,7 +10,9 @@ import (
 )
 
 const (
-	formationTimeout       = 60 * time.Second
+	formationTimeout       = 90 * time.Second // overall safety-net timeout
+	extractTimeout         = 45 * time.Second // independent timeout for Extract LLM call
+	decideTimeout          = 45 * time.Second // independent timeout for Decide LLM call
 	candidateSearchLimit   = 20
 	candidateGetAllLimit   = 50
 	maxCandidatesPerDecide = 30
@@ -42,11 +44,13 @@ func runFormation(ctx context.Context, logger *slog.Logger, llm adapters.LLM, ru
 	botID := strings.TrimSpace(req.BotID)
 	result := formationResult{}
 
-	extracted, err := llm.Extract(ctx, adapters.ExtractRequest{
+	extractCtx, extractCancel := context.WithTimeout(ctx, extractTimeout)
+	extracted, err := llm.Extract(extractCtx, adapters.ExtractRequest{
 		BotID:            botID,
 		Messages:         req.Messages,
 		TimezoneLocation: req.TimezoneLocation,
 	})
+	extractCancel()
 	if err != nil {
 		logger.Warn("memory formation: extract failed", slog.String("bot_id", botID), slog.Any("error", err))
 		result.Err = err
@@ -60,11 +64,13 @@ func runFormation(ctx context.Context, logger *slog.Logger, llm adapters.LLM, ru
 
 	candidates := gatherCandidates(ctx, logger, runtime, botID, facts)
 
-	decided, err := llm.Decide(ctx, adapters.DecideRequest{
+	decideCtx, decideCancel := context.WithTimeout(ctx, decideTimeout)
+	decided, err := llm.Decide(decideCtx, adapters.DecideRequest{
 		BotID:      botID,
 		Facts:      facts,
 		Candidates: candidates,
 	})
+	decideCancel()
 	if err != nil {
 		logger.Warn("memory formation: decide failed", slog.String("bot_id", botID), slog.Any("error", err))
 		result.Err = err

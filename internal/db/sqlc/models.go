@@ -45,6 +45,7 @@ type Bot struct {
 	AclDefaultEffect       string             `json:"acl_default_effect"`
 	Persona                []byte             `json:"persona"`
 	VisionModelID          pgtype.UUID        `json:"vision_model_id"`
+	HttpProxyUrl           string             `json:"http_proxy_url"`
 }
 
 type BotAclRule struct {

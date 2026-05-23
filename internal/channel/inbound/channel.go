@@ -2264,11 +2264,13 @@ func isLocalChannelType(ct channel.ChannelType) bool {
 
 // replayPipelineSession loads persisted events from the DB and replays them
 // into the pipeline. Called lazily on first access per session after cold start.
+// Uses LoadRecentEvents to limit the number of events loaded, since the
+// Pipeline's trimICNodes will discard excess nodes anyway.
 func (p *ChannelInboundProcessor) replayPipelineSession(ctx context.Context, sessionID string) {
 	if p.eventStore == nil || p.pipeline == nil {
 		return
 	}
-	events, err := p.eventStore.LoadEvents(ctx, sessionID)
+	events, err := p.eventStore.LoadRecentEvents(ctx, sessionID, pipelinepkg.DefaultMaxICNodes)
 	if err != nil {
 		if p.logger != nil {
 			p.logger.Warn("pipeline replay failed", slog.String("session_id", sessionID), slog.Any("error", err))

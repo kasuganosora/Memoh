@@ -129,6 +129,58 @@ func (s *EventStore) LoadEvents(ctx context.Context, sessionID string) ([]Canoni
 	return events, nil
 }
 
+// LoadRecentEvents loads the most recent N events for a session, returned in
+// chronological order (oldest first). This is more efficient than LoadEvents
+// for cold-start recovery when sessions have accumulated many events, since
+// the Pipeline's trimICNodes will discard excess nodes anyway.
+func (s *EventStore) LoadRecentEvents(ctx context.Context, sessionID string, limit int) ([]CanonicalEvent, error) {
+	pgSessionID, err := dbpkg.ParseUUID(sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid session id: %w", err)
+	}
+
+	// Cap limit to prevent int32 overflow.
+	if limit > int(^int32(0)) {
+		limit = int(^int32(0))
+	}
+
+	rows, err := s.queries.ListRecentSessionEvents(ctx, sqlc.ListRecentSessionEventsParams{
+		SessionID: pgSessionID,
+		Limit:     int32(limit), //nolint:gosec // bounded above
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list recent session events: %w", err)
+	}
+
+	// Rows come in DESC order from the query; reverse to get chronological ASC.
+	events := make([]CanonicalEvent, 0, len(rows))
+	skipped := 0
+	for i := len(rows) - 1; i >= 0; i-- {
+		row := rows[i]
+		event, parseErr := parseEventData(row.EventKind, row.EventData)
+		if parseErr != nil {
+			s.logger.Warn("skip unparseable event",
+				slog.String("session_id", sessionID),
+				slog.String("event_id", row.ID.String()),
+				slog.Any("error", parseErr))
+			skipped++
+			continue
+		}
+		events = append(events, event)
+	}
+
+	if skipped > 0 || len(rows) == limit {
+		s.logger.Info("loaded recent session events",
+			slog.String("session_id", sessionID),
+			slog.Int("limit", limit),
+			slog.Int("total_rows", len(rows)),
+			slog.Int("loaded", len(events)),
+			slog.Int("skipped", skipped))
+	}
+
+	return events, nil
+}
+
 // HasEvents checks whether a session has any events persisted.
 func (s *EventStore) HasEvents(ctx context.Context, sessionID string) (bool, error) {
 	pgSessionID, err := dbpkg.ParseUUID(sessionID)

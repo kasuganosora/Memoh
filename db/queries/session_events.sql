@@ -25,5 +25,11 @@ ORDER BY received_at_ms ASC;
 SELECT COUNT(*) FROM bot_session_events
 WHERE session_id = $1;
 
+-- name: ListRecentSessionEvents :many
+SELECT * FROM bot_session_events
+WHERE session_id = $1
+ORDER BY received_at_ms DESC
+LIMIT $2;
+
 -- name: DeleteSessionEventsBySession :exec
 DELETE FROM bot_session_events WHERE session_id = $1;

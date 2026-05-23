@@ -727,6 +727,12 @@ func (*MisskeyAdapter) buildInboundMessage(me *meResponse, note misskeyNote) (ch
 	// Determine note interaction type for metadata.
 	noteType := classifyNoteType(note)
 
+	// Pure renotes cannot be replied to on Misskey, so don't set ReplyTarget.
+	replyTarget := note.ID
+	if noteType == "renote" {
+		replyTarget = ""
+	}
+
 	return channel.InboundMessage{
 		Channel: Type,
 		Message: channel.Message{
@@ -736,7 +742,7 @@ func (*MisskeyAdapter) buildInboundMessage(me *meResponse, note misskeyNote) (ch
 			Reply:       replyRef,
 			Attachments: attachments,
 		},
-		ReplyTarget: note.ID,
+		ReplyTarget: replyTarget,
 		Sender: channel.Identity{
 			SubjectID:   senderID,
 			DisplayName: displayName,
@@ -952,6 +958,13 @@ func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source stri
 		}
 	}
 
+	// Pure renotes cannot be replied to on Misskey, so don't set ReplyTarget.
+	noteType := classifyNoteType(note)
+	timelineReplyTarget := note.ID
+	if noteType == "renote" {
+		timelineReplyTarget = ""
+	}
+
 	return channel.InboundMessage{
 		Channel: Type,
 		Message: channel.Message{
@@ -961,7 +974,7 @@ func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source stri
 			Reply:       replyRef,
 			Attachments: attachments,
 		},
-		ReplyTarget: note.ID,
+		ReplyTarget: timelineReplyTarget,
 		Sender: channel.Identity{
 			SubjectID:   note.UserID,
 			DisplayName: displayName,
@@ -980,7 +993,7 @@ func (*MisskeyAdapter) buildTimelineInboundMessage(note misskeyNote, source stri
 			"timeline_source":     source,
 			"visibility":          note.Visibility,
 			"note_id":             note.ID,
-			"note_type":           classifyNoteType(note),
+			"note_type":           noteType,
 			"renote_id":           note.RenoteID,
 			"reply_id":            note.ReplyID,
 		},

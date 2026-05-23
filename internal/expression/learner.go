@@ -100,7 +100,13 @@ func (l *Learner) Accumulate(ctx context.Context, messages []Message, sessionID 
 			}
 			if err := l.LearnFromHistory(ctx, bufCopy); err != nil {
 				if l.logger != nil {
-					l.logger.Warn("expression learn failed", slog.Any("error", err))
+					// "no model configured" is a setup issue, not a transient error —
+					// log at Debug to avoid noisy WARN spam when the feature is not fully configured.
+					if strings.Contains(err.Error(), "no model configured") {
+						l.logger.Debug("expression learn skipped: no model configured")
+					} else {
+						l.logger.Warn("expression learn failed", slog.Any("error", err))
+					}
 				}
 			}
 		}()
