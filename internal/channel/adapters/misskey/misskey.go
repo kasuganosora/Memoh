@@ -455,26 +455,31 @@ type misskeyUser struct {
 	AvatarURL string `json:"avatarUrl"`
 }
 
-// storeMentions caches mention handles from a note so replies can @ 同一串参与者。
-// 来源：文本里的 @handles；note.Mentions 仅含 userId 无法直接用。
-// 排除：bot 自己、note 作者（回复时 Misskey 自动 @ 对方）、renote 原贴作者。
+// storeMentions caches mention handles from a note so replies can @-notify
+// all participants. Only excludes the bot itself — note author and renote
+// author are kept because the bot may reply to a different note in the thread,
+// in which case Misskey will NOT auto-notify the original note's author.
 func (a *MisskeyAdapter) storeMentions(note misskeyNote, me *meResponse) {
 	if note.ID == "" {
 		return
 	}
 	mentions := extractMentionHandles(note)
 
+	// Also include the note author's handle (they are a participant).
+	if h := formatUserHandle(note.User); h != "" {
+		mentions = append(mentions, h)
+	}
+
 	exclude := map[string]struct{}{}
 	if me != nil {
 		exclude["@"+me.Username] = struct{}{}
 	}
-	// Exclude the note's own author — Misskey automatically notifies the
-	// reply target, so mentioning them again is redundant.
-	if h := formatUserHandle(note.User); h != "" {
-		exclude[h] = struct{}{}
-	}
+	// Exclude the renote original author — they are typically a third party
+	// whose content was reshared, not a participant in the current conversation.
 	if note.Renote != nil {
-		exclude[formatUserHandle(note.Renote.User)] = struct{}{}
+		if h := formatUserHandle(note.Renote.User); h != "" {
+			exclude[h] = struct{}{}
+		}
 	}
 
 	filtered := make([]string, 0, len(mentions))
@@ -1096,9 +1101,18 @@ func (a *MisskeyAdapter) Send(ctx context.Context, cfg channel.ChannelConfig, ms
 		}
 	}
 
-	// Auto-mention: prepend all participants from the replied note, excluding self/reply/renote authors.
-	if replyID != "" {
-		if auto := a.getMentions(replyID); len(auto) > 0 {
+	// Auto-mention: prepend all participants from the replied note (or the
+	// target/trigger note as fallback), excluding self/reply/renote authors.
+	// The mention cache (storeMentions) is keyed by note ID collected at
+	// inbound time; LLM may reply to an old or self-authored note whose
+	// mentions are no longer cached.  Falling back to msg.Target (the
+	// triggering note) ensures we still @ the conversation participants.
+	if replyID != "" || msg.Target != "" {
+		auto := a.getMentions(replyID)
+		if len(auto) == 0 && msg.Target != "" && msg.Target != replyID {
+			auto = a.getMentions(msg.Target)
+		}
+		if len(auto) > 0 {
 			prefix := strings.Join(auto, " ")
 			if text == "" {
 				text = prefix
