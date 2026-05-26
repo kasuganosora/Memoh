@@ -71,11 +71,18 @@ func (d *DiscussTrigger) NotifyRC(ctx context.Context, sessionID string, rc Rend
 	if !ok {
 		isNew = true
 		sessCtx, cancel := context.WithCancel(d.parentCtx) //nolint:gosec // G118: cancel is stored in sess.cancel
+		// Initialize lastProcessedMs to the latest RC segment timestamp so
+		// the new session does not re-detect old @mentions or count all
+		// historical segments as "new" messages. Without this, every session
+		// recreation after idle timeout triggers a spurious agent call because
+		// wasRecentlyMentioned scans all segments with lastProcessedMs=0.
+		initialProcessedMs := latestRCReceivedAtMs(rc)
 		sess = &discussSession{
-			config: config,
-			rcCh:   make(chan RenderedContext, 16),
-			stopCh: make(chan struct{}),
-			cancel: cancel,
+			config:          config,
+			rcCh:            make(chan RenderedContext, 16),
+			stopCh:          make(chan struct{}),
+			cancel:          cancel,
+			lastProcessedMs: initialProcessedMs,
 		}
 		d.wireSmartTiming(ctx, sess, config.BotID)
 		d.sessions[sessionID] = sess

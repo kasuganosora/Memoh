@@ -212,6 +212,7 @@ func TestNotifyRC_UpdatesReplyTarget(t *testing.T) {
 	driver.mu.Unlock()
 	if sess == nil {
 		t.Fatal("expected session to be created")
+		return
 	}
 	sess.configMu.RLock()
 	firstTarget := sess.config.ReplyTarget
