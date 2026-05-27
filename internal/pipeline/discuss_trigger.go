@@ -423,6 +423,17 @@ func (d *DiscussTrigger) handleReply(ctx context.Context, sess *discussSession, 
 		}
 	}
 
+	// Guard: if context was cancelled (e.g. watchdog timeout) during timing gate
+	// evaluation or earlier steps, abort rather than wasting an agent call that
+	// would immediately fail with "context deadline exceeded".
+	if ctx.Err() != nil {
+		log.Info("discuss_step: handleReply exit (context cancelled before agent call)",
+			slog.String("step", "handleReply_exit_ctx_cancelled"),
+			slog.Any("reason", ctx.Err()),
+			slog.Duration("step_duration", time.Since(handleReplyStart)))
+		return false
+	}
+
 	log.Info("discuss_step: entering agent call",
 		slog.String("step", "agent_call_enter"),
 		slog.Duration("step_duration", time.Since(handleReplyStart)))
@@ -894,6 +905,12 @@ func (d *DiscussTrigger) dispatchDiscussReactions(ctx context.Context, cfg Discu
 	}
 	for _, r := range reactions {
 		r.Target = cfg.ReplyTarget
+		// In discuss mode, the stream-parsed ReactRequest has no MessageID
+		// (it's lost in the agent→stream serialization layer). Use the session's
+		// ReplyTarget (the latest triggering note ID) as the reaction target.
+		if r.MessageID == "" {
+			r.MessageID = cfg.ReplyTarget
+		}
 		if err := d.deps.Reactor.React(ctx, cfg.BotID, channel.ChannelType(cfg.CurrentPlatform), r); err != nil {
 			log.Warn("discuss: reaction dispatch failed",
 				slog.String("emoji", r.Emoji), slog.Any("error", err))

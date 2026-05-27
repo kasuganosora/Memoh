@@ -114,9 +114,9 @@ func (tg *TimingGate) Evaluate(ctx context.Context, params TimingGateParams, run
 			slog.String("bot_name", params.BotName))
 		return TimingGateResult{Decision: TimingContinue, Reason: "goroutine timeout"}
 	case <-evalCtx.Done():
-		tg.logger.Warn("timing gate context cancelled, failing open",
+		tg.logger.Warn("timing gate context cancelled, failing closed",
 			slog.String("bot_name", params.BotName))
-		return TimingGateResult{Decision: TimingContinue, Reason: "context cancelled"}
+		return TimingGateResult{Decision: TimingNoReply, Reason: "context cancelled"}
 	}
 }
 
