@@ -146,6 +146,7 @@ func options() fx.Option {
 			provideDreamService,
 		),
 		fx.Invoke(
+			autoMigrate,
 			injectToolProviders,
 			startRegistrySync,
 			startAudioProviderBootstrap,

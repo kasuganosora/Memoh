@@ -96,7 +96,7 @@ type MemoryAssociation struct {
 // SceneStore is the interface for scene persistence used by the dream service.
 type SceneStore interface {
 	List(ctx context.Context, botID string) ([]SceneEntry, error)
-	Create(ctx context.Context, entry SceneEntry) error
+	Create(ctx context.Context, entry SceneEntry) (string, error) // returns generated ID
 	Update(ctx context.Context, entry SceneEntry) error
 	Delete(ctx context.Context, sceneID string) error
 }
@@ -136,13 +136,15 @@ func (s *Service) SetSceneStore(store SceneStore) {
 // MemoryMergeConfig controls how merge decisions are made.
 type MemoryMergeConfig struct {
 	SimilarityThreshold float64 // 0.0-1.0, default 0.9
-	MaxPairsToCheck     int
+	MaxMergesPerCycle   int     // max merges in one cycle to avoid deleting too much
+	MaxCandidatesPerMem int     // how many similar candidates to check per memory
 	QueryPrefix         string
 }
 
 var defaultMergeConfig = MemoryMergeConfig{
 	SimilarityThreshold: 0.9,
-	MaxPairsToCheck:     5, // budget model: limit sequential LLM calls
+	MaxMergesPerCycle:   10, // cap total merges per cycle
+	MaxCandidatesPerMem: 3,  // search top-3 similar for each new memory
 	QueryPrefix:         "memory maintenance",
 }
 
@@ -260,11 +262,13 @@ type mergeTaskResult struct {
 	Merged  int
 }
 
-// mergeSimilar finds and merges near-duplicate memories.
+// mergeSimilar finds and merges near-duplicate memories using semantic search.
+// For each recently added memory, it uses the Search API (embedding similarity)
+// to find top-K candidates, then asks the LLM to confirm merge decisions.
 func (s *Service) mergeSimilar(ctx context.Context, botID string, filters map[string]any, since time.Time, cfg MemoryMergeConfig) mergeTaskResult {
 	res := mergeTaskResult{}
 
-	// Fetch all memories for this bot
+	// Fetch recent memories (incremental via Since).
 	allResp, err := s.runtime.GetAll(ctx, GetAllRequest{
 		BotID:   botID,
 		Limit:   200,
@@ -282,27 +286,55 @@ func (s *Service) mergeSimilar(ctx context.Context, botID string, filters map[st
 	}
 	res.Scanned = len(memories)
 
-	pairsChecked := 0
-	for i := 0; i < len(memories)-1 && pairsChecked < cfg.MaxPairsToCheck; i++ {
-		for j := i + 1; j < len(memories) && pairsChecked < cfg.MaxPairsToCheck; j++ {
-			m1 := strings.TrimSpace(memories[i].Memory)
-			m2 := strings.TrimSpace(memories[j].Memory)
-			if m1 == "" || m2 == "" {
+	if s.llm == nil {
+		return res
+	}
+
+	// Track IDs that have been merged away to avoid double-processing.
+	mergedIDs := make(map[string]bool)
+
+	for _, mem := range memories {
+		if res.Merged >= cfg.MaxMergesPerCycle {
+			break
+		}
+		if mergedIDs[mem.ID] {
+			continue
+		}
+		text := strings.TrimSpace(mem.Memory)
+		if text == "" {
+			continue
+		}
+
+		// Use the memory text itself as a search query to find semantically similar ones.
+		searchResp, err := s.runtime.Search(ctx, SearchRequest{
+			Query:   text,
+			BotID:   botID,
+			Limit:   cfg.MaxCandidatesPerMem + 1, // +1 because the memory itself may appear
+			Filters: filters,
+		})
+		if err != nil {
+			s.logger.Warn("dream: search for similar failed",
+				slog.String("bot_id", botID),
+				slog.String("mem_id", mem.ID),
+				slog.Any("error", err),
+			)
+			continue
+		}
+
+		for _, candidate := range searchResp.Results {
+			if res.Merged >= cfg.MaxMergesPerCycle {
+				break
+			}
+			// Skip self and already-merged memories.
+			if candidate.ID == mem.ID || mergedIDs[candidate.ID] {
+				continue
+			}
+			candidateText := strings.TrimSpace(candidate.Memory)
+			if candidateText == "" {
 				continue
 			}
 
-			// Quick pre-filter: if content significantly differs in length, skip
-			l1, l2 := len(m1), len(m2)
-			if float64(min(l1, l2))/float64(max(l1, l2)) < 0.5 {
-				continue
-			}
-
-			pairsChecked++
-
-			if s.llm == nil {
-				continue
-			}
-			shouldMerge, mergedText, err := s.llm.ShouldMerge(ctx, m1, m2)
+			shouldMerge, mergedText, err := s.llm.ShouldMerge(ctx, text, candidateText)
 			if err != nil {
 				continue
 			}
@@ -310,27 +342,30 @@ func (s *Service) mergeSimilar(ctx context.Context, botID string, filters map[st
 				s.logger.Info(
 					"dream: merging duplicate memories",
 					slog.String("bot_id", botID),
-					slog.String("keep_id", memories[i].ID),
-					slog.String("delete_id", memories[j].ID),
-					slog.String("keep_preview", truncateForLog(m1, 60)),
+					slog.String("keep_id", mem.ID),
+					slog.String("delete_id", candidate.ID),
+					slog.String("keep_preview", truncateForLog(text, 60)),
 					slog.String("merged_preview", truncateForLog(mergedText, 60)),
 				)
-				if _, err := s.runtime.Delete(ctx, memories[j].ID); err != nil {
+				if _, err := s.runtime.Delete(ctx, candidate.ID); err != nil {
 					s.logger.Warn(
 						"dream: delete for merge failed",
-						slog.String("id", memories[j].ID),
+						slog.String("id", candidate.ID),
 						slog.Any("error", err),
 					)
 					continue
 				}
+				mergedIDs[candidate.ID] = true
 				if mergedText != "" {
-					if err := s.runtime.Update(ctx, memories[i].ID, mergedText); err != nil {
+					if err := s.runtime.Update(ctx, mem.ID, mergedText); err != nil {
 						s.logger.Warn(
 							"dream: update merged text failed",
-							slog.String("id", memories[i].ID),
+							slog.String("id", mem.ID),
 							slog.Any("error", err),
 						)
 					}
+					// Update local text for subsequent searches.
+					text = mergedText
 				}
 				res.Merged++
 			}

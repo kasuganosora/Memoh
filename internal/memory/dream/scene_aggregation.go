@@ -162,16 +162,18 @@ func (s *Service) aggregateScenes(ctx context.Context, botID string, filters map
 					HeatScore: 1.0,
 					MemoryIDs: resolvedIDs,
 				}
-				if err := s.sceneStore.Create(ctx, newScene); err != nil {
+				if id, err := s.sceneStore.Create(ctx, newScene); err != nil {
 					s.logger.Warn("dream: create scene failed",
 						slog.String("title", candidate.Title),
 						slog.Any("error", err),
 					)
 				} else {
+					newScene.ID = id
 					res.Created++
 					res.MemoriesIndexed += len(resolvedIDs)
 					s.logger.Info("dream: new scene created",
 						slog.String("bot_id", botID),
+						slog.String("scene_id", id),
 						slog.String("scene_title", candidate.Title),
 						slog.Int("memory_count", len(resolvedIDs)),
 					)

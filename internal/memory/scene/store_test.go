@@ -18,7 +18,7 @@ func newMockBackend() *mockBackend {
 	return &mockBackend{scenes: make(map[string]map[string]any)}
 }
 
-func (m *mockBackend) UpsertScene(_ context.Context, id string, payload map[string]any, _ []float32) error {
+func (m *mockBackend) UpsertScene(_ context.Context, id string, payload map[string]any) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.scenes[id] = payload

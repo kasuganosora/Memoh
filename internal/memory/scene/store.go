@@ -34,16 +34,15 @@ type Store interface {
 	MergeLowHeat(ctx context.Context, botID string) (*Scene, error)
 }
 
-// VectorStore implements Store using Qdrant as the backend.
-// Scenes are stored as points with metadata in a dedicated payload namespace.
+// VectorStore implements Store using a pluggable SceneBackend.
 type VectorStore struct {
 	backend SceneBackend
 	logger  *slog.Logger
 }
 
-// SceneBackend abstracts the vector database operations needed by the scene store.
+// SceneBackend abstracts the storage operations needed by the scene store.
 type SceneBackend interface {
-	UpsertScene(ctx context.Context, id string, payload map[string]any, embedding []float32) error
+	UpsertScene(ctx context.Context, id string, payload map[string]any) error
 	GetScene(ctx context.Context, id string) (map[string]any, error)
 	ListScenes(ctx context.Context, botID string) ([]map[string]any, error)
 	DeleteScene(ctx context.Context, id string) error
@@ -104,10 +103,8 @@ func (s *VectorStore) Create(ctx context.Context, scene Scene) (*Scene, error) {
 	scene.UpdatedAt = now
 
 	payload := sceneToPayload(&scene)
-	// Use a zero embedding for now; scenes are retrieved by metadata filter, not similarity.
-	embedding := make([]float32, 0)
 
-	if err := s.backend.UpsertScene(ctx, scene.ID, payload, embedding); err != nil {
+	if err := s.backend.UpsertScene(ctx, scene.ID, payload); err != nil {
 		return nil, fmt.Errorf("scene create: %w", err)
 	}
 	return &scene, nil
@@ -116,9 +113,8 @@ func (s *VectorStore) Create(ctx context.Context, scene Scene) (*Scene, error) {
 func (s *VectorStore) Update(ctx context.Context, scene Scene) error {
 	scene.UpdatedAt = time.Now().UTC()
 	payload := sceneToPayload(&scene)
-	embedding := make([]float32, 0)
 
-	if err := s.backend.UpsertScene(ctx, scene.ID, payload, embedding); err != nil {
+	if err := s.backend.UpsertScene(ctx, scene.ID, payload); err != nil {
 		return fmt.Errorf("scene update: %w", err)
 	}
 	return nil

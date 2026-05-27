@@ -52,6 +52,16 @@ func runMigrateCommand(args []string) error {
 	return nil
 }
 
+// autoMigrate runs pending migrations on startup so deployments don't need a
+// separate "migrate up" step.
+func autoMigrate(log *slog.Logger, cfg config.Config) error {
+	log.Info("running auto-migration on startup")
+	if err := db.RunMigrate(log, cfg.Postgres, migrationsFS(), "up", nil); err != nil {
+		return fmt.Errorf("auto-migrate: %w", err)
+	}
+	return nil
+}
+
 func runVersion() error {
 	fmt.Printf("memoh-server %s\n", version.GetInfo())
 	return nil

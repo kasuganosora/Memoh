@@ -81,6 +81,7 @@ import (
 	"github.com/memohai/memoh/internal/memory/dream"
 	"github.com/memohai/memoh/internal/memory/memllm"
 	"github.com/memohai/memoh/internal/memory/profiles"
+	"github.com/memohai/memoh/internal/memory/scene"
 	storefs "github.com/memohai/memoh/internal/memory/storefs"
 	"github.com/memohai/memoh/internal/message"
 	"github.com/memohai/memoh/internal/message/event"
@@ -946,8 +947,32 @@ func (a *dreamRuntimeAdapter) GetAll(ctx context.Context, req dream.GetAllReques
 	if err != nil {
 		return dream.GetAllResponse{}, err
 	}
-	items := make([]dream.MemoryItem, len(resp.Results))
-	for i, r := range resp.Results {
+	items := make([]dream.MemoryItem, 0, len(resp.Results))
+	for _, r := range resp.Results {
+		// Parse timestamps for filtering.
+		var createdAt time.Time
+		if t, err := time.Parse(time.RFC3339, r.CreatedAt); err == nil {
+			createdAt = t
+		}
+		var updatedAt time.Time
+		if r.UpdatedAt != "" {
+			if t, err := time.Parse(time.RFC3339, r.UpdatedAt); err == nil {
+				updatedAt = t
+			}
+		}
+
+		// Client-side Since filter: skip memories older than req.Since.
+		// A memory passes if its CreatedAt OR UpdatedAt is after Since.
+		if !req.Since.IsZero() {
+			latest := createdAt
+			if updatedAt.After(latest) {
+				latest = updatedAt
+			}
+			if !latest.IsZero() && latest.Before(req.Since) {
+				continue
+			}
+		}
+
 		// Normalize ID: ensure it has the "botID:" prefix expected by Update.
 		// Legacy memories may have plain IDs like "mem_20260516_005" without
 		// the botID prefix. Skip these since they cannot be updated.
@@ -964,14 +989,12 @@ func (a *dreamRuntimeAdapter) GetAll(ctx context.Context, req dream.GetAllReques
 			// If neither BotID is available, keep the plain ID — Update will
 			// gracefully fail and log a warning.
 		}
-		items[i] = dream.MemoryItem{
-			ID:       id,
-			Memory:   r.Memory,
-			Metadata: r.Metadata,
-		}
-		if t, err := time.Parse(time.RFC3339, r.CreatedAt); err == nil {
-			items[i].CreatedAt = t
-		}
+		items = append(items, dream.MemoryItem{
+			ID:        id,
+			Memory:    r.Memory,
+			Metadata:  r.Metadata,
+			CreatedAt: createdAt,
+		})
 	}
 	return dream.GetAllResponse{Results: items}, nil
 }
@@ -1025,7 +1048,7 @@ func (a *dreamLLMAdapter) GenerateText(ctx context.Context, systemPrompt, userPr
 	return strings.TrimSpace(result.Text), nil
 }
 
-func provideDreamService(log *slog.Logger, defaultProvider *membuiltin.BuiltinProvider, a *agentpkg.Agent, modelsService *models.Service, settingsService *settings.Service, queries *dbsqlc.Queries) *dream.Service {
+func provideDreamService(log *slog.Logger, defaultProvider *membuiltin.BuiltinProvider, a *agentpkg.Agent, modelsService *models.Service, settingsService *settings.Service, queries *dbsqlc.Queries, pool *pgxpool.Pool) *dream.Service {
 	if defaultProvider == nil || a == nil {
 		return nil
 	}
@@ -1037,7 +1060,69 @@ func provideDreamService(log *slog.Logger, defaultProvider *membuiltin.BuiltinPr
 		agent:         a,
 		modelProvider: modelProvider,
 	}, log)
-	return dream.New(runtime, llm, log)
+	svc := dream.New(runtime, llm, log)
+
+	// Wire scene store for Task 4 (scene aggregation).
+	if pool != nil {
+		sceneBackend := scene.NewPostgresBackend(pool)
+		sceneStore := scene.NewVectorStore(sceneBackend, log)
+		svc.SetSceneStore(&dreamSceneStoreAdapter{store: sceneStore})
+	}
+
+	return svc
+}
+
+// dreamSceneStoreAdapter adapts scene.Store to dream.SceneStore.
+type dreamSceneStoreAdapter struct {
+	store scene.Store
+}
+
+func (a *dreamSceneStoreAdapter) List(ctx context.Context, botID string) ([]dream.SceneEntry, error) {
+	scenes, err := a.store.List(ctx, botID)
+	if err != nil {
+		return nil, err
+	}
+	entries := make([]dream.SceneEntry, len(scenes))
+	for i, s := range scenes {
+		entries[i] = dream.SceneEntry{
+			ID:        s.ID,
+			BotID:     s.BotID,
+			Title:     s.Title,
+			Summary:   s.Summary,
+			HeatScore: s.HeatScore,
+			MemoryIDs: s.MemoryIDs,
+		}
+	}
+	return entries, nil
+}
+
+func (a *dreamSceneStoreAdapter) Create(ctx context.Context, entry dream.SceneEntry) (string, error) {
+	created, err := a.store.Create(ctx, scene.Scene{
+		BotID:     entry.BotID,
+		Title:     entry.Title,
+		Summary:   entry.Summary,
+		HeatScore: entry.HeatScore,
+		MemoryIDs: entry.MemoryIDs,
+	})
+	if err != nil {
+		return "", err
+	}
+	return created.ID, nil
+}
+
+func (a *dreamSceneStoreAdapter) Update(ctx context.Context, entry dream.SceneEntry) error {
+	return a.store.Update(ctx, scene.Scene{
+		ID:        entry.ID,
+		BotID:     entry.BotID,
+		Title:     entry.Title,
+		Summary:   entry.Summary,
+		HeatScore: entry.HeatScore,
+		MemoryIDs: entry.MemoryIDs,
+	})
+}
+
+func (a *dreamSceneStoreAdapter) Delete(ctx context.Context, sceneID string) error {
+	return a.store.Delete(ctx, sceneID)
 }
 
 func startDreamScheduler(lc fx.Lifecycle, log *slog.Logger, dreamService *dream.Service, queries *dbsqlc.Queries) {
@@ -1064,6 +1149,26 @@ func runDreamDaily(ctx context.Context, log *slog.Logger, ds *dream.Service, que
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGUSR1)
 	defer signal.Stop(sigCh)
+
+	// Catch-up: if this process started after today's midnight but within the
+	// catch-up window, run dream once. The 2-minute cold-start delay prevents
+	// crash-loop scenarios from hammering the LLM — if the process can't stay
+	// alive for 2 minutes, it's in a crash loop and we skip the catch-up.
+	now := time.Now()
+	todayMidnight := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	sinceLastMidnight := now.Sub(todayMidnight)
+	if sinceLastMidnight > 0 && sinceLastMidnight < 12*time.Hour {
+		log.Info("dream scheduler: cold-start delay before catch-up",
+			slog.Duration("since_midnight", sinceLastMidnight),
+		)
+		select {
+		case <-time.After(2 * time.Minute):
+			log.Info("dream scheduler: startup catch-up (missed today's midnight)")
+			runDreamForAllBots(ctx, log, ds, queries)
+		case <-ctx.Done():
+			return
+		}
+	}
 
 	for {
 		// Calculate duration until next midnight.
