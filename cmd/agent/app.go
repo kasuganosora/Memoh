@@ -1026,6 +1026,15 @@ func (a *dreamRuntimeAdapter) Update(ctx context.Context, memoryID, newText stri
 	return err
 }
 
+func (*dreamRuntimeAdapter) UpdateMetadata(_ context.Context, _ string, _ map[string]any) error {
+	// The current Provider interface does not support metadata-only updates.
+	// To avoid breaking the build, this is a no-op for now. The association tags
+	// are computed and logged but not persisted until the Provider interface
+	// exposes a metadata-update endpoint.
+	// TODO: once Provider gains UpdateMetadata, delegate to it here.
+	return nil
+}
+
 // dreamLLMAdapter adapts budgetModelProvider to dream.PromptLLM.
 type dreamLLMAdapter struct {
 	agent         *agentpkg.Agent

@@ -201,6 +201,7 @@ func TestSendDirectMisskeyAutoInjectsReplyTo(t *testing.T) {
 		BotID:           "bot_1",
 		CurrentPlatform: "misskey",
 		ReplyTarget:     "note-abc123",
+		IsMentioned:     true,
 	}
 
 	_, err := exec.SendDirect(context.Background(), session, "note-abc123", map[string]any{

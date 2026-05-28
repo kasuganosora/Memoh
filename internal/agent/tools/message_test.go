@@ -52,6 +52,7 @@ func TestExecSend_DiscussMode_AutoInjectsReplyTo(t *testing.T) {
 		SessionType:     "discuss",
 		CurrentPlatform: "misskey",
 		ReplyTarget:     "note-target-123",
+		IsMentioned:     true,
 	}
 
 	args := map[string]any{"text": "hello world"}
@@ -176,6 +177,32 @@ func TestExecSend_DiscussMode_NoInjectWhenReplyTargetEmpty(t *testing.T) {
 	}
 }
 
+func TestExecSend_DiscussMode_NoInjectWhenNotMentioned(t *testing.T) {
+	t.Parallel()
+
+	sender := &fakeSender{}
+	p := newTestMessageProvider(sender)
+
+	session := SessionContext{
+		BotID:           "bot-1",
+		SessionID:       "sess-1",
+		SessionType:     "discuss",
+		CurrentPlatform: "misskey",
+		ReplyTarget:     "note-target-123",
+		IsMentioned:     false, // NOT mentioned — should not auto-inject reply_to
+	}
+
+	args := map[string]any{"text": "hello", "target": "some-target"}
+	_, err := p.execSend(context.Background(), session, args)
+	if err != nil {
+		t.Fatalf("execSend returned error: %v", err)
+	}
+
+	if sender.req.Message.Reply != nil {
+		t.Fatalf("expected no Reply when IsMentioned is false, got %+v", sender.req.Message.Reply)
+	}
+}
+
 func TestExecReply_DiscussMode_AutoInjectsReplyTo(t *testing.T) {
 	t.Parallel()
 
@@ -190,6 +217,7 @@ func TestExecReply_DiscussMode_AutoInjectsReplyTo(t *testing.T) {
 		SessionType:     "discuss",
 		CurrentPlatform: "misskey",
 		ReplyTarget:     "note-reply-target",
+		IsMentioned:     true,
 	}
 
 	args := map[string]any{"reasoning": "I want to say hello"}

@@ -16,6 +16,10 @@ type MemoryRuntime interface {
 	GetAll(ctx context.Context, req GetAllRequest) (GetAllResponse, error)
 	Delete(ctx context.Context, memoryID string) (DeleteResponse, error)
 	Update(ctx context.Context, memoryID, newText string) error
+	// UpdateMetadata sets metadata fields on a memory without changing its text
+	// content or re-embedding it. Used for association tags and other annotations
+	// that should not pollute the embedding vector.
+	UpdateMetadata(ctx context.Context, memoryID string, metadata map[string]any) error
 }
 
 // SearchRequest is a simplified search input.
@@ -305,6 +309,12 @@ func (s *Service) mergeSimilar(ctx context.Context, botID string, filters map[st
 			continue
 		}
 
+		// Skip profile memories — they are now upserted (single entry per user)
+		// so they should never appear as duplicates. Also skip heartbeat noise.
+		if strings.HasPrefix(text, "[profile]") || isHeartbeatNoiseForMerge(text) {
+			continue
+		}
+
 		// Use the memory text itself as a search query to find semantically similar ones.
 		searchResp, err := s.runtime.Search(ctx, SearchRequest{
 			Query:   text,
@@ -535,60 +545,45 @@ func (s *Service) strengthenAssociations(ctx context.Context, botID string, filt
 		}
 	}
 
-	// Write cross-reference tags back into each memory's text.
-	// Format: appended line "[↗ {label}: {first 40 chars of related memory}]"
+	// Write cross-reference associations into metadata rather than appending
+	// tags to the memory text body. Text-body tags like "[↗ label: preview]"
+	// pollute the embedding vector and degrade retrieval quality.
 	for memIdx, links := range assocMap {
 		if memIdx >= len(items) {
 			continue
 		}
 		item := items[memIdx]
 
-		existing := strings.TrimSpace(item.Memory)
-		// Skip if already has association tags (idempotent).
-		// Check trailing lines rather than a simple substring match to avoid
-		// false positives when the memory content itself contains "[↗".
-		if hasAssociationTags(existing) {
-			continue
-		}
-
-		var sb strings.Builder
-		sb.WriteString(existing)
-		sb.WriteString("\n\n")
-
 		seen := make(map[int]bool)
-		added := 0
+		assocEntries := make([]map[string]string, 0, len(links))
 		for _, l := range links {
 			if l.to >= len(items) || seen[l.to] {
 				continue
 			}
 			seen[l.to] = true
 
-			preview := items[l.to].Memory
-			if len(preview) > 40 {
-				preview = preview[:40] + "…"
-			}
-			sb.WriteString("[↗ ")
-			sb.WriteString(l.label)
-			sb.WriteString(": ")
-			sb.WriteString(preview)
-			sb.WriteString("]\n")
-			added++
+			assocEntries = append(assocEntries, map[string]string{
+				"related_id": items[l.to].ID,
+				"label":      l.label,
+			})
 		}
 
-		if added == 0 {
+		if len(assocEntries) == 0 {
 			continue
 		}
 
-		newText := sb.String()
-		if err := s.runtime.Update(ctx, item.ID, newText); err != nil {
+		metadata := map[string]any{
+			"associations": assocEntries,
+		}
+		if err := s.runtime.UpdateMetadata(ctx, item.ID, metadata); err != nil {
 			s.logger.Warn(
-				"dream: update association tags failed",
+				"dream: update association metadata failed",
 				slog.String("id", item.ID),
 				slog.Any("error", err),
 			)
 			continue
 		}
-		res.Written += added
+		res.Written += len(assocEntries)
 	}
 
 	if res.Written > 0 {
@@ -603,29 +598,18 @@ func (s *Service) strengthenAssociations(ctx context.Context, botID string, filt
 	return res
 }
 
-// hasAssociationTags checks whether a memory already has cross-reference tags
-// appended at the end. Instead of a naive substring search (which would false-
-// positive on memory content that happens to contain "[↗"), it inspects the
-// trailing lines of the text for the expected tag prefix pattern.
-func hasAssociationTags(text string) bool {
-	lines := strings.Split(text, "\n")
-	for i := len(lines) - 1; i >= 0; i-- {
-		line := strings.TrimSpace(lines[i])
-		if line == "" {
-			continue
-		}
-		if strings.HasPrefix(line, "[↗ ") && strings.HasSuffix(line, "]") {
-			return true
-		}
-		return false
-	}
-	return false
-}
-
 // truncateForLog truncates a string to maxLen for use in log messages.
 func truncateForLog(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s
 	}
 	return s[:maxLen] + "…"
+}
+
+// isHeartbeatNoiseForMerge delegates to the stricter isHeartbeatNoise (defined
+// in scene_aggregation.go) to avoid false positives on legitimate memories that
+// happen to contain the word "heartbeat" (e.g., "discussed Apple Watch heartbeat
+// monitor feature").
+func isHeartbeatNoiseForMerge(text string) bool {
+	return isHeartbeatNoise(text)
 }

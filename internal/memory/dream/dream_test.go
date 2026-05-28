@@ -14,14 +14,16 @@ import (
 // --- fake runtime ---
 
 type fakeDreamRuntime struct {
-	items   map[string]MemoryItem
-	updates map[string]string // track what was updated
+	items    map[string]MemoryItem
+	updates  map[string]string         // track text updates
+	metadata map[string]map[string]any // track metadata updates
 }
 
 func newFakeDreamRuntime(items ...MemoryItem) *fakeDreamRuntime {
 	rt := &fakeDreamRuntime{
-		items:   make(map[string]MemoryItem),
-		updates: make(map[string]string),
+		items:    make(map[string]MemoryItem),
+		updates:  make(map[string]string),
+		metadata: make(map[string]map[string]any),
 	}
 	for _, m := range items {
 		rt.items[m.ID] = m
@@ -58,6 +60,11 @@ func (r *fakeDreamRuntime) Update(_ context.Context, memoryID, newText string) e
 		item.Memory = newText
 		r.items[memoryID] = item
 	}
+	return nil
+}
+
+func (r *fakeDreamRuntime) UpdateMetadata(_ context.Context, memoryID string, meta map[string]any) error {
+	r.metadata[memoryID] = meta
 	return nil
 }
 
@@ -108,17 +115,29 @@ func TestStrengthenAssociations_Success(t *testing.T) {
 
 	assert.Equal(t, 2, result.Associations)
 
-	// Verify the memories were updated with cross-reference tags
-	updated1 := rt.updates["1"]
-	assert.Contains(t, updated1, "[↗ same_topic:")
-	assert.Contains(t, updated1, "high contrast")
+	// Verify associations are stored in metadata, not text body
+	meta1 := rt.metadata["1"]
+	require.NotNil(t, meta1, "memory 1 should have metadata update")
+	assocs1, ok := meta1["associations"]
+	require.True(t, ok, "metadata should contain 'associations' key")
+	assocSlice1, ok := assocs1.([]map[string]string)
+	require.True(t, ok)
+	assert.Equal(t, "2", assocSlice1[0]["related_id"])
+	assert.Equal(t, "same_topic", assocSlice1[0]["label"])
 
-	updated3 := rt.updates["3"]
-	assert.Contains(t, updated3, "[↗ related:")
+	meta3 := rt.metadata["3"]
+	require.NotNil(t, meta3, "memory 3 should have metadata update")
+	assocs3 := meta3["associations"].([]map[string]string)
+	assert.Equal(t, "4", assocs3[0]["related_id"])
+
+	// Memory text should NOT be modified
+	_, textUpdated := rt.updates["1"]
+	assert.False(t, textUpdated, "memory text should not be modified by associations")
 }
 
 func TestStrengthenAssociations_Idempotent(t *testing.T) {
-	// Memory already has association tags — should NOT be updated again.
+	// Memory already has old-style association tags in text — new code should
+	// NOT modify the text and should write associations to metadata instead.
 	rt := newFakeDreamRuntime(
 		MemoryItem{ID: "1", Memory: "User prefers dark mode\n\n[↗ same_topic: User wants high contrast UI]"},
 		MemoryItem{ID: "2", Memory: "User wants high contrast UI"},
@@ -131,11 +150,16 @@ func TestStrengthenAssociations_Idempotent(t *testing.T) {
 	}
 
 	svc := New(rt, llm, slog.Default())
-	svc.Run(context.Background(), "bot-1", RunOptions{})
+	result := svc.Run(context.Background(), "bot-1", RunOptions{})
 
-	// Memory 1 should NOT have a second set of tags
-	updated := rt.updates["1"]
-	assert.Empty(t, updated, "should not update already-tagged memory")
+	// Associations should be written to metadata
+	assert.Equal(t, 1, result.Associations)
+	meta1 := rt.metadata["1"]
+	require.NotNil(t, meta1)
+
+	// Memory text should NOT be modified
+	_, textUpdated := rt.updates["1"]
+	assert.False(t, textUpdated, "memory text should not be modified")
 }
 
 func TestStrengthenAssociations_NoLLM(t *testing.T) {
@@ -181,15 +205,22 @@ func TestStrengthenAssociations_CrossReferenceContent(t *testing.T) {
 
 	assert.Equal(t, 2, result.Associations)
 
-	// Memory 0 should have TWO cross-references
-	updated0 := rt.updates["1"]
-	assert.Contains(t, updated0, "[↗ example_of:")
-	assert.Contains(t, updated0, "[↗ supports:")
-	assert.Contains(t, updated0, "prefers Asian") // preview of memory 1
-	assert.Contains(t, updated0, "visits tea")    // preview of memory 2
+	// Memory 0 should have TWO cross-references in metadata
+	meta1 := rt.metadata["1"]
+	require.NotNil(t, meta1, "memory 1 should have metadata update")
+	assocs := meta1["associations"].([]map[string]string)
+	assert.Len(t, assocs, 2)
+
+	// Verify both associations are present
+	labels := map[string]string{}
+	for _, a := range assocs {
+		labels[a["label"]] = a["related_id"]
+	}
+	assert.Equal(t, "2", labels["example_of"])
+	assert.Equal(t, "3", labels["supports"])
 }
 
-func TestStrengthenAssociations_PreviewLength(t *testing.T) {
+func TestStrengthenAssociations_MetadataContainsRelatedIDs(t *testing.T) {
 	rt := newFakeDreamRuntime(
 		MemoryItem{ID: "1", Memory: "short fact"},
 		MemoryItem{ID: "2", Memory: strings.Repeat("very long memory content that exceeds forty characters ", 3)},
@@ -202,12 +233,16 @@ func TestStrengthenAssociations_PreviewLength(t *testing.T) {
 	}
 
 	svc := New(rt, llm, slog.Default())
-	svc.Run(context.Background(), "bot-1", RunOptions{})
+	result := svc.Run(context.Background(), "bot-1", RunOptions{})
 
-	updated := rt.updates["1"]
-	// Preview should be truncated to 40 chars + "…"
-	assert.True(t, strings.HasSuffix(updated, "…]\n") || strings.Contains(updated, "…]"),
-		"preview should be truncated with …")
+	assert.Equal(t, 1, result.Associations)
+
+	// Metadata should contain the actual related memory ID
+	meta1 := rt.metadata["1"]
+	require.NotNil(t, meta1)
+	assocs := meta1["associations"].([]map[string]string)
+	assert.Equal(t, "2", assocs[0]["related_id"])
+	assert.Equal(t, "related", assocs[0]["label"])
 }
 
 func TestMergeResult_IncludesAssociations(t *testing.T) {

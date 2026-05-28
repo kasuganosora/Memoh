@@ -105,10 +105,11 @@ func (s *Service) UpdateFromMessages(ctx context.Context, botID, userID string, 
 
 	// Search for existing profile memories to merge with new signals.
 	var existingTraits, existingFacts []string
+	var existingProfileID string // captured here for upsert later
 	resp, err := s.memProvider.Search(ctx, memprovider.SearchRequest{
-		Query: fmt.Sprintf("user profile traits facts %s", userID),
+		Query: fmt.Sprintf("[profile] user profile traits facts %s", userID),
 		BotID: botID,
-		Limit: 5,
+		Limit: 10,
 	})
 	if err != nil {
 		if s.logger != nil {
@@ -119,6 +120,9 @@ func (s *Service) UpdateFromMessages(ctx context.Context, botID, userID string, 
 		for _, item := range resp.Results {
 			if strings.Contains(item.Memory, "[profile]") {
 				existingTraits = append(existingTraits, item.Memory)
+				if existingProfileID == "" {
+					existingProfileID = strings.TrimSpace(item.ID)
+				}
 			} else {
 				existingFacts = append(existingFacts, item.Memory)
 			}
@@ -198,17 +202,32 @@ func (s *Service) UpdateFromMessages(ctx context.Context, botID, userID string, 
 	}
 
 	// Store profile traits/facts as memory entries for future retrieval.
+	// Upsert pattern: reuse existingProfileID captured during the search loop
+	// above rather than re-scanning resp.Results (which avoids limit-miss bugs).
 	profileText := formatProfileForStorage(profile)
-	_, err = s.memProvider.Add(ctx, memprovider.AddRequest{
-		Message: profileText,
-		BotID:   botID,
-		Metadata: map[string]any{
-			"type":    "user_profile",
-			"user_id": userID,
-		},
-	})
-	if err != nil && s.logger != nil {
-		s.logger.Warn("profile: failed to store profile memory", slog.String("bot_id", botID), slog.Any("error", err))
+
+	if existingProfileID != "" {
+		// Update existing profile memory in-place.
+		_, err = s.memProvider.Update(ctx, memprovider.UpdateRequest{
+			MemoryID: existingProfileID,
+			Memory:   profileText,
+		})
+		if err != nil && s.logger != nil {
+			s.logger.Warn("profile: failed to update profile memory", slog.String("bot_id", botID), slog.String("memory_id", existingProfileID), slog.Any("error", err))
+		}
+	} else {
+		// No existing profile memory — create one.
+		_, err = s.memProvider.Add(ctx, memprovider.AddRequest{
+			Message: profileText,
+			BotID:   botID,
+			Metadata: map[string]any{
+				"type":    "user_profile",
+				"user_id": userID,
+			},
+		})
+		if err != nil && s.logger != nil {
+			s.logger.Warn("profile: failed to store profile memory", slog.String("bot_id", botID), slog.Any("error", err))
+		}
 	}
 
 	return nil

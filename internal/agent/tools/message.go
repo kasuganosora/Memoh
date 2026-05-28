@@ -240,7 +240,10 @@ func (p *MessageProvider) execSend(ctx context.Context, session SessionContext, 
 	// Protection 2: Auto-inject reply_to when the LLM hasn't specified one
 	// and no cross-conversation target is set, automatically thread the
 	// reply under the session's ReplyTarget (the latest triggering note).
+	// Only auto-inject when the bot was explicitly mentioned — otherwise
+	// the bot might reply under unrelated notes on the timeline.
 	if session.SessionType == "discuss" &&
+		session.IsMentioned &&
 		StringArg(args, "reply_to") == "" &&
 		StringArg(args, "target") == "" &&
 		strings.TrimSpace(session.ReplyTarget) != "" {
@@ -399,7 +402,9 @@ func (p *MessageProvider) execReply(ctx context.Context, session SessionContext,
 
 	// Discuss mode auto-inject reply_to: when the bot doesn't specify reply_to,
 	// automatically use the session's ReplyTarget so the reply threads correctly.
-	if replyTo == "" && session.SessionType == "discuss" && strings.TrimSpace(session.ReplyTarget) != "" {
+	// Only auto-inject when the bot was explicitly mentioned — otherwise the
+	// bot might reply under unrelated timeline notes.
+	if replyTo == "" && session.SessionType == "discuss" && session.IsMentioned && strings.TrimSpace(session.ReplyTarget) != "" {
 		replyTo = strings.TrimSpace(session.ReplyTarget)
 		p.logger.Info("reply tool: auto-injected reply_to for discuss mode",
 			slog.String("reply_to", replyTo))
@@ -459,6 +464,7 @@ func toMessagingSession(s SessionContext) messaging.SessionContext {
 		ChatID:          s.ChatID,
 		CurrentPlatform: s.CurrentPlatform,
 		ReplyTarget:     s.ReplyTarget,
+		IsMentioned:     s.IsMentioned,
 	}
 }
 

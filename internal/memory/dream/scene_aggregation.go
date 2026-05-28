@@ -67,10 +67,16 @@ func (s *Service) aggregateScenes(ctx context.Context, botID string, filters map
 		}
 	}
 
-	// Filter to unassigned memories only.
+	// Filter to unassigned memories only, excluding heartbeat noise.
 	var unassigned []MemoryItem
 	for _, item := range items {
 		if _, ok := assignedMemories[item.ID]; !ok {
+			// Skip memories that are purely heartbeat checks — they do not
+			// contribute meaningful scenes and only produce noise like
+			// "Heartbeat Checks on YYYY-MM-DD" scenes.
+			if isHeartbeatNoise(item.Memory) {
+				continue
+			}
 			unassigned = append(unassigned, item)
 		}
 	}
@@ -274,6 +280,33 @@ func containsString(slice []string, s string) bool {
 		if item == s {
 			return true
 		}
+	}
+	return false
+}
+
+// isHeartbeatNoise detects memories that are pure heartbeat check records with
+// no meaningful social interaction content. These memories only produce noise
+// scenes like "Heartbeat Checks on YYYY-MM-DD" and should be excluded from
+// scene aggregation.
+func isHeartbeatNoise(text string) bool {
+	lower := strings.ToLower(strings.TrimSpace(text))
+	// Common heartbeat noise patterns:
+	// "heartbeat check performed at ..." / "heartbeat: all systems normal"
+	// "regular heartbeat — no new activity" / "HEARTBEAT_OK"
+	heartbeatPrefixes := []string{
+		"heartbeat check",
+		"heartbeat: ",
+		"heartbeat_ok",
+		"regular heartbeat",
+	}
+	for _, prefix := range heartbeatPrefixes {
+		if strings.HasPrefix(lower, prefix) {
+			return true
+		}
+	}
+	// Also match "heartbeat" appearing as a dominant keyword in short memories.
+	if len(lower) < 200 && strings.Contains(lower, "heartbeat") && !strings.Contains(lower, "@") {
+		return true
 	}
 	return false
 }

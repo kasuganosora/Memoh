@@ -114,13 +114,14 @@ func (r *Resolver) TriggerHeartbeat(ctx context.Context, botID string, payload h
 	}
 
 	req := conversation.ChatRequest{
-		BotID:     botID,
-		ChatID:    botID,
-		SessionID: payload.SessionID,
-		Query:     "heartbeat",
-		UserID:    payload.OwnerUserID,
-		Token:     token,
-		Model:     heartbeatModel,
+		BotID:       botID,
+		ChatID:      botID,
+		SessionID:   payload.SessionID,
+		Query:       "heartbeat",
+		UserID:      payload.OwnerUserID,
+		Token:       token,
+		Model:       heartbeatModel,
+		SessionType: "heartbeat",
 	}
 	rc, err := r.resolve(ctx, req)
 	if err != nil {
@@ -201,12 +202,13 @@ func (r *Resolver) TriggerHeartbeat(ctx context.Context, botID string, payload h
 	// ---------------------------------------------------------------------------
 
 	alertReq := conversation.ChatRequest{
-		BotID:     botID,
-		ChatID:    botID,
-		SessionID: payload.SessionID,
-		Query:     phase1Text,
-		UserID:    payload.OwnerUserID,
-		Token:     token,
+		BotID:       botID,
+		ChatID:      botID,
+		SessionID:   payload.SessionID,
+		Query:       phase1Text,
+		UserID:      payload.OwnerUserID,
+		Token:       token,
+		SessionType: "heartbeat",
 	}
 	alertRC, err := r.resolve(ctx, alertReq)
 	if err != nil {

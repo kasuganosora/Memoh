@@ -50,6 +50,14 @@ func (r *Resolver) storeRound(ctx context.Context, req conversation.ChatRequest,
 
 	r.storeMessages(ctx, req, filtered, modelID)
 
+	// Skip memory formation and profile updates for heartbeat/schedule sessions.
+	// These sessions produce noise memories (e.g., repeated [profile] duplicates,
+	// "heartbeat check on <date>" entries) that pollute the memory store and
+	// waste dream cycle budget cleaning them up.
+	if req.SessionType == "heartbeat" || req.SessionType == "schedule" {
+		return nil
+	}
+
 	// Resolve memory provider once so both storeMemory and updateProfile share it.
 	p := r.resolveMemoryProvider(ctx, req.BotID)
 	go r.storeMemoryWithProvider(context.WithoutCancel(ctx), req, filtered, p)
