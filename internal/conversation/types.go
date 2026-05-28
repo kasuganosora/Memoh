@@ -233,6 +233,7 @@ type ChatRequest struct {
 	ChatToken               string `json:"-"`
 	ExternalMessageID       string `json:"-"`
 	ReplyTarget             string `json:"-"`
+	IsMentioned             bool   `json:"-"` // true when bot was recently @-mentioned; controls reply_to auto-injection
 	ConversationType        string `json:"-"`
 	ConversationName        string `json:"-"`
 	SessionType             string `json:"-"` // "chat" or "discuss"; empty defaults to "chat"

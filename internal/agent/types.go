@@ -18,6 +18,7 @@ type SessionContext struct {
 	ChannelIdentityID string
 	CurrentPlatform   string
 	ReplyTarget       string
+	IsMentioned       bool
 	ConversationType  string
 	Timezone          string
 	TimezoneLocation  *time.Location

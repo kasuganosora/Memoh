@@ -363,6 +363,7 @@ func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (r
 		ChannelIdentityID: req.SourceChannelIdentityID,
 		CurrentPlatform:   req.CurrentChannel,
 		ReplyTarget:       req.ReplyTarget,
+		IsMentioned:       req.IsMentioned,
 		ConversationType:  req.ConversationType,
 		SessionToken:      req.ChatToken,
 		SessionType:       sessionType,
@@ -686,6 +687,7 @@ type baseRunConfigParams struct {
 	ChannelIdentityID string
 	CurrentPlatform   string
 	ReplyTarget       string
+	IsMentioned       bool
 	ConversationType  string
 	SessionToken      string //nolint:gosec // session credential material, not a hardcoded secret
 	SessionType       string
@@ -774,6 +776,7 @@ func (r *Resolver) buildBaseRunConfig(ctx context.Context, p baseRunConfigParams
 			ChannelIdentityID: strings.TrimSpace(p.ChannelIdentityID),
 			CurrentPlatform:   p.CurrentPlatform,
 			ReplyTarget:       strings.TrimSpace(p.ReplyTarget),
+			IsMentioned:       p.IsMentioned,
 			ConversationType:  strings.TrimSpace(p.ConversationType),
 			Timezone:          userTimezoneName,
 			TimezoneLocation:  userClockLocation,

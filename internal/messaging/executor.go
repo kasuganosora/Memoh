@@ -18,6 +18,7 @@ type SessionContext struct {
 	ChatID          string
 	CurrentPlatform string
 	ReplyTarget     string
+	IsMentioned     bool
 }
 
 // Sender sends outbound messages through a channel manager.
@@ -105,7 +106,10 @@ func (e *Executor) SendDirect(ctx context.Context, session SessionContext, targe
 	// Misskey reply fallback: when reply_to is not explicitly set and the session
 	// has a ReplyTarget on the Misskey platform, automatically inject it so the
 	// message is sent as a threaded reply rather than an independent note.
-	if strings.EqualFold(strings.TrimSpace(session.CurrentPlatform), "misskey") &&
+	// Only auto-inject when the bot was explicitly mentioned — otherwise the
+	// bot might reply under unrelated timeline notes.
+	if session.IsMentioned &&
+		strings.EqualFold(strings.TrimSpace(session.CurrentPlatform), "misskey") &&
 		firstStringArg(args, "reply_to") == "" &&
 		strings.TrimSpace(session.ReplyTarget) != "" &&
 		(target == "" || target == strings.TrimSpace(session.ReplyTarget)) {

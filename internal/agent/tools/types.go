@@ -80,6 +80,7 @@ type SessionContext struct {
 	SessionToken       string //nolint:gosec // carries session credential material at runtime
 	CurrentPlatform    string
 	ReplyTarget        string
+	IsMentioned        bool
 	SupportsImageInput bool
 	IsSubagent         bool
 	Skills             map[string]SkillDetail

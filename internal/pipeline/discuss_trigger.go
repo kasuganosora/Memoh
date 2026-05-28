@@ -626,6 +626,7 @@ func (d *DiscussTrigger) handleReplyWithAgent(ctx context.Context, sess *discuss
 			SessionID:                cfg.SessionID,
 			SourceChannelIdentityID:  cfg.ChannelIdentityID,
 			ReplyTarget:              cfg.ReplyTarget,
+			IsMentioned:              isMentioned,
 			CurrentChannel:           cfg.CurrentPlatform,
 			ConversationType:         cfg.ConversationType,
 			ConversationName:         cfg.ConversationName,
