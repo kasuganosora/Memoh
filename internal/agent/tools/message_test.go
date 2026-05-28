@@ -192,7 +192,7 @@ func TestExecSend_DiscussMode_NoInjectWhenNotMentioned(t *testing.T) {
 		IsMentioned:     false, // NOT mentioned — should not auto-inject reply_to
 	}
 
-	args := map[string]any{"text": "hello", "target": "some-target"}
+	args := map[string]any{"text": "hello"}
 	_, err := p.execSend(context.Background(), session, args)
 	if err != nil {
 		t.Fatalf("execSend returned error: %v", err)
