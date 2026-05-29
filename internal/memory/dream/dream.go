@@ -63,6 +63,7 @@ type MemoryItem struct {
 	Memory    string         `json:"memory"`
 	CreatedAt time.Time      `json:"created_at"`
 	Metadata  map[string]any `json:"metadata,omitempty"`
+	Score     float64        `json:"score,omitempty"` // embedding similarity score from Search (0.0-1.0)
 }
 
 // DreamLLM is the LLM interface needed for merging decisions.
@@ -146,9 +147,9 @@ type MemoryMergeConfig struct {
 }
 
 var defaultMergeConfig = MemoryMergeConfig{
-	SimilarityThreshold: 0.9,
-	MaxMergesPerCycle:   10, // cap total merges per cycle
-	MaxCandidatesPerMem: 3,  // search top-3 similar for each new memory
+	SimilarityThreshold: 0.75, // pre-filter: skip LLM call for low-similarity candidates
+	MaxMergesPerCycle:   10,   // cap total merges per cycle
+	MaxCandidatesPerMem: 3,    // search top-3 similar for each new memory
 	QueryPrefix:         "memory maintenance",
 }
 
@@ -201,6 +202,7 @@ func (s *Service) Run(ctx context.Context, botID string, opts RunOptions) MergeR
 		slog.String("bot_id", botID),
 		slog.Int("scanned", mergeRes.Scanned),
 		slog.Int("merged", mergeRes.Merged),
+		slog.Int("score_filtered", mergeRes.ScoreFiltered),
 		slog.Duration("duration", time.Since(t1Start)),
 	)
 
@@ -262,8 +264,9 @@ func (s *Service) Run(ctx context.Context, botID string, opts RunOptions) MergeR
 }
 
 type mergeTaskResult struct {
-	Scanned int
-	Merged  int
+	Scanned       int
+	Merged        int
+	ScoreFiltered int // candidates skipped due to low embedding similarity
 }
 
 // mergeSimilar finds and merges near-duplicate memories using semantic search.
@@ -341,6 +344,14 @@ func (s *Service) mergeSimilar(ctx context.Context, botID string, filters map[st
 			}
 			candidateText := strings.TrimSpace(candidate.Memory)
 			if candidateText == "" {
+				continue
+			}
+
+			// Pre-filter by embedding similarity score: if the search returned a
+			// score below our threshold, skip the expensive LLM ShouldMerge call.
+			// Score of 0 means the provider didn't return scores (fallback to LLM).
+			if candidate.Score > 0 && candidate.Score < cfg.SimilarityThreshold {
+				res.ScoreFiltered++
 				continue
 			}
 

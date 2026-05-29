@@ -106,25 +106,51 @@ func (s *Service) UpdateFromMessages(ctx context.Context, botID, userID string, 
 	// Search for existing profile memories to merge with new signals.
 	var existingTraits, existingFacts []string
 	var existingProfileID string // captured here for upsert later
-	resp, err := s.memProvider.Search(ctx, memprovider.SearchRequest{
-		Query: fmt.Sprintf("[profile] user profile traits facts %s", userID),
+
+	// First try precise lookup via metadata filter (avoids Search limit-miss bugs
+	// when embedding similarity doesn't return the profile entry in top-K).
+	getAllResp, err := s.memProvider.GetAll(ctx, memprovider.GetAllRequest{
 		BotID: botID,
-		Limit: 10,
+		Limit: 5,
+		Filters: map[string]any{
+			"type":    "user_profile",
+			"user_id": userID,
+		},
 	})
-	if err != nil {
-		if s.logger != nil {
-			s.logger.Warn("profile: existing memory search failed", slog.String("bot_id", botID), slog.Any("error", err))
-		}
-	}
-	if resp.Results != nil {
-		for _, item := range resp.Results {
+	if err == nil {
+		for _, item := range getAllResp.Results {
 			if strings.Contains(item.Memory, "[profile]") {
 				existingTraits = append(existingTraits, item.Memory)
 				if existingProfileID == "" {
 					existingProfileID = strings.TrimSpace(item.ID)
 				}
-			} else {
-				existingFacts = append(existingFacts, item.Memory)
+			}
+		}
+	}
+
+	// Fallback: embedding search if metadata filter found nothing (backward compat
+	// with profile memories created before metadata was added).
+	if existingProfileID == "" {
+		resp, err := s.memProvider.Search(ctx, memprovider.SearchRequest{
+			Query: fmt.Sprintf("[profile] user profile traits facts %s", userID),
+			BotID: botID,
+			Limit: 10,
+		})
+		if err != nil {
+			if s.logger != nil {
+				s.logger.Warn("profile: existing memory search failed", slog.String("bot_id", botID), slog.Any("error", err))
+			}
+		}
+		if resp.Results != nil {
+			for _, item := range resp.Results {
+				if strings.Contains(item.Memory, "[profile]") {
+					existingTraits = append(existingTraits, item.Memory)
+					if existingProfileID == "" {
+						existingProfileID = strings.TrimSpace(item.ID)
+					}
+				} else {
+					existingFacts = append(existingFacts, item.Memory)
+				}
 			}
 		}
 	}
