@@ -2,6 +2,7 @@ package builtin
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"sync"
 	"time"
@@ -15,6 +16,11 @@ const (
 
 	// maxRetries is the maximum number of retries for a failed formation batch.
 	maxRetries = 3
+
+	// retryBackoffBase is the base duration for exponential backoff between retries.
+	// Actual backoff = retryBackoffBase * (1 << attempt), capped at retryBackoffMax.
+	retryBackoffBase = 10 * time.Second
+	retryBackoffMax  = 60 * time.Second
 
 	// idleFlushDuration is how long the pipeline waits idle before auto-flushing.
 	idleFlushDuration = 5 * time.Minute
@@ -52,6 +58,16 @@ type FormationPipeline struct {
 	// formationFn is the function called to process a batch of messages.
 	formationFn func(ctx context.Context, req adapters.AfterChatRequest) formationResult
 
+	// dlqStore is the optional dead-letter-queue for failed batches.
+	// When set, discarded batches are persisted for later retry instead of being lost.
+	dlqStore PipelineDLQStore
+
+	// botID is needed for DLQ writes (set via SetDLQ).
+	botID string
+
+	// retryBackoff overrides retryBackoffBase for testing. Zero means use default.
+	retryBackoff time.Duration
+
 	logger *slog.Logger
 }
 
@@ -67,6 +83,15 @@ func NewFormationPipeline(logger *slog.Logger, fn func(ctx context.Context, req 
 		logger:      logger,
 	}
 	return p
+}
+
+// SetDLQ injects the dead-letter-queue store and bot ID. When set, batches that
+// fail after max retries are persisted to the DLQ instead of being discarded.
+func (p *FormationPipeline) SetDLQ(store PipelineDLQStore, botID string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.dlqStore = store
+	p.botID = botID
 }
 
 // Enqueue adds a new AfterChat request to the buffer. If the buffer size
@@ -175,6 +200,8 @@ func (p *FormationPipeline) processBatch(batch []adapters.AfterChatRequest) {
 				slog.Int("discarded_messages", countMessages(batch)),
 				slog.Any("last_error", result.Err),
 			)
+			// Write to DLQ if available, so the batch can be retried later.
+			p.enqueueToDLQ(batch, result.Err)
 			return
 		}
 
@@ -185,8 +212,15 @@ func (p *FormationPipeline) processBatch(batch []adapters.AfterChatRequest) {
 			slog.Any("error", result.Err),
 		)
 
-		// Exponential backoff: 1s, 2s, 4s
-		backoff := time.Duration(1<<uint(attempt)) * time.Second
+		// Exponential backoff: gives LLM provider time to recover from transient overload.
+		base := p.retryBackoff
+		if base == 0 {
+			base = retryBackoffBase
+		}
+		backoff := base * time.Duration(1<<uint(attempt))
+		if backoff > retryBackoffMax {
+			backoff = retryBackoffMax
+		}
 		time.Sleep(backoff)
 	}
 }
@@ -283,4 +317,115 @@ func countMessages(batch []adapters.AfterChatRequest) int {
 		total += len(req.Messages)
 	}
 	return total
+}
+
+// enqueueToDLQ persists a failed batch to the dead-letter-queue for later retry.
+func (p *FormationPipeline) enqueueToDLQ(batch []adapters.AfterChatRequest, lastErr error) {
+	if p.dlqStore == nil || p.botID == "" {
+		return
+	}
+
+	merged := mergeBatch(batch)
+	batchJSON, err := json.Marshal(merged)
+	if err != nil {
+		p.logger.Error("formation pipeline: failed to marshal batch for DLQ",
+			slog.Any("error", err),
+		)
+		return
+	}
+
+	errMsg := ""
+	if lastErr != nil {
+		errMsg = lastErr.Error()
+	}
+
+	// Schedule retry after 30 minutes (give LLM provider time to recover).
+	nextRetry := time.Now().Add(30 * time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := p.dlqStore.EnqueueDLQ(ctx, p.botID, batchJSON, errMsg, nextRetry); err != nil {
+		p.logger.Error("formation pipeline: failed to enqueue to DLQ",
+			slog.Any("error", err),
+		)
+	} else {
+		p.logger.Info("formation pipeline: batch saved to DLQ for later retry",
+			slog.Int("messages", countMessages(batch)),
+		)
+	}
+}
+
+// RetryDLQ processes entries from the dead-letter-queue. Called during dream
+// cycles or scheduled maintenance. Returns the number of successfully processed entries.
+func (p *FormationPipeline) RetryDLQ(ctx context.Context) int {
+	if p.dlqStore == nil || p.botID == "" {
+		return 0
+	}
+
+	const maxDLQBatch = 5
+	const maxDLQAttempts = 10
+
+	entries, err := p.dlqStore.DequeueDLQ(ctx, p.botID, maxDLQBatch)
+	if err != nil {
+		p.logger.Warn("formation pipeline: failed to dequeue DLQ",
+			slog.Any("error", err),
+		)
+		return 0
+	}
+
+	if len(entries) == 0 {
+		return 0
+	}
+
+	p.logger.Info("formation pipeline: retrying DLQ entries",
+		slog.Int("count", len(entries)),
+	)
+
+	processed := 0
+	for _, entry := range entries {
+		var merged adapters.AfterChatRequest
+		if err := json.Unmarshal(entry.BatchJSON, &merged); err != nil {
+			p.logger.Warn("formation pipeline: DLQ entry unmarshal failed, deleting",
+				slog.Int64("dlq_id", entry.ID),
+				slog.Any("error", err),
+			)
+			_ = p.dlqStore.DeleteDLQEntry(ctx, entry.ID)
+			continue
+		}
+
+		result := p.formationFn(ctx, merged)
+		allZero := result.ExtractedFacts == 0 && result.Added == 0 && result.Updated == 0 && result.Deleted == 0 && result.Skipped == 0
+
+		if !allZero || result.Err == nil {
+			// Success — remove from DLQ.
+			_ = p.dlqStore.DeleteDLQEntry(ctx, entry.ID)
+			processed++
+			p.logger.Info("formation pipeline: DLQ entry processed successfully",
+				slog.Int64("dlq_id", entry.ID),
+			)
+		} else {
+			// Still failing — bump attempts or discard if too old.
+			newAttempts := entry.Attempts + 1
+			if newAttempts >= maxDLQAttempts {
+				p.logger.Warn("formation pipeline: DLQ entry exceeded max attempts, discarding",
+					slog.Int64("dlq_id", entry.ID),
+					slog.Int("attempts", newAttempts),
+				)
+				_ = p.dlqStore.DeleteDLQEntry(ctx, entry.ID)
+			} else {
+				// Exponential backoff: 30m * 2^attempts (capped at 24h).
+				if newAttempts > 20 {
+					newAttempts = 20 // prevent overflow
+				}
+				backoff := 30 * time.Minute * time.Duration(1<<uint(newAttempts)) //nolint:gosec
+				if backoff > 24*time.Hour {
+					backoff = 24 * time.Hour
+				}
+				nextRetry := time.Now().Add(backoff)
+				_ = p.dlqStore.UpdateDLQEntry(ctx, entry.ID, newAttempts, nextRetry)
+			}
+		}
+	}
+
+	return processed
 }

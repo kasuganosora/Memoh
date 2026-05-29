@@ -162,4 +162,9 @@ type discussSession struct {
 	idleCompensate   *chattiming.IdleCompensator
 	cachedProbeModel *agentpkg.RunConfig
 	msgIntervals     []time.Duration
+
+	// Timing gate failure tracking: after 2 consecutive failures,
+	// disable the gate for this session to avoid repeated waste.
+	gateFailCount int
+	gateDisabled  bool
 }

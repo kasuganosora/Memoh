@@ -930,6 +930,7 @@ func (a *dreamRuntimeAdapter) Search(ctx context.Context, req dream.SearchReques
 			ID:       r.ID,
 			Memory:   r.Memory,
 			Metadata: r.Metadata,
+			Score:    r.Score,
 		}
 		if t, err := time.Parse(time.RFC3339, r.CreatedAt); err == nil {
 			items[i].CreatedAt = t

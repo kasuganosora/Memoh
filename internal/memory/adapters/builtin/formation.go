@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	formationTimeout       = 90 * time.Second // overall safety-net timeout
-	extractTimeout         = 45 * time.Second // independent timeout for Extract LLM call
-	decideTimeout          = 45 * time.Second // independent timeout for Decide LLM call
+	formationTimeout       = 120 * time.Second // overall safety-net timeout
+	extractTimeout         = 60 * time.Second  // independent timeout for Extract LLM call
+	decideTimeout          = 60 * time.Second  // independent timeout for Decide LLM call
 	candidateSearchLimit   = 20
 	candidateGetAllLimit   = 50
 	maxCandidatesPerDecide = 30

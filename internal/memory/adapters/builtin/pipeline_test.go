@@ -138,13 +138,13 @@ func TestFormationPipeline_RetryAndDiscard(t *testing.T) {
 	}
 
 	p := NewFormationPipeline(nil, fn)
+	p.retryBackoff = 1 * time.Millisecond // fast retries for testing
 	defer p.Stop()
 
 	// First enqueue triggers immediately (threshold=1).
 	p.Enqueue(adapters.AfterChatRequest{BotID: "bot1", Messages: []adapters.Message{{Role: "user", Content: "fail"}}})
-	// processBatch is called in a goroutine and retries 2 more times with 1s + 2s backoff.
-	// Wait enough time for all 3 attempts + backoffs.
-	time.Sleep(4 * time.Second)
+	// processBatch is called in a goroutine and retries with minimal backoff in tests.
+	time.Sleep(500 * time.Millisecond)
 
 	// After 3 failures (maxRetries = 3), the batch should be discarded.
 	if got := callCount.Load(); got != 3 {

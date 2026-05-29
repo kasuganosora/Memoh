@@ -411,7 +411,8 @@ func (d *DiscussTrigger) handleReply(ctx context.Context, sess *discussSession, 
 	}
 
 	// Smart timing: timing gate — lightweight LLM check before full agent call.
-	if sess.timingGate != nil && sess.chatTimingCfg.TimingGate && !isMentioned {
+	// Skip if gate has been disabled due to consecutive failures this session.
+	if sess.timingGate != nil && sess.chatTimingCfg.TimingGate && !isMentioned && !sess.gateDisabled {
 		log.Info("discuss_step: entering timing gate",
 			slog.String("step", "timing_gate_enter"),
 			slog.Duration("step_duration", time.Since(handleReplyStart)))
@@ -446,6 +447,12 @@ func (d *DiscussTrigger) handleReply(ctx context.Context, sess *discussSession, 
 
 // evaluateTimingGate runs the lightweight LLM timing gate. Returns true if the
 // caller should NOT proceed to the full agent call (no_reply or wait handled).
+//
+// Fail-closed policy: on timeout/error, we do NOT proceed to the agent call
+// (discuss messages are low priority). After 2 consecutive failures, the gate
+// is disabled for the remainder of this session to avoid wasting time on a
+// broken provider. Context cancellation (e.g. server restart) always fails
+// closed immediately without incrementing the counter.
 func (d *DiscussTrigger) evaluateTimingGate(ctx context.Context, sess *discussSession, rc RenderedContext, newMsgCount int, isMentioned bool, log *slog.Logger) bool {
 	gateStart := time.Now()
 	log.Info("discuss_step: timing gate evaluate start",
@@ -476,6 +483,30 @@ func (d *DiscussTrigger) evaluateTimingGate(ctx context.Context, sess *discussSe
 		slog.Int("wait_seconds", result.WaitSeconds),
 		slog.Duration("gate_duration", time.Since(gateStart)))
 
+	// Fail-closed on timeout/error: don't waste an agent call.
+	if isTimingGateFailure(result) {
+		// Context cancellation (server restart, session teardown) — fail closed
+		// immediately, don't count toward the disable threshold.
+		if result.Reason == "context cancelled" {
+			log.Info("chat timing: gate context cancelled (likely restart), skipping",
+				slog.String("reason", result.Reason))
+			return true
+		}
+		sess.gateFailCount++
+		log.Warn("chat timing: gate failed, skipping agent call (fail-closed)",
+			slog.String("reason", result.Reason),
+			slog.Int("consecutive_failures", sess.gateFailCount))
+		if sess.gateFailCount >= 2 {
+			sess.gateDisabled = true
+			log.Warn("chat timing: gate disabled for this session after consecutive failures",
+				slog.Int("fail_count", sess.gateFailCount))
+		}
+		return true
+	}
+
+	// Successful gate evaluation — reset failure counter.
+	sess.gateFailCount = 0
+
 	switch result.Decision {
 	case chattiming.TimingNoReply:
 		log.Info("chat timing: gate decided no_reply", slog.String("reason", result.Reason))
@@ -498,6 +529,20 @@ func (d *DiscussTrigger) evaluateTimingGate(ctx context.Context, sess *discussSe
 				slog.Duration("total_gate_duration", time.Since(gateStart)))
 			return true
 		}
+	}
+	return false
+}
+
+// isTimingGateFailure returns true if the timing gate result indicates a
+// provider failure (timeout, error, stall) rather than a genuine LLM decision.
+func isTimingGateFailure(result chattiming.TimingGateResult) bool {
+	switch result.Reason {
+	case "idle timeout", "timeout", "goroutine timeout", "context cancelled":
+		return true
+	}
+	// Error responses from the LLM stream.
+	if len(result.Reason) > 7 && result.Reason[:7] == "error: " {
+		return true
 	}
 	return false
 }

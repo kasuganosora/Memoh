@@ -122,6 +122,14 @@ func (s *Service) aggregateScenes(ctx context.Context, botID string, filters map
 				continue
 			}
 
+			// Filter out noise scenes that the LLM may produce from system/heartbeat memories.
+			if isNoiseSceneTitle(candidate.Title) {
+				s.logger.Debug("dream: scene candidate rejected as noise",
+					slog.String("title", candidate.Title),
+				)
+				continue
+			}
+
 			// Resolve memory IDs from the candidate.
 			// The LLM returns indices (as string) into the batch; convert to actual IDs.
 			resolvedIDs := resolveMemoryIDs(candidate.MemoryIDs, batch)
@@ -307,6 +315,33 @@ func isHeartbeatNoise(text string) bool {
 	// Also match "heartbeat" appearing as a dominant keyword in short memories.
 	if len(lower) < 200 && strings.Contains(lower, "heartbeat") && !strings.Contains(lower, "@") {
 		return true
+	}
+	return false
+}
+
+// isNoiseSceneTitle detects scene titles that are system noise rather than
+// meaningful user interaction scenes. These are produced when the LLM clusters
+// heartbeat or system monitoring memories that slipped through the per-memory filter.
+func isNoiseSceneTitle(title string) bool {
+	lower := strings.ToLower(strings.TrimSpace(title))
+
+	noisePatterns := []string{
+		"heartbeat",
+		"system monitoring",
+		"system check",
+		"health check",
+		"uptime check",
+		"status check",
+		"keep-alive",
+		"keepalive",
+		"ping check",
+		"cron job",
+		"scheduled task",
+	}
+	for _, pattern := range noisePatterns {
+		if strings.Contains(lower, pattern) {
+			return true
+		}
 	}
 	return false
 }

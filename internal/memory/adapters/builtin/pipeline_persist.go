@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"time"
 
 	adapters "github.com/memohai/memoh/internal/memory/adapters"
 )
@@ -14,6 +15,29 @@ type PipelineStateStore interface {
 	SavePipelineState(ctx context.Context, botID string, bufferJSON []byte, threshold, warmupIndex, retryCount int) error
 	LoadPipelineState(ctx context.Context, botID string) (bufferJSON []byte, threshold, warmupIndex, retryCount int, err error)
 	DeletePipelineState(ctx context.Context, botID string) error
+}
+
+// PipelineDLQStore abstracts dead-letter-queue operations for failed formation batches.
+// Implementations persist discarded batches so they can be retried later (e.g., during
+// the next dream cycle or when the LLM provider recovers).
+type PipelineDLQStore interface {
+	// EnqueueDLQ persists a failed batch for later retry.
+	EnqueueDLQ(ctx context.Context, botID string, batchJSON []byte, errMsg string, nextRetryAt time.Time) error
+	// DequeueDLQ fetches up to `limit` batches ready for retry (next_retry_at <= now).
+	DequeueDLQ(ctx context.Context, botID string, limit int) ([]DLQEntry, error)
+	// DeleteDLQEntry removes a successfully processed DLQ entry.
+	DeleteDLQEntry(ctx context.Context, id int64) error
+	// UpdateDLQEntry bumps attempts and sets next retry time for a failed re-attempt.
+	UpdateDLQEntry(ctx context.Context, id int64, attempts int, nextRetryAt time.Time) error
+}
+
+// DLQEntry represents a single dead-letter-queue item.
+type DLQEntry struct {
+	ID        int64
+	BotID     string
+	BatchJSON []byte
+	Attempts  int
+	CreatedAt time.Time
 }
 
 // Save persists the current pipeline state to the database for crash recovery.

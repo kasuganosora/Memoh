@@ -106,25 +106,51 @@ func (s *Service) UpdateFromMessages(ctx context.Context, botID, userID string, 
 	// Search for existing profile memories to merge with new signals.
 	var existingTraits, existingFacts []string
 	var existingProfileID string // captured here for upsert later
-	resp, err := s.memProvider.Search(ctx, memprovider.SearchRequest{
-		Query: fmt.Sprintf("[profile] user profile traits facts %s", userID),
+
+	// First try precise lookup via metadata filter (avoids Search limit-miss bugs
+	// when embedding similarity doesn't return the profile entry in top-K).
+	getAllResp, err := s.memProvider.GetAll(ctx, memprovider.GetAllRequest{
 		BotID: botID,
-		Limit: 10,
+		Limit: 5,
+		Filters: map[string]any{
+			"type":    "user_profile",
+			"user_id": userID,
+		},
 	})
-	if err != nil {
-		if s.logger != nil {
-			s.logger.Warn("profile: existing memory search failed", slog.String("bot_id", botID), slog.Any("error", err))
-		}
-	}
-	if resp.Results != nil {
-		for _, item := range resp.Results {
+	if err == nil {
+		for _, item := range getAllResp.Results {
 			if strings.Contains(item.Memory, "[profile]") {
 				existingTraits = append(existingTraits, item.Memory)
 				if existingProfileID == "" {
 					existingProfileID = strings.TrimSpace(item.ID)
 				}
-			} else {
-				existingFacts = append(existingFacts, item.Memory)
+			}
+		}
+	}
+
+	// Fallback: embedding search if metadata filter found nothing (backward compat
+	// with profile memories created before metadata was added).
+	if existingProfileID == "" {
+		resp, err := s.memProvider.Search(ctx, memprovider.SearchRequest{
+			Query: fmt.Sprintf("[profile] user profile traits facts %s", userID),
+			BotID: botID,
+			Limit: 10,
+		})
+		if err != nil {
+			if s.logger != nil {
+				s.logger.Warn("profile: existing memory search failed", slog.String("bot_id", botID), slog.Any("error", err))
+			}
+		}
+		if resp.Results != nil {
+			for _, item := range resp.Results {
+				if strings.Contains(item.Memory, "[profile]") {
+					existingTraits = append(existingTraits, item.Memory)
+					if existingProfileID == "" {
+						existingProfileID = strings.TrimSpace(item.ID)
+					}
+				} else {
+					existingFacts = append(existingFacts, item.Memory)
+				}
 			}
 		}
 	}
@@ -157,11 +183,18 @@ func (s *Service) UpdateFromMessages(ctx context.Context, botID, userID string, 
 
 	var extract profileExtractResponse
 	if err := json.Unmarshal([]byte(llmResp), &extract); err != nil {
+		// Attempt to extract the JSON object from surrounding prose.
+		if cleaned, ok := extractJSONObject(llmResp); ok {
+			if err2 := json.Unmarshal([]byte(cleaned), &extract); err2 == nil {
+				goto parsed
+			}
+		}
 		if s.logger != nil {
 			s.logger.Warn("profile: failed to parse LLM response", slog.Any("error", err))
 		}
 		return nil // non-fatal: LLM response parsing is best-effort
 	}
+parsed:
 
 	// Build profile from extracted data.
 	profile := &Profile{
@@ -384,6 +417,47 @@ func stripFences(s string) string {
 		}
 	}
 	return strings.TrimSpace(s)
+}
+
+// extractJSONObject attempts to find the first complete JSON object ({...})
+// in a string that may have surrounding prose or explanatory text.
+func extractJSONObject(s string) (string, bool) {
+	start := strings.Index(s, "{")
+	if start == -1 {
+		return "", false
+	}
+	// Find the matching closing brace by counting depth.
+	depth := 0
+	inString := false
+	escaped := false
+	for i := start; i < len(s); i++ {
+		if escaped {
+			escaped = false
+			continue
+		}
+		ch := s[i]
+		if inString {
+			switch ch {
+			case '\\':
+				escaped = true
+			case '"':
+				inString = false
+			}
+			continue
+		}
+		switch ch {
+		case '"':
+			inString = true
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return s[start : i+1], true
+			}
+		}
+	}
+	return "", false
 }
 
 // maxSummaryChars is the maximum length of a profile summary injected into
