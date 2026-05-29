@@ -312,9 +312,16 @@ func isHeartbeatNoise(text string) bool {
 			return true
 		}
 	}
-	// Also match "heartbeat" appearing as a dominant keyword in short memories.
+	// Short memories dominated by system heartbeat words (not user content).
+	// Require at least one system-context keyword to avoid false positives on
+	// legitimate memories like "discussed Apple Watch heartbeat monitor feature".
 	if len(lower) < 200 && strings.Contains(lower, "heartbeat") && !strings.Contains(lower, "@") {
-		return true
+		systemKeywords := []string{"system", "status", "check", "ok", "normal", "performed", "scheduled", "no new", "all clear"}
+		for _, kw := range systemKeywords {
+			if strings.Contains(lower, kw) {
+				return true
+			}
+		}
 	}
 	return false
 }

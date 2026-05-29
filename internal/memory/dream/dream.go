@@ -5,10 +5,17 @@ package dream
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strings"
 	"time"
 )
+
+// ErrMetadataNotSupported is returned by MemoryRuntime.UpdateMetadata when
+// the underlying provider does not support metadata-only updates. Dream service
+// uses this to skip Task 3 (association strengthening) entirely, avoiding
+// wasteful LLM calls whose results would be discarded.
+var ErrMetadataNotSupported = errors.New("metadata update not supported")
 
 // MemoryRuntime is the subset of the memory service needed for dream tasks.
 type MemoryRuntime interface {
@@ -482,6 +489,13 @@ const associationBatchSize = 15
 func (s *Service) strengthenAssociations(ctx context.Context, botID string, filters map[string]any, since time.Time) assocTaskResult {
 	res := assocTaskResult{}
 
+	// Early exit: if the runtime doesn't support metadata updates, skip Task 3
+	// entirely to avoid wasting LLM budget on results that will be discarded.
+	if err := s.runtime.UpdateMetadata(ctx, "", nil); errors.Is(err, ErrMetadataNotSupported) {
+		s.logger.Info("dream: skipping association strengthening (metadata updates not supported)")
+		return res
+	}
+
 	allResp, err := s.runtime.GetAll(ctx, GetAllRequest{
 		BotID:   botID,
 		Limit:   200,
@@ -587,6 +601,10 @@ func (s *Service) strengthenAssociations(ctx context.Context, botID string, filt
 			"associations": assocEntries,
 		}
 		if err := s.runtime.UpdateMetadata(ctx, item.ID, metadata); err != nil {
+			if errors.Is(err, ErrMetadataNotSupported) {
+				s.logger.Info("dream: metadata updates not supported, skipping remaining associations")
+				return res
+			}
 			s.logger.Warn(
 				"dream: update association metadata failed",
 				slog.String("id", item.ID),
