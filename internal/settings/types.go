@@ -77,7 +77,7 @@ type ChatTimingConfig struct {
 	Enabled                     bool    `json:"enabled,omitempty"`
 	DebounceQuietPeriod         int64   `json:"debounce_quiet_period,omitempty"`
 	DebounceMaxWait             int64   `json:"debounce_max_wait,omitempty"`
-	TimingGate                  bool    `json:"timing_gate,omitempty"`
+	TimingGate                  bool    `json:"timing_gate"`
 	TalkValue                   float64 `json:"talk_value,omitempty"`
 	InterruptEnabled            bool    `json:"interrupt_enabled,omitempty"`
 	InterruptMaxConsecutive     int     `json:"interrupt_max_consecutive,omitempty"`
