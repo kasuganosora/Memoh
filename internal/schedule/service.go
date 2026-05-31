@@ -61,6 +61,11 @@ func NewService(log *slog.Logger, queries *sqlc.Queries, triggerer Triggerer, se
 	return service
 }
 
+// Stop gracefully stops the cron scheduler, waiting for running jobs to complete.
+func (s *Service) Stop() context.Context {
+	return s.cron.Stop()
+}
+
 func (s *Service) Bootstrap(ctx context.Context) error {
 	if s.queries == nil {
 		return errors.New("schedule queries not configured")
@@ -71,7 +76,11 @@ func (s *Service) Bootstrap(ctx context.Context) error {
 	}
 	for _, item := range items {
 		if err := s.scheduleJob(ctx, item); err != nil {
-			return err
+			s.logger.Warn("skip schedule on bootstrap",
+				slog.String("schedule_id", item.ID.String()),
+				slog.String("pattern", item.Pattern),
+				slog.Any("error", err),
+			)
 		}
 	}
 	return nil
@@ -256,6 +265,8 @@ func (s *Service) runSchedule(ctx context.Context, sched Schedule) error {
 	}
 	if !updated.Enabled {
 		s.removeJob(sched.ID)
+		s.logger.Info("schedule disabled after increment, skipping execution", slog.String("schedule_id", sched.ID))
+		return nil
 	}
 
 	ownerUserID, err := s.resolveBotOwner(ctx, sched.BotID)
@@ -404,52 +415,40 @@ func (s *Service) DeleteLogs(ctx context.Context, botID string) error {
 }
 
 func toScheduleLog(row sqlc.ListScheduleLogsByBotRow) Log {
-	l := Log{
-		ID:           row.ID.String(),
-		ScheduleID:   row.ScheduleID.String(),
-		BotID:        row.BotID.String(),
-		SessionID:    row.SessionID.String(),
-		Status:       row.Status,
-		ResultText:   row.ResultText,
-		ErrorMessage: row.ErrorMessage,
-	}
-	if row.StartedAt.Valid {
-		l.StartedAt = row.StartedAt.Time
-	}
-	if row.CompletedAt.Valid {
-		t := row.CompletedAt.Time
-		l.CompletedAt = &t
-	}
-	if row.Usage != nil {
-		var usage any
-		if err := json.Unmarshal(row.Usage, &usage); err == nil {
-			l.Usage = usage
-		}
-	}
-	return l
+	return buildLog(row.ID, row.ScheduleID, row.BotID, row.SessionID,
+		row.Status, row.ResultText, row.ErrorMessage,
+		row.StartedAt, row.CompletedAt, row.Usage)
 }
 
 func toScheduleLogFromSchedule(row sqlc.ListScheduleLogsByScheduleRow) Log {
+	return buildLog(row.ID, row.ScheduleID, row.BotID, row.SessionID,
+		row.Status, row.ResultText, row.ErrorMessage,
+		row.StartedAt, row.CompletedAt, row.Usage)
+}
+
+func buildLog(id, scheduleID, botID, sessionID pgtype.UUID, status, resultText, errorMessage string, startedAt pgtype.Timestamptz, completedAt pgtype.Timestamptz, usage []byte) Log {
 	l := Log{
-		ID:           row.ID.String(),
-		ScheduleID:   row.ScheduleID.String(),
-		BotID:        row.BotID.String(),
-		SessionID:    row.SessionID.String(),
-		Status:       row.Status,
-		ResultText:   row.ResultText,
-		ErrorMessage: row.ErrorMessage,
+		ID:           id.String(),
+		ScheduleID:   scheduleID.String(),
+		BotID:        botID.String(),
+		Status:       status,
+		ResultText:   resultText,
+		ErrorMessage: errorMessage,
 	}
-	if row.StartedAt.Valid {
-		l.StartedAt = row.StartedAt.Time
+	if sessionID.Valid {
+		l.SessionID = sessionID.String()
 	}
-	if row.CompletedAt.Valid {
-		t := row.CompletedAt.Time
+	if startedAt.Valid {
+		l.StartedAt = startedAt.Time
+	}
+	if completedAt.Valid {
+		t := completedAt.Time
 		l.CompletedAt = &t
 	}
-	if row.Usage != nil {
-		var usage any
-		if err := json.Unmarshal(row.Usage, &usage); err == nil {
-			l.Usage = usage
+	if usage != nil {
+		var u any
+		if err := json.Unmarshal(usage, &u); err == nil {
+			l.Usage = u
 		}
 	}
 	return l
@@ -465,11 +464,10 @@ func (s *Service) resolveBotOwner(ctx context.Context, botID string) (string, er
 	if err != nil {
 		return "", fmt.Errorf("get bot: %w", err)
 	}
-	ownerID := bot.OwnerUserID.String()
-	if ownerID == "" {
+	if !bot.OwnerUserID.Valid {
 		return "", errors.New("bot owner not found")
 	}
-	return ownerID, nil
+	return bot.OwnerUserID.String(), nil
 }
 
 // generateTriggerToken creates a short-lived JWT for schedule trigger callbacks.
