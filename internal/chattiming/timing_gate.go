@@ -132,23 +132,47 @@ func (tg *TimingGate) doEvaluate(ctx context.Context, params TimingGateParams, r
 	cfg.LoopDetection.Enabled = false
 	cfg.Retry = agentpkg.RetryConfig{MaxAttempts: 1}
 
+	startTime := time.Now()
+
+	// Log entry point with model info for tracing.
+	modelName := ""
+	if cfg.Model != nil {
+		modelName = cfg.Model.DisplayName
+		if modelName == "" {
+			modelName = cfg.Model.ID
+		}
+	}
+	tg.logger.Info("timing gate LLM call start",
+		slog.String("model", modelName),
+		slog.String("bot_name", params.BotName),
+		slog.Int("new_message_count", params.NewMessageCount),
+		slog.Float64("talk_value", params.TalkValue))
+
 	// Use streaming so we can detect token activity and apply an idle timeout.
 	ch := tg.agent.Stream(ctx, cfg)
 
 	var textBuilder strings.Builder
+	var ttft time.Duration // Time to first token.
+	var firstTokenReceived bool
 	idleTimer := time.NewTimer(timingGateIdleTimeout)
 	defer idleTimer.Stop()
+
+	var usageRaw json.RawMessage
 
 	for {
 		select {
 		case evt, ok := <-ch:
 			if !ok {
 				// Stream closed — parse whatever we collected.
-				return tg.finalizeResult(textBuilder.String())
+				return tg.finalizeResultWithMetrics(textBuilder.String(), usageRaw, startTime, ttft)
 			}
 			// Reset idle timer on any meaningful activity.
 			switch evt.Type {
 			case agentpkg.EventTextDelta, agentpkg.EventReasoningDelta:
+				if !firstTokenReceived {
+					ttft = time.Since(startTime)
+					firstTokenReceived = true
+				}
 				if !idleTimer.Stop() {
 					select {
 					case <-idleTimer.C:
@@ -160,51 +184,104 @@ func (tg *TimingGate) doEvaluate(ctx context.Context, params TimingGateParams, r
 					textBuilder.WriteString(evt.Delta)
 				}
 			case agentpkg.EventAgentEnd, agentpkg.EventAgentAbort:
-				return tg.finalizeResult(textBuilder.String())
+				usageRaw = evt.Usage
+				return tg.finalizeResultWithMetrics(textBuilder.String(), usageRaw, startTime, ttft)
 			case agentpkg.EventError:
 				tg.logger.Warn("timing gate stream error, failing open to continue",
-					slog.String("error", evt.Error))
+					slog.String("error", evt.Error),
+					slog.Duration("elapsed", time.Since(startTime)))
 				return TimingGateResult{Decision: TimingContinue, Reason: "error: " + evt.Error}
 			}
 
 		case <-idleTimer.C:
 			// No token activity for timingGateIdleTimeout — treat as stall.
 			tg.logger.Warn("timing gate idle timeout, failing open to continue",
-				slog.Duration("idle_timeout", timingGateIdleTimeout))
+				slog.Duration("idle_timeout", timingGateIdleTimeout),
+				slog.Duration("elapsed", time.Since(startTime)),
+				slog.Int("text_length", textBuilder.Len()))
 			// Drain remaining events to avoid goroutine leak.
 			go func() {
 				for range ch {
 				}
 			}()
 			if textBuilder.Len() > 0 {
-				return tg.finalizeResult(textBuilder.String())
+				return tg.finalizeResultWithMetrics(textBuilder.String(), nil, startTime, ttft)
 			}
 			return TimingGateResult{Decision: TimingContinue, Reason: "idle timeout"}
 
 		case <-ctx.Done():
 			// Absolute timeout or parent context cancelled.
 			tg.logger.Warn("timing gate context done, failing open",
-				slog.Duration("max_timeout", timingGateMaxTimeout))
+				slog.Duration("max_timeout", timingGateMaxTimeout),
+				slog.Duration("elapsed", time.Since(startTime)),
+				slog.Int("text_length", textBuilder.Len()))
 			go func() {
 				for range ch {
 				}
 			}()
 			if textBuilder.Len() > 0 {
-				return tg.finalizeResult(textBuilder.String())
+				return tg.finalizeResultWithMetrics(textBuilder.String(), nil, startTime, ttft)
 			}
 			return TimingGateResult{Decision: TimingContinue, Reason: "timeout"}
 		}
 	}
 }
 
-// finalizeResult parses the collected text and logs the decision.
-func (tg *TimingGate) finalizeResult(text string) TimingGateResult {
+// timingGateUsage holds token usage from a timing gate LLM call.
+type timingGateUsage struct {
+	InputTokens     int `json:"input_tokens"`
+	OutputTokens    int `json:"output_tokens"`
+	TotalTokens     int `json:"total_tokens"`
+	CachedTokens    int `json:"cached_input_tokens"`
+	ReasoningTokens int `json:"reasoning_tokens"`
+}
+
+// finalizeResultWithMetrics parses the collected text, extracts token usage,
+// and logs a comprehensive decision record with latency breakdown.
+func (tg *TimingGate) finalizeResultWithMetrics(text string, usageRaw json.RawMessage, startTime time.Time, ttft time.Duration) TimingGateResult {
+	totalDuration := time.Since(startTime)
+	parseStart := time.Now()
 	parsed := parseTimingGateResult(text)
+	parseDuration := time.Since(parseStart)
+
+	// Extract usage from the terminal event.
+	var usage timingGateUsage
+	if len(usageRaw) > 0 {
+		_ = json.Unmarshal(usageRaw, &usage)
+	}
+
+	// Compute streaming duration (total - ttft - parse).
+	streamDuration := totalDuration - ttft - parseDuration
+	if streamDuration < 0 {
+		streamDuration = 0
+	}
+
 	tg.logger.Info("timing gate decision",
 		slog.String("decision", string(parsed.Decision)),
 		slog.Int("wait_seconds", parsed.WaitSeconds),
-		slog.String("reason", parsed.Reason))
+		slog.String("reason", parsed.Reason),
+		// Token usage
+		slog.Int("input_tokens", usage.InputTokens),
+		slog.Int("output_tokens", usage.OutputTokens),
+		slog.Int("cached_tokens", usage.CachedTokens),
+		slog.Int("reasoning_tokens", usage.ReasoningTokens),
+		// Latency breakdown
+		slog.Duration("total_duration", totalDuration),
+		slog.Duration("ttft", ttft),
+		slog.Duration("stream_duration", streamDuration),
+		slog.Duration("parse_duration", parseDuration),
+		// Raw output for debugging (truncated to prevent log bloat)
+		slog.String("raw_output", truncateForLog(text, 500)),
+	)
 	return parsed
+}
+
+// truncateForLog truncates a string to maxLen characters, appending "..." if truncated.
+func truncateForLog(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
 }
 
 func buildTimingGatePrompt(params TimingGateParams) string {

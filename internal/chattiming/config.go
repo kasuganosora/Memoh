@@ -8,13 +8,13 @@ import (
 // Stored as JSONB in the bots table.
 type Config struct {
 	// Enabled turns on all smart timing features for discuss mode.
-	Enabled bool `json:"enabled,omitempty"`
+	Enabled bool `json:"enabled"`
 
 	// Debounce is the quiet period configuration.
 	Debounce DebounceConfig `json:"debounce,omitempty"`
 
 	// TimingGate enables the LLM-based should-I-speak check.
-	TimingGate bool `json:"timing_gate,omitempty"`
+	TimingGate bool `json:"timing_gate"`
 
 	// TalkValue controls chattiness.
 	TalkValue TalkValueConfig `json:"talk_value,omitempty"`

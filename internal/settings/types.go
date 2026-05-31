@@ -74,20 +74,20 @@ type UpsertRequest struct {
 }
 
 type ChatTimingConfig struct {
-	Enabled                     bool    `json:"enabled,omitempty"`
+	Enabled                     bool    `json:"enabled"`
 	DebounceQuietPeriod         int64   `json:"debounce_quiet_period,omitempty"`
 	DebounceMaxWait             int64   `json:"debounce_max_wait,omitempty"`
 	TimingGate                  bool    `json:"timing_gate"`
 	TalkValue                   float64 `json:"talk_value,omitempty"`
-	InterruptEnabled            bool    `json:"interrupt_enabled,omitempty"`
+	InterruptEnabled            bool    `json:"interrupt_enabled"`
 	InterruptMaxConsecutive     int     `json:"interrupt_max_consecutive,omitempty"`
 	InterruptMaxRounds          int     `json:"interrupt_max_rounds,omitempty"`
-	IdleCompEnabled             bool    `json:"idle_comp_enabled,omitempty"`
+	IdleCompEnabled             bool    `json:"idle_comp_enabled"`
 	IdleCompWindowSize          int64   `json:"idle_comp_window_size,omitempty"`
 	IdleCompMinIdleBeforeCredit int64   `json:"idle_comp_min_idle_before_credit,omitempty"`
-	EnableReplyer               bool    `json:"enable_replyer,omitempty"`
+	EnableReplyer               bool    `json:"enable_replyer"`
 	ReplyerModelID              string  `json:"replyer_model_id,omitempty"`
-	EnableExpressionLearn       bool    `json:"enable_expression_learning,omitempty"`
-	EnableProfileTracking       bool    `json:"enable_profile_tracking,omitempty"`
+	EnableExpressionLearn       bool    `json:"enable_expression_learning"`
+	EnableProfileTracking       bool    `json:"enable_profile_tracking"`
 	MemorySearchMode            string  `json:"memory_search_mode,omitempty"`
 }

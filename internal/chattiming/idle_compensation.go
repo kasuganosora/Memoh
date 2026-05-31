@@ -10,7 +10,7 @@ import (
 // message credit to trigger processing anyway.
 type IdleCompensationConfig struct {
 	// Enabled turns on idle compensation.
-	Enabled bool `json:"enabled,omitempty"`
+	Enabled bool `json:"enabled"`
 
 	// WindowSize is the lookback window for computing average reply delay.
 	// Default: 10 minutes.

@@ -33,7 +33,7 @@ type InterruptController struct {
 
 // InterruptConfig controls planner interrupt behavior.
 type InterruptConfig struct {
-	Enabled        bool `json:"enabled,omitempty"`
+	Enabled        bool `json:"enabled"`
 	MaxConsecutive int  `json:"max_consecutive,omitempty"` // default: 2
 	MaxRounds      int  `json:"max_rounds,omitempty"`      // default: 6
 }
