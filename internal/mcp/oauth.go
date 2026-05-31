@@ -346,7 +346,7 @@ func (s *OAuthService) GetValidToken(ctx context.Context, connectionID string) (
 		if token.RefreshToken == "" {
 			return "", errors.New("access token expired and no refresh token available")
 		}
-		refreshed, err := s.refreshToken(ctx, token.TokenEndpoint, token.RefreshToken, token.ClientID, token.ResourceUri)
+		refreshed, err := s.refreshToken(ctx, token.TokenEndpoint, token.RefreshToken, token.ClientID, token.ClientSecret, token.ResourceUri)
 		if err != nil {
 			return "", fmt.Errorf("token refresh failed: %w", err)
 		}
@@ -671,11 +671,14 @@ func truncate(s string, maxLen int) string {
 	return textutil.TruncateRunesWithSuffix(s, maxLen, "...")
 }
 
-func (s *OAuthService) refreshToken(ctx context.Context, tokenEndpoint, refreshToken, clientID, resourceURI string) (*tokenResponse, error) {
+func (s *OAuthService) refreshToken(ctx context.Context, tokenEndpoint, refreshToken, clientID, clientSecret, resourceURI string) (*tokenResponse, error) {
 	data := url.Values{
 		"grant_type":    {"refresh_token"},
 		"refresh_token": {refreshToken},
 		"client_id":     {clientID},
+	}
+	if clientSecret != "" {
+		data.Set("client_secret", clientSecret)
 	}
 	if resourceURI != "" {
 		data.Set("resource", resourceURI)

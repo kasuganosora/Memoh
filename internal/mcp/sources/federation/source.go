@@ -19,6 +19,9 @@ const cacheTTL = 5 * time.Second
 // stuck external MCP servers from blocking the agent indefinitely.
 const mcpCallTimeout = 60 * time.Second
 
+// maxCacheEntries limits the federation source cache to prevent unbounded growth.
+const maxCacheEntries = 128
+
 type ConnectionLister interface {
 	ListActiveByBot(ctx context.Context, botID string) ([]mcpgw.Connection, error)
 }
@@ -270,7 +273,22 @@ func (s *Source) getCache(botID string) (cacheEntry, bool) {
 func (s *Source) setCache(botID string, entry cacheEntry) {
 	s.mu.Lock()
 	s.cache[botID] = entry
+	s.evictExpiredLocked()
 	s.mu.Unlock()
+}
+
+// evictExpiredLocked removes expired entries from the cache.
+// Must be called while s.mu is held.
+func (s *Source) evictExpiredLocked() {
+	if len(s.cache) <= maxCacheEntries {
+		return
+	}
+	now := time.Now()
+	for key, entry := range s.cache {
+		if now.After(entry.expiresAt) {
+			delete(s.cache, key)
+		}
+	}
 }
 
 func (s *Source) getRoute(botID, toolName string) (toolRoute, bool) {

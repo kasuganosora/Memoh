@@ -11,6 +11,7 @@ import (
 
 const (
 	defaultToolRegistryCacheTTL = 5 * time.Second
+	maxCacheEntries             = 128
 )
 
 type cachedToolRegistry struct {
@@ -144,6 +145,21 @@ func (s *ToolGatewayService) getRegistry(ctx context.Context, session ToolSessio
 		expiresAt: time.Now().Add(s.cacheTTL),
 		registry:  registry,
 	}
+	s.evictExpiredLocked()
 	s.mu.Unlock()
 	return registry, nil
+}
+
+// evictExpiredLocked removes expired entries from the cache.
+// Must be called while s.mu is held.
+func (s *ToolGatewayService) evictExpiredLocked() {
+	if len(s.cache) <= maxCacheEntries {
+		return
+	}
+	now := time.Now()
+	for key, entry := range s.cache {
+		if now.After(entry.expiresAt) {
+			delete(s.cache, key)
+		}
+	}
 }
