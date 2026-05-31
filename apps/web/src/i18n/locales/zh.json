@@ -709,7 +709,10 @@
         "containerDataPath": "容器数据路径",
         "botDelete": "Bot 删除",
         "mcpConnection": "MCP 连接",
-        "channelConnection": "平台连接"
+        "channelConnection": "平台连接",
+        "sessionStuck": "会话健康",
+        "heartbeatSchedule": "心跳调度",
+        "modelConnection": "模型连接"
       },
       "keys": {
         "containerInit": "容器初始化",

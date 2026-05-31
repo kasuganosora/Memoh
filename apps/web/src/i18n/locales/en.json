@@ -713,7 +713,10 @@
         "containerDataPath": "Container data path",
         "botDelete": "Bot deletion",
         "mcpConnection": "MCP connection",
-        "channelConnection": "Channel connection"
+        "channelConnection": "Channel connection",
+        "sessionStuck": "Session health",
+        "heartbeatSchedule": "Heartbeat schedule",
+        "modelConnection": "Model connection"
       },
       "keys": {
         "containerInit": "Container initialization",
