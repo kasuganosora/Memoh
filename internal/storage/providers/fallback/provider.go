@@ -29,10 +29,14 @@ func (p *Provider) Put(ctx context.Context, key string, reader io.Reader) error 
 	if err == nil {
 		return nil
 	}
-	if seeker, ok := reader.(io.Seeker); ok {
-		if _, seekErr := seeker.Seek(0, io.SeekStart); seekErr != nil {
-			return err
-		}
+	// Only fall back if the reader can be rewound; otherwise the secondary
+	// would receive partially-consumed or empty data.
+	seeker, ok := reader.(io.Seeker)
+	if !ok {
+		return err
+	}
+	if _, seekErr := seeker.Seek(0, io.SeekStart); seekErr != nil {
+		return err
 	}
 	return p.secondary.Put(ctx, key, reader)
 }

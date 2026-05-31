@@ -84,7 +84,7 @@ func (p *Provider) OpenContainerFile(ctx context.Context, botID, containerPath s
 		return nil, fmt.Errorf("path must start with %s", dataPrefix)
 	}
 	subPath := containerPath[len(dataPrefix):]
-	if subPath == "" || strings.Contains(subPath, "..") {
+	if subPath == "" || hasPathTraversal(subPath) {
 		return nil, errors.New("invalid container path")
 	}
 	client, err := p.clients.MCPClient(ctx, botID)
@@ -145,4 +145,16 @@ func splitRoutingKey(key string) (botID, storageKey string) {
 		return "", key
 	}
 	return key[:idx], key[idx+1:]
+}
+
+// hasPathTraversal checks if a path contains ".." as a directory segment.
+// Unlike strings.Contains(path, ".."), this does not reject legitimate filenames
+// such as "file..ext" or "dir.../name".
+func hasPathTraversal(p string) bool {
+	for _, seg := range strings.Split(p, "/") {
+		if seg == ".." {
+			return true
+		}
+	}
+	return false
 }

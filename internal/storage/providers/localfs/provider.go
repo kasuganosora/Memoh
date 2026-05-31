@@ -73,5 +73,20 @@ func (p *Provider) ListPrefix(_ context.Context, prefix string) ([]string, error
 }
 
 func (p *Provider) resolve(key string) string {
-	return filepath.Join(p.root, filepath.FromSlash(key))
+	joined := filepath.Join(p.root, filepath.FromSlash(key))
+	// Ensure the resolved path stays within root to prevent path traversal.
+	abs, err := filepath.Abs(joined)
+	if err != nil {
+		return filepath.Join(p.root, "invalid")
+	}
+	root, err := filepath.Abs(p.root)
+	if err != nil {
+		return filepath.Join(p.root, "invalid")
+	}
+	// Add trailing separator to root so that root itself doesn't match
+	// a sibling directory with a shared prefix (e.g. /data vs /data2).
+	if !strings.HasPrefix(abs, root+string(filepath.Separator)) && abs != root {
+		return filepath.Join(p.root, "invalid")
+	}
+	return abs
 }
