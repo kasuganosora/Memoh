@@ -518,12 +518,20 @@ func (d *DiscussTrigger) evaluateTimingGate(ctx context.Context, sess *discussSe
 			slog.String("step", "timing_gate_wait_start"),
 			slog.Int("wait_seconds", result.WaitSeconds),
 			slog.String("reason", result.Reason))
+		// Use NewTimer instead of time.After to allow cleanup on early cancellation,
+		// preventing the timer from lingering until expiry (up to 30s) when ctx fires first.
+		waitTimer := time.NewTimer(time.Duration(result.WaitSeconds) * time.Second)
 		select {
-		case <-time.After(time.Duration(result.WaitSeconds) * time.Second):
+		case <-waitTimer.C:
 			log.Info("discuss_step: timing gate wait completed",
 				slog.String("step", "timing_gate_wait_end"),
 				slog.Duration("total_gate_duration", time.Since(gateStart)))
+			// TODO: After the wait period, new messages may have arrived in rcCh.
+			// Currently we proceed with the stale rc/isMentioned state. Consider
+			// draining rcCh here and re-evaluating isMentioned/newMsgCount before
+			// returning false (letting the caller proceed to the agent call).
 		case <-ctx.Done():
+			waitTimer.Stop()
 			log.Info("discuss_step: timing gate wait cancelled by context",
 				slog.String("step", "timing_gate_wait_cancelled"),
 				slog.Duration("total_gate_duration", time.Since(gateStart)))

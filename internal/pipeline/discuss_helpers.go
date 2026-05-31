@@ -19,7 +19,11 @@ func wasRecentlyMentioned(rc RenderedContext, afterMs int64) bool {
 // renderContextXML formats recent context segments as XML for the timing gate prompt.
 // Each segment's Content already contains fully-rendered XML (with sender, timestamp,
 // etc.), so we output them directly without extra wrapping.
+// To prevent excessive token usage in active group chats, output is capped at
+// maxTimingGateContextChars characters (approximately 2000 tokens).
 func renderContextXML(rc RenderedContext, afterMs int64) string {
+	const maxTimingGateContextChars = 4000
+
 	var sb strings.Builder
 	for _, seg := range rc {
 		if seg.ReceivedAtMs <= afterMs || seg.IsMyself {
@@ -32,7 +36,15 @@ func renderContextXML(rc RenderedContext, afterMs int64) string {
 			}
 		}
 	}
-	return sb.String()
+	result := sb.String()
+	// Truncate at rune boundary to avoid cutting multi-byte characters.
+	runes := []rune(result)
+	if len(runes) > maxTimingGateContextChars {
+		// Keep the tail (most recent messages are appended last).
+		runes = runes[len(runes)-maxTimingGateContextChars:]
+		result = "...\n" + string(runes)
+	}
+	return result
 }
 
 // countNewMessages counts external (non-self) message segments in the RC

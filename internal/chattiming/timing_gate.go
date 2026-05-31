@@ -195,7 +195,7 @@ func (tg *TimingGate) doEvaluate(ctx context.Context, params TimingGateParams, r
 				usageRaw = evt.Usage
 				return tg.finalizeResultWithMetrics(textBuilder.String(), usageRaw, startTime, ttft)
 			case agentpkg.EventError:
-				tg.logger.Warn("timing gate stream error, failing open to continue",
+				tg.logger.Warn("timing gate stream error (caller applies fail-closed semantics)",
 					slog.String("error", evt.Error),
 					slog.Duration("elapsed", time.Since(startTime)))
 				return TimingGateResult{Decision: TimingContinue, Reason: "error: " + evt.Error}
@@ -287,12 +287,14 @@ func (tg *TimingGate) finalizeResultWithMetrics(text string, usageRaw json.RawMe
 	return parsed
 }
 
-// truncateForLog truncates a string to maxLen characters, appending "..." if truncated.
+// truncateForLog truncates a string to maxLen runes, appending "..." if truncated.
+// Uses rune-level slicing to avoid cutting multi-byte UTF-8 characters.
 func truncateForLog(s string, maxLen int) string {
-	if len(s) <= maxLen {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
 		return s
 	}
-	return s[:maxLen] + "..."
+	return string(runes[:maxLen]) + "..."
 }
 
 func buildTimingGatePrompt(params TimingGateParams) string {
