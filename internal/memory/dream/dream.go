@@ -308,6 +308,9 @@ func (s *Service) mergeSimilar(ctx context.Context, botID string, filters map[st
 	mergedIDs := make(map[string]bool)
 
 	for _, mem := range memories {
+		if ctx.Err() != nil {
+			break
+		}
 		if res.Merged >= cfg.MaxMergesPerCycle {
 			break
 		}
@@ -414,7 +417,7 @@ func (s *Service) cleanHarmful(ctx context.Context, botID string, filters map[st
 
 	allResp, err := s.runtime.GetAll(ctx, GetAllRequest{
 		BotID:   botID,
-		Limit:   100,
+		Limit:   200,
 		Filters: filters,
 		Since:   since,
 	})
@@ -435,6 +438,9 @@ func (s *Service) cleanHarmful(ctx context.Context, botID string, filters map[st
 	llmChecks := 0
 
 	for _, item := range allResp.Results {
+		if ctx.Err() != nil {
+			break
+		}
 		mem := strings.ToLower(item.Memory)
 		harmful := false
 
@@ -627,12 +633,13 @@ func (s *Service) strengthenAssociations(ctx context.Context, botID string, filt
 	return res
 }
 
-// truncateForLog truncates a string to maxLen for use in log messages.
+// truncateForLog truncates a string to maxLen runes for use in log messages.
 func truncateForLog(s string, maxLen int) string {
-	if len(s) <= maxLen {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
 		return s
 	}
-	return s[:maxLen] + "…"
+	return string(runes[:maxLen]) + "…"
 }
 
 // isHeartbeatNoiseForMerge delegates to the stricter isHeartbeatNoise (defined

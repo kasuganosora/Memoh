@@ -141,14 +141,14 @@ func (s *Service) aggregateScenes(ctx context.Context, botID string, filters map
 			matchedScene := findOverlappingScene(resolvedIDs, existingScenes)
 			if matchedScene != nil {
 				// Update existing scene: add new memory IDs.
-				updated := false
+				newCount := 0
 				for _, mid := range resolvedIDs {
 					if !containsString(matchedScene.MemoryIDs, mid) {
 						matchedScene.MemoryIDs = append(matchedScene.MemoryIDs, mid)
-						updated = true
+						newCount++
 					}
 				}
-				if updated {
+				if newCount > 0 {
 					if err := s.sceneStore.Update(ctx, *matchedScene); err != nil {
 						s.logger.Warn("dream: update scene failed",
 							slog.String("scene_id", matchedScene.ID),
@@ -157,12 +157,12 @@ func (s *Service) aggregateScenes(ctx context.Context, botID string, filters map
 						)
 					} else {
 						res.Updated++
-						res.MemoriesIndexed += len(resolvedIDs)
+						res.MemoriesIndexed += newCount
 						s.logger.Info("dream: scene updated with new memories",
 							slog.String("bot_id", botID),
 							slog.String("scene_id", matchedScene.ID),
 							slog.String("scene_title", matchedScene.Title),
-							slog.Int("added_memories", len(resolvedIDs)),
+							slog.Int("added_memories", newCount),
 							slog.Int("total_memories", len(matchedScene.MemoryIDs)),
 						)
 					}

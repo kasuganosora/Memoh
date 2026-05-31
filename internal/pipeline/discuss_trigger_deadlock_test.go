@@ -18,11 +18,13 @@ type blockingChatRunner struct {
 	mu      sync.Mutex
 	called  bool
 	ctxDone bool
+	doneCh  chan struct{} // closed when the goroutine finishes
 }
 
 func (f *blockingChatRunner) StreamChat(ctx context.Context, _ conversation.ChatRequest) (<-chan conversation.StreamChunk, <-chan error) {
 	f.mu.Lock()
 	f.called = true
+	f.doneCh = make(chan struct{})
 	f.mu.Unlock()
 
 	chunkCh := make(chan conversation.StreamChunk, 1)
@@ -30,6 +32,7 @@ func (f *blockingChatRunner) StreamChat(ctx context.Context, _ conversation.Chat
 
 	// Block until context is cancelled (simulates hung LLM)
 	go func() {
+		defer close(f.doneCh)
 		<-ctx.Done()
 		f.mu.Lock()
 		f.ctxDone = true
@@ -85,6 +88,20 @@ func TestHandleReplyWithAgent_HardTimeout(t *testing.T) {
 	// Verify the function returned within a reasonable time (context timeout + margin)
 	if elapsed > 5*time.Second {
 		t.Fatalf("handleReplyWithAgent took %v, expected to return within ~2s due to context timeout", elapsed)
+	}
+
+	// Wait for the goroutine in blockingChatRunner to finish setting ctxDone.
+	// handleReplyWithAgent may return (via consumeStream ctx.Done()) before
+	// the runner's goroutine has completed, causing a race when checking ctxDone.
+	runner.mu.Lock()
+	doneCh := runner.doneCh
+	runner.mu.Unlock()
+	if doneCh != nil {
+		select {
+		case <-doneCh:
+		case <-time.After(3 * time.Second):
+			t.Fatal("timed out waiting for blockingChatRunner goroutine to finish")
+		}
 	}
 
 	runner.mu.Lock()
