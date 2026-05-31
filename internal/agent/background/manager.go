@@ -694,7 +694,7 @@ func (m *Manager) stallWatchdog(ctx context.Context, task *Task) {
 		)
 
 		// Enqueue a stall notification (only once).
-		if !task.MarkNotified() {
+		if !task.MarkStallNotified() {
 			return
 		}
 

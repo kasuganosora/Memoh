@@ -543,9 +543,9 @@ func (p *SpawnProvider) runSubagentTask(
 		// 1. Safety net: wall-clock timeout (subagentTimeout) via context.WithTimeout.
 		// 2. Watchdog: activity-based timeout (subagentWatchdogTimeout) that fires
 		//    when no stream events (tokens, tool output) are received.
-		// Use context.WithoutCancel so retries get a fresh timeout even if
-		// the parent stream was cancelled (e.g. by idle timeout).
-		safetyCtx, safetyCancel := context.WithTimeout(context.WithoutCancel(ctx), subagentTimeout)
+		// ctx is already detached from parent cancellation (via WithoutCancel in
+		// execSpawn), so the safety timeout applies per-attempt independently.
+		safetyCtx, safetyCancel := context.WithTimeout(ctx, subagentTimeout)
 		wdCtx, wd := NewSubagentWatchdog(safetyCtx, subagentWatchdogTimeout, p.logger)
 
 		genResult, err := p.agent.GenerateWithWatchdog(wdCtx, cfg, wd.Touch)
@@ -574,19 +574,6 @@ func (p *SpawnProvider) runSubagentTask(
 			slog.Int("attempt", attempt),
 			slog.String("error", err.Error()),
 		)
-
-		// Check if the true parent context was cancelled (not watchdog, not safety timeout).
-		// If the parent is done, don't retry.
-		if ctx.Err() != nil && !errors.Is(err, ErrWatchdogTimedOut) {
-			p.logger.Info("subagent done",
-				slog.String("session_id", sessionID),
-				slog.Bool("success", false),
-				slog.String("reason", "parent cancelled"),
-				slog.Duration("duration", time.Since(subStart)),
-			)
-			res.Error = fmt.Sprintf("parent cancelled: %v", ctx.Err())
-			return res
-		}
 
 		// Watchdog timeouts are always retryable.
 		if errors.Is(err, ErrWatchdogTimedOut) {

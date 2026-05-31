@@ -32,21 +32,36 @@ type Task struct {
 	StartedAt   time.Time
 	CompletedAt time.Time
 
-	mu       sync.Mutex
-	cancel   context.CancelFunc
-	notified bool            // true once a notification has been enqueued; prevents duplicates
-	output   strings.Builder // buffered output tail
+	mu            sync.Mutex
+	cancel        context.CancelFunc
+	stallNotified bool            // true once a stall notification has been sent
+	doneNotified  bool            // true once a completion notification has been sent
+	output        strings.Builder // buffered output tail
 }
 
-// MarkNotified atomically sets the notified flag. Returns true if this call
-// was the one that flipped it (i.e., the caller should enqueue the notification).
+// MarkStallNotified atomically sets the stall notification flag. Returns true
+// if this call was the one that flipped it (i.e., the caller should enqueue
+// the stall notification). This is independent of completion notifications.
+func (t *Task) MarkStallNotified() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.stallNotified {
+		return false
+	}
+	t.stallNotified = true
+	return true
+}
+
+// MarkNotified atomically sets the completion notification flag. Returns true
+// if this call was the one that flipped it (i.e., the caller should enqueue
+// the completion notification).
 func (t *Task) MarkNotified() bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if t.notified {
+	if t.doneNotified {
 		return false
 	}
-	t.notified = true
+	t.doneNotified = true
 	return true
 }
 
