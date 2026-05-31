@@ -90,6 +90,9 @@ func (s *Service) Reschedule(ctx context.Context, botID string) error {
 	if ok {
 		s.cron.Remove(entryID)
 		delete(s.jobs, botID)
+		s.logger.Info("heartbeat job removed for reschedule",
+			slog.String("bot_id", botID),
+			slog.Int("old_entry_id", int(entryID)))
 	}
 	s.mu.Unlock()
 
@@ -102,6 +105,10 @@ func (s *Service) Reschedule(ctx context.Context, botID string) error {
 		return fmt.Errorf("get bot: %w", err)
 	}
 	if !bot.HeartbeatEnabled || bot.Status != "ready" {
+		s.logger.Info("heartbeat not rescheduled: bot disabled or not ready",
+			slog.String("bot_id", botID),
+			slog.Bool("heartbeat_enabled", bot.HeartbeatEnabled),
+			slog.String("bot_status", bot.Status))
 		return nil
 	}
 	cfg := Config{
@@ -114,23 +121,36 @@ func (s *Service) Reschedule(ctx context.Context, botID string) error {
 
 func (s *Service) Stop(botID string) {
 	s.removeJob(botID)
+	s.logger.Info("heartbeat stopped", slog.String("bot_id", botID))
 }
 
 // Shutdown stops the cron scheduler and waits for any running heartbeat jobs
 // to complete. Should be called during graceful shutdown.
 func (s *Service) Shutdown() context.Context {
+	s.mu.Lock()
+	activeCount := len(s.jobs)
+	s.mu.Unlock()
+	s.logger.Info("heartbeat shutting down",
+		slog.Int("active_jobs", activeCount))
 	return s.cron.Stop()
 }
 
 func (s *Service) runHeartbeat(ctx context.Context, cfg Config) {
+	start := time.Now()
+	log := s.logger.With(
+		slog.String("bot_id", cfg.BotID),
+		slog.Int("interval_minutes", cfg.Interval),
+	)
+	log.Info("heartbeat run started")
+
 	if s.triggerer == nil {
-		s.logger.Error("heartbeat triggerer not configured")
+		log.Error("heartbeat triggerer not configured")
 		return
 	}
 
 	pgBotID, err := db.ParseUUID(cfg.BotID)
 	if err != nil {
-		s.logger.Error("invalid bot id", slog.String("bot_id", cfg.BotID), slog.Any("error", err))
+		log.Error("invalid bot id", slog.Any("error", err))
 		return
 	}
 
@@ -139,10 +159,11 @@ func (s *Service) runHeartbeat(ctx context.Context, cfg Config) {
 	if s.sessionCreator != nil {
 		sid, err := s.sessionCreator.CreateSession(ctx, cfg.BotID, "heartbeat")
 		if err != nil {
-			s.logger.Error("create heartbeat session failed", slog.String("bot_id", cfg.BotID), slog.Any("error", err))
+			log.Error("create heartbeat session failed", slog.Any("error", err))
 		} else {
 			sessionID = sid
 			pgSessionID = db.ParseUUIDOrEmpty(sid)
+			log.Debug("heartbeat session created", slog.String("session_id", sid))
 		}
 	}
 
@@ -159,16 +180,20 @@ func (s *Service) runHeartbeat(ctx context.Context, cfg Config) {
 		SessionID: pgSessionID,
 	})
 	if err != nil {
-		s.logger.Error("create heartbeat log failed", slog.String("bot_id", cfg.BotID), slog.Any("error", err))
+		log.Error("create heartbeat log failed", slog.Any("error", err))
 		return
 	}
 
 	token, err := s.generateTriggerToken(cfg.OwnerUserID)
 	if err != nil {
 		s.completeLog(ctx, logRow.ID, "error", "", err.Error(), nil, pgtype.UUID{})
-		s.logger.Error("generate trigger token failed", slog.String("bot_id", cfg.BotID), slog.Any("error", err))
+		log.Error("generate trigger token failed", slog.Any("error", err))
 		return
 	}
+
+	log.Debug("triggering heartbeat",
+		slog.String("session_id", sessionID),
+		slog.String("last_heartbeat_at", lastHeartbeatAt))
 
 	result, err := s.triggerer.TriggerHeartbeat(ctx, cfg.BotID, TriggerPayload{
 		BotID:           cfg.BotID,
@@ -179,13 +204,20 @@ func (s *Service) runHeartbeat(ctx context.Context, cfg Config) {
 	}, token)
 	if err != nil {
 		s.completeLog(ctx, logRow.ID, "error", "", err.Error(), nil, pgtype.UUID{})
-		s.logger.Error("heartbeat trigger failed", slog.String("bot_id", cfg.BotID), slog.Any("error", err))
+		log.Error("heartbeat trigger failed",
+			slog.Any("error", err),
+			slog.Duration("duration", time.Since(start)))
 		return
 	}
 
 	modelID := db.ParseUUIDOrEmpty(result.ModelID)
 	s.completeLog(ctx, logRow.ID, result.Status, result.Text, "", result.UsageBytes, modelID)
-	s.logger.Info("heartbeat completed", slog.String("bot_id", cfg.BotID), slog.String("status", result.Status))
+	log.Info("heartbeat run completed",
+		slog.String("status", result.Status),
+		slog.String("session_id", sessionID),
+		slog.String("model_id", result.ModelID),
+		slog.Int("result_len", len(result.Text)),
+		slog.Duration("duration", time.Since(start)))
 }
 
 func (s *Service) completeLog(ctx context.Context, logID pgtype.UUID, status, resultText, errorMessage string, usageBytes []byte, modelID pgtype.UUID) {
@@ -198,7 +230,10 @@ func (s *Service) completeLog(ctx context.Context, logID pgtype.UUID, status, re
 		ModelID:      modelID,
 	})
 	if err != nil {
-		s.logger.Error("complete heartbeat log failed", slog.Any("error", err))
+		s.logger.Error("complete heartbeat log failed",
+			slog.String("log_id", logID.String()),
+			slog.String("status", status),
+			slog.Any("error", err))
 	}
 }
 
@@ -239,7 +274,15 @@ func (s *Service) DeleteLogs(ctx context.Context, botID string) error {
 	if err != nil {
 		return err
 	}
-	return s.queries.DeleteHeartbeatLogsByBot(ctx, pgBotID)
+	err = s.queries.DeleteHeartbeatLogsByBot(ctx, pgBotID)
+	if err != nil {
+		s.logger.Error("delete heartbeat logs failed",
+			slog.String("bot_id", botID),
+			slog.Any("error", err))
+	} else {
+		s.logger.Info("heartbeat logs deleted", slog.String("bot_id", botID))
+	}
+	return err
 }
 
 func (s *Service) generateTriggerToken(userID string) (string, error) {
@@ -270,7 +313,11 @@ func (s *Service) scheduleJob(cfg Config) error {
 	s.mu.Lock()
 	s.jobs[cfg.BotID] = entryID
 	s.mu.Unlock()
-	s.logger.Info("heartbeat scheduled", slog.String("bot_id", cfg.BotID), slog.Int("interval_minutes", cfg.Interval))
+	s.logger.Info("heartbeat scheduled",
+		slog.String("bot_id", cfg.BotID),
+		slog.Int("interval_minutes", cfg.Interval),
+		slog.String("cron_spec", spec),
+		slog.Int("entry_id", int(entryID)))
 	return nil
 }
 
@@ -281,6 +328,9 @@ func (s *Service) removeJob(botID string) {
 	if ok {
 		s.cron.Remove(entryID)
 		delete(s.jobs, botID)
+		s.logger.Debug("heartbeat cron entry removed",
+			slog.String("bot_id", botID),
+			slog.Int("entry_id", int(entryID)))
 	}
 }
 
