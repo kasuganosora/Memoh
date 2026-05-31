@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	agentpkg "github.com/memohai/memoh/internal/agent"
@@ -148,7 +149,11 @@ type discussSession struct {
 	stopOnce        sync.Once // protects stopCh from double-close panic
 	cancel          context.CancelFunc
 	lastProcessedMs int64
-	lastAgentCallAt time.Time
+	lastAgentCallAt atomic.Int64 // unix millis of last agent call (0 = never)
+
+	// Diagnostics — written only by the session goroutine, read by SessionDiagnostics.
+	startedAt      time.Time    // set once at session creation
+	lastActivityAt atomic.Int64 // unix millis of last meaningful activity (RC received / agent call)
 
 	// idleTimeout overrides the default discussIdleTimeout for testing.
 	// Zero means use the default.

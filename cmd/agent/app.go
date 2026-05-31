@@ -67,8 +67,10 @@ import (
 	"github.com/memohai/memoh/internal/handlers"
 	"github.com/memohai/memoh/internal/healthcheck"
 	channelchecker "github.com/memohai/memoh/internal/healthcheck/checkers/channel"
+	heartbeatchecker "github.com/memohai/memoh/internal/healthcheck/checkers/heartbeat"
 	mcpchecker "github.com/memohai/memoh/internal/healthcheck/checkers/mcp"
 	modelchecker "github.com/memohai/memoh/internal/healthcheck/checkers/model"
+	sessionchecker "github.com/memohai/memoh/internal/healthcheck/checkers/session"
 	"github.com/memohai/memoh/internal/heartbeat"
 	"github.com/memohai/memoh/internal/logger"
 	"github.com/memohai/memoh/internal/mcp"
@@ -893,9 +895,14 @@ func startHeartbeatService(lc fx.Lifecycle, heartbeatService *heartbeat.Service)
 		OnStart: func(ctx context.Context) error {
 			return heartbeatService.Bootstrap(ctx)
 		},
-		OnStop: func(_ context.Context) error {
-			<-heartbeatService.Shutdown().Done()
-			return nil
+		OnStop: func(ctx context.Context) error {
+			shutdownCtx := heartbeatService.Shutdown()
+			select {
+			case <-shutdownCtx.Done():
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
 		},
 	})
 }
@@ -1257,7 +1264,7 @@ func startContainerReconciliation(lc fx.Lifecycle, manager *workspace.Manager, _
 	})
 }
 
-func startServer(lc fx.Lifecycle, logger *slog.Logger, srv *server.Server, shutdowner fx.Shutdowner, cfg config.Config, queries *dbsqlc.Queries, botService *bots.Service, _ *handlers.ContainerdHandler, manager *workspace.Manager, mcpConnService *mcp.ConnectionService, toolGateway *mcp.ToolGatewayService, channelManager *channel.Manager, modelsService *models.Service) {
+func startServer(lc fx.Lifecycle, logger *slog.Logger, srv *server.Server, shutdowner fx.Shutdowner, cfg config.Config, queries *dbsqlc.Queries, botService *bots.Service, _ *handlers.ContainerdHandler, manager *workspace.Manager, mcpConnService *mcp.ConnectionService, toolGateway *mcp.ToolGatewayService, channelManager *channel.Manager, modelsService *models.Service, discussTrigger *pipelinepkg.DiscussTrigger, heartbeatService *heartbeat.Service) {
 	fmt.Printf("Starting Memoh Agent %s\n", version.GetInfo())
 
 	lc.Append(fx.Hook{
@@ -1279,6 +1286,12 @@ func startServer(lc fx.Lifecycle, logger *slog.Logger, srv *server.Server, shutd
 			botService.AddRuntimeChecker(healthcheck.NewRuntimeCheckerAdapter(
 				modelchecker.NewChecker(logger, modelchecker.NewQueriesLookup(queries), modelsService),
 			))
+			botService.AddRuntimeChecker(healthcheck.NewRuntimeCheckerAdapter(
+				sessionchecker.NewChecker(logger, discussTrigger),
+			))
+			botService.AddRuntimeChecker(healthcheck.NewRuntimeCheckerAdapter(
+				heartbeatchecker.NewChecker(logger, &heartbeatCheckerAdapter{svc: heartbeatService}),
+			))
 
 			go func() {
 				if err := srv.Start(); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -1295,6 +1308,25 @@ func startServer(lc fx.Lifecycle, logger *slog.Logger, srv *server.Server, shutd
 			return nil
 		},
 	})
+}
+
+// heartbeatCheckerAdapter bridges heartbeat.Service to heartbeatchecker.HeartbeatInspector.
+type heartbeatCheckerAdapter struct {
+	svc *heartbeat.Service
+}
+
+func (a *heartbeatCheckerAdapter) HeartbeatStatusForBot(ctx context.Context, botID string) (heartbeatchecker.HeartbeatStatus, error) {
+	s, err := a.svc.HeartbeatStatusForBot(ctx, botID)
+	if err != nil {
+		return heartbeatchecker.HeartbeatStatus{}, err
+	}
+	return heartbeatchecker.HeartbeatStatus{
+		Enabled:         s.Enabled,
+		IntervalMinutes: s.IntervalMinutes,
+		LastRunAt:       s.LastRunAt,
+		LastStatus:      s.LastStatus,
+		LastError:       s.LastError,
+	}, nil
 }
 
 func ensureAdminUser(ctx context.Context, log *slog.Logger, queries *dbsqlc.Queries, cfg config.Config) error {

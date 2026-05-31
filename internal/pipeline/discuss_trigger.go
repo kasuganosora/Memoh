@@ -89,7 +89,9 @@ func (d *DiscussTrigger) NotifyRC(ctx context.Context, sessionID string, rc Rend
 			stopCh:          make(chan struct{}),
 			cancel:          cancel,
 			lastProcessedMs: initialProcessedMs,
+			startedAt:       time.Now(),
 		}
+		sess.lastActivityAt.Store(time.Now().UnixMilli())
 		d.wireSmartTiming(ctx, sess, config.BotID)
 		d.sessions[sessionID] = sess
 		go d.runSession(sessCtx, sess) //nolint:contextcheck // long-lived goroutine
@@ -173,6 +175,53 @@ func (d *DiscussTrigger) HasSession(sessionID string) bool {
 	return ok
 }
 
+// SessionDiag holds diagnostic information about a single discuss session.
+type SessionDiag struct {
+	SessionID      string
+	BotID          string
+	StartedAt      time.Time
+	LastActivityAt time.Time
+	AliveDuration  time.Duration
+	IdleDuration   time.Duration
+	QueueDepth     int
+	QueueCapacity  int
+}
+
+// SessionDiagnostics returns diagnostic state of all active discuss sessions.
+// Safe to call from any goroutine — only reads atomic/mutex-protected state.
+func (d *DiscussTrigger) SessionDiagnostics() []SessionDiag {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	now := time.Now()
+	diags := make([]SessionDiag, 0, len(d.sessions))
+	for _, sess := range d.sessions {
+		lastAct := time.UnixMilli(sess.lastActivityAt.Load())
+		diags = append(diags, SessionDiag{
+			SessionID:      sess.config.SessionID,
+			BotID:          sess.config.BotID,
+			StartedAt:      sess.startedAt,
+			LastActivityAt: lastAct,
+			AliveDuration:  now.Sub(sess.startedAt),
+			IdleDuration:   now.Sub(lastAct),
+			QueueDepth:     len(sess.rcCh),
+			QueueCapacity:  cap(sess.rcCh),
+		})
+	}
+	return diags
+}
+
+// SessionDiagnosticsForBot returns diagnostic state for sessions belonging to a specific bot.
+func (d *DiscussTrigger) SessionDiagnosticsForBot(botID string) []SessionDiag {
+	all := d.SessionDiagnostics()
+	var result []SessionDiag
+	for _, diag := range all {
+		if diag.BotID == botID {
+			result = append(result, diag)
+		}
+	}
+	return result
+}
+
 // ---------------------------------------------------------------------------
 // Session goroutine — accumulate + debounce + timing gate
 // ---------------------------------------------------------------------------
@@ -238,7 +287,7 @@ func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 			log.Warn("discuss session watchdog timeout, forcing exit",
 				slog.Duration("alive_duration", time.Since(startTime)),
 				slog.Int("messages_processed", messagesProcessed),
-				slog.Time("last_agent_call_at", sess.lastAgentCallAt),
+				slog.Int64("last_agent_call_at_ms", sess.lastAgentCallAt.Load()),
 			)
 			return
 		case <-idleCh:
@@ -250,6 +299,7 @@ func (d *DiscussTrigger) runSession(ctx context.Context, sess *discussSession) {
 		case rc := <-sess.rcCh:
 			latestRC = rc
 			messagesProcessed++
+			sess.lastActivityAt.Store(time.Now().UnixMilli())
 			log.Info("discuss: received new RC in session loop",
 				slog.Int("rc_segments", len(rc)),
 				slog.Int("queue_depth", len(sess.rcCh)))
@@ -371,8 +421,8 @@ func (d *DiscussTrigger) handleReply(ctx context.Context, sess *discussSession, 
 
 	// Minimum cooldown between agent calls (mentions bypass).
 	const minAgentCooldown = 15 * time.Second
-	if !isMentioned && !sess.lastAgentCallAt.IsZero() {
-		if elapsed := time.Since(sess.lastAgentCallAt); elapsed < minAgentCooldown {
+	if !isMentioned && sess.lastAgentCallAt.Load() != 0 {
+		if elapsed := time.Since(time.UnixMilli(sess.lastAgentCallAt.Load())); elapsed < minAgentCooldown {
 			log.Info("discuss_step: handleReply exit (cooldown)",
 				slog.String("step", "handleReply_exit_cooldown"),
 				slog.Duration("elapsed", elapsed),
@@ -603,7 +653,7 @@ func (d *DiscussTrigger) handleReplyWithAgent(ctx context.Context, sess *discuss
 			log.Error("discuss: handleReplyWithAgent hard timeout triggered",
 				slog.Duration("elapsed", elapsed),
 				slog.Duration("max_duration", maxAgentCallDuration),
-				slog.Time("last_agent_call_at", sess.lastAgentCallAt),
+				slog.Int64("last_agent_call_at_ms", sess.lastAgentCallAt.Load()),
 				slog.String("session_id", sess.config.SessionID),
 			)
 		}
@@ -612,7 +662,8 @@ func (d *DiscussTrigger) handleReplyWithAgent(ctx context.Context, sess *discuss
 	sess.configMu.RLock()
 	cfg := sess.config
 	sess.configMu.RUnlock()
-	sess.lastAgentCallAt = time.Now()
+	sess.lastAgentCallAt.Store(time.Now().UnixMilli())
+	sess.lastActivityAt.Store(time.Now().UnixMilli())
 	isMentioned := wasRecentlyMentioned(rc, sess.lastProcessedMs)
 
 	// Update ReplyTarget to the best candidate from the current RC.

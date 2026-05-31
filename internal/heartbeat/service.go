@@ -84,8 +84,9 @@ func (s *Service) Bootstrap(ctx context.Context) error {
 
 func (s *Service) Reschedule(ctx context.Context, botID string) error {
 	s.mu.Lock()
-	// Hold the lock across remove + schedule to prevent concurrent Reschedule
-	// calls from orphaning cron entries for the same botID.
+	// Hold the lock across remove + delete to ensure the cron entry removal
+	// is atomic. The subsequent scheduleJob call acquires the lock again
+	// internally, so we release here to avoid holding it across DB queries.
 	entryID, ok := s.jobs[botID]
 	if ok {
 		s.cron.Remove(entryID)
@@ -283,6 +284,52 @@ func (s *Service) DeleteLogs(ctx context.Context, botID string) error {
 		s.logger.Info("heartbeat logs deleted", slog.String("bot_id", botID))
 	}
 	return err
+}
+
+// HeartbeatStatus holds heartbeat scheduling info for health check.
+type HeartbeatStatus struct {
+	Enabled         bool
+	IntervalMinutes int
+	LastRunAt       time.Time
+	LastStatus      string
+	LastError       string
+}
+
+// HeartbeatStatusForBot returns the heartbeat scheduling status for a bot.
+// Used by the healthcheck subsystem to detect overdue/stuck heartbeats.
+func (s *Service) HeartbeatStatusForBot(ctx context.Context, botID string) (HeartbeatStatus, error) {
+	pgID, err := db.ParseUUID(botID)
+	if err != nil {
+		return HeartbeatStatus{}, err
+	}
+	bot, err := s.queries.GetBotByID(ctx, pgID)
+	if err != nil {
+		return HeartbeatStatus{}, fmt.Errorf("get bot: %w", err)
+	}
+	status := HeartbeatStatus{
+		Enabled:         bot.HeartbeatEnabled,
+		IntervalMinutes: int(bot.HeartbeatInterval),
+	}
+	if !bot.HeartbeatEnabled {
+		return status, nil
+	}
+
+	// Get latest log entry.
+	logs, err := s.queries.ListHeartbeatLogsByBot(ctx, sqlc.ListHeartbeatLogsByBotParams{
+		BotID: pgID,
+		Limit: 1,
+	})
+	if err != nil {
+		return status, nil // non-critical — return what we have
+	}
+	if len(logs) > 0 {
+		if logs[0].StartedAt.Valid {
+			status.LastRunAt = logs[0].StartedAt.Time
+		}
+		status.LastStatus = logs[0].Status
+		status.LastError = logs[0].ErrorMessage
+	}
+	return status, nil
 }
 
 func (s *Service) generateTriggerToken(userID string) (string, error) {
