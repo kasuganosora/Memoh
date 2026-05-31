@@ -62,7 +62,9 @@ func (s *Service) Bootstrap(ctx context.Context) error {
 	}
 	rows, err := s.queries.ListHeartbeatEnabledBots(ctx)
 	if err != nil {
-		return err
+		// Heartbeat is non-critical — log and continue rather than blocking startup.
+		s.logger.Error("heartbeat bootstrap: failed to list enabled bots", slog.Any("error", err))
+		return nil
 	}
 	for _, row := range rows {
 		botID := row.ID.String()
@@ -72,7 +74,7 @@ func (s *Service) Bootstrap(ctx context.Context) error {
 			OwnerUserID: ownerUserID,
 			Interval:    int(row.HeartbeatInterval),
 		}
-		if err := s.scheduleJob(ctx, cfg); err != nil {
+		if err := s.scheduleJob(cfg); err != nil { //nolint:contextcheck // cron jobs use background context by design
 			s.logger.Error("failed to schedule heartbeat", slog.String("bot_id", botID), slog.Any("error", err))
 		}
 	}
@@ -81,7 +83,15 @@ func (s *Service) Bootstrap(ctx context.Context) error {
 }
 
 func (s *Service) Reschedule(ctx context.Context, botID string) error {
-	s.removeJob(botID)
+	s.mu.Lock()
+	// Hold the lock across remove + schedule to prevent concurrent Reschedule
+	// calls from orphaning cron entries for the same botID.
+	entryID, ok := s.jobs[botID]
+	if ok {
+		s.cron.Remove(entryID)
+		delete(s.jobs, botID)
+	}
+	s.mu.Unlock()
 
 	pgID, err := db.ParseUUID(botID)
 	if err != nil {
@@ -99,11 +109,17 @@ func (s *Service) Reschedule(ctx context.Context, botID string) error {
 		OwnerUserID: bot.OwnerUserID.String(),
 		Interval:    int(bot.HeartbeatInterval),
 	}
-	return s.scheduleJob(ctx, cfg)
+	return s.scheduleJob(cfg) //nolint:contextcheck // cron jobs use background context by design
 }
 
 func (s *Service) Stop(botID string) {
 	s.removeJob(botID)
+}
+
+// Shutdown stops the cron scheduler and waits for any running heartbeat jobs
+// to complete. Should be called during graceful shutdown.
+func (s *Service) Shutdown() context.Context {
+	return s.cron.Stop()
 }
 
 func (s *Service) runHeartbeat(ctx context.Context, cfg Config) {
@@ -237,13 +253,13 @@ func (s *Service) generateTriggerToken(userID string) (string, error) {
 	return "Bearer " + signed, nil
 }
 
-func (s *Service) scheduleJob(ctx context.Context, cfg Config) error {
+func (s *Service) scheduleJob(cfg Config) error {
 	if cfg.Interval <= 0 {
 		cfg.Interval = 30
 	}
 	spec := fmt.Sprintf("@every %dm", cfg.Interval)
 	job := func() {
-		runCtx, runCancel := context.WithTimeout(context.WithoutCancel(ctx), heartbeatRunTimeout)
+		runCtx, runCancel := context.WithTimeout(context.Background(), heartbeatRunTimeout)
 		defer runCancel()
 		s.runHeartbeat(runCtx, cfg)
 	}
@@ -272,10 +288,12 @@ func toLog(row sqlc.ListHeartbeatLogsByBotRow) Log {
 	l := Log{
 		ID:           row.ID.String(),
 		BotID:        row.BotID.String(),
-		SessionID:    row.SessionID.String(),
 		Status:       row.Status,
 		ResultText:   row.ResultText,
 		ErrorMessage: row.ErrorMessage,
+	}
+	if row.SessionID.Valid {
+		l.SessionID = row.SessionID.String()
 	}
 	if row.StartedAt.Valid {
 		l.StartedAt = row.StartedAt.Time

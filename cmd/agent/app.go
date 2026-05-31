@@ -893,6 +893,10 @@ func startHeartbeatService(lc fx.Lifecycle, heartbeatService *heartbeat.Service)
 		OnStart: func(ctx context.Context) error {
 			return heartbeatService.Bootstrap(ctx)
 		},
+		OnStop: func(_ context.Context) error {
+			<-heartbeatService.Shutdown().Done()
+			return nil
+		},
 	})
 }
 
