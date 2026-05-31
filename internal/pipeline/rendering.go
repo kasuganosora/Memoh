@@ -415,6 +415,11 @@ func renderContentNode(sb *strings.Builder, node ContentNode) {
 		sb.WriteString("</mention>")
 	case "custom_emoji":
 		renderChildren(sb, node.Children)
+	default:
+		// Unknown node type — render children to preserve text content.
+		// This prevents silent data loss when events persisted by a newer
+		// code version (with new node types) are loaded after a rollback.
+		renderChildren(sb, node.Children)
 	}
 }
 
