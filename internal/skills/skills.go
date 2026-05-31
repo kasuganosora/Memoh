@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"path"
 	"slices"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/memohai/memoh/internal/config"
+	"github.com/memohai/memoh/internal/logger"
 	"github.com/memohai/memoh/internal/workspace/bridge"
 	pb "github.com/memohai/memoh/internal/workspace/bridgepb"
 )
@@ -144,8 +146,11 @@ func List(ctx context.Context, client fileClient, rawCompatRoots []string) ([]En
 	idx := readIndex(ctx, client)
 	items := scan(ctx, client, DiscoveryRoots(rawCompatRoots))
 	resolved := resolve(items, idx.Overrides)
-	if err := writeIndex(ctx, client, idx.withItems(resolved)); err != nil {
-		return nil, fmt.Errorf("write skill index: %w", err)
+	newIdx := idx.withItems(resolved)
+	if !indexItemsEqual(idx.Items, newIdx.Items) {
+		if err := writeIndex(ctx, client, newIdx); err != nil {
+			return nil, fmt.Errorf("write skill index: %w", err)
+		}
 	}
 	return resolved, nil
 }
@@ -269,7 +274,7 @@ func normalizeCompatDiscoveryRoots(paths []string) []string {
 }
 
 func ParseFile(raw string, fallbackName string) Parsed {
-	trimmed := strings.TrimSpace(raw)
+	trimmed := strings.TrimSpace(strings.ReplaceAll(raw, "\r\n", "\n"))
 	result := Parsed{
 		Name:    strings.TrimSpace(fallbackName),
 		Content: trimmed,
@@ -282,8 +287,6 @@ func ParseFile(raw string, fallbackName string) Parsed {
 	rest = strings.TrimLeft(rest, " \t")
 	if len(rest) > 0 && rest[0] == '\n' {
 		rest = rest[1:]
-	} else if len(rest) > 1 && rest[0] == '\r' && rest[1] == '\n' {
-		rest = rest[2:]
 	}
 	closingIdx := strings.Index(rest, "\n---")
 	if closingIdx < 0 {
@@ -352,10 +355,12 @@ func normalizeParsed(skill Parsed) Parsed {
 }
 
 func scan(ctx context.Context, client fileClient, roots []Root) []Entry {
+	log := logger.FromContext(ctx)
 	items := make([]Entry, 0, 16)
 	for _, root := range roots {
 		entries, err := client.ListDirAll(ctx, root.Path, false)
 		if err != nil {
+			log.DebugContext(ctx, "skills: skip root", slog.String("path", root.Path), slog.Any("err", err))
 			continue
 		}
 		slices.SortFunc(entries, func(a, b *pb.FileEntry) int {
@@ -369,6 +374,7 @@ func scan(ctx context.Context, client fileClient, roots []Root) []Entry {
 				filePath := path.Join(root.Path, "SKILL.md")
 				raw, err := readRawFile(ctx, client, filePath)
 				if err != nil {
+					log.DebugContext(ctx, "skills: skip file", slog.String("path", filePath), slog.Any("err", err))
 					continue
 				}
 				parsed := ParseFile(raw, "default")
@@ -383,6 +389,7 @@ func scan(ctx context.Context, client fileClient, roots []Root) []Entry {
 			filePath := path.Join(root.Path, name, "SKILL.md")
 			raw, err := readRawFile(ctx, client, filePath)
 			if err != nil {
+				log.DebugContext(ctx, "skills: skip file", slog.String("path", filePath), slog.Any("err", err))
 				continue
 			}
 			parsed := ParseFile(raw, name)
@@ -393,6 +400,16 @@ func scan(ctx context.Context, client fileClient, roots []Root) []Entry {
 }
 
 func resolve(items []Entry, overrides map[string]indexOverride) []Entry {
+	// Sort items by source priority: managed > legacy > compat, then by path.
+	// This ensures the first non-disabled item per name becomes effective,
+	// regardless of the insertion order from scan().
+	slices.SortStableFunc(items, func(a, b Entry) int {
+		if cmp := sourceKindRank(a.SourceKind) - sourceKindRank(b.SourceKind); cmp != 0 {
+			return cmp
+		}
+		return strings.Compare(a.SourcePath, b.SourcePath)
+	})
+
 	byName := make(map[string][]Entry, len(items))
 	for _, item := range items {
 		byName[item.Name] = append(byName[item.Name], item)
@@ -457,6 +474,19 @@ func stateRank(state string) int {
 	}
 }
 
+func sourceKindRank(kind string) int {
+	switch kind {
+	case SourceKindManaged:
+		return 0
+	case SourceKindLegacy:
+		return 1
+	case SourceKindCompat:
+		return 2
+	default:
+		return 3
+	}
+}
+
 func entryFromParsed(parsed Parsed, raw string, root Root, sourcePath string) Entry {
 	return Entry{
 		Name:        parsed.Name,
@@ -471,6 +501,8 @@ func entryFromParsed(parsed Parsed, raw string, root Root, sourcePath string) En
 	}
 }
 
+const maxSkillFileSize = 256 * 1024 // 256KB
+
 func readRawFile(ctx context.Context, client fileClient, filePath string) (string, error) {
 	rc, err := client.ReadRaw(ctx, filePath)
 	if err != nil {
@@ -478,7 +510,7 @@ func readRawFile(ctx context.Context, client fileClient, filePath string) (strin
 	}
 	defer func() { _ = rc.Close() }()
 
-	data, err := io.ReadAll(rc)
+	data, err := io.ReadAll(io.LimitReader(rc, maxSkillFileSize))
 	if err != nil {
 		return "", err
 	}
@@ -548,6 +580,24 @@ func (i indexState) withItems(items []Entry) indexState {
 		})
 	}
 	return i
+}
+
+func indexItemsEqual(a, b []indexedItem) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].Name != b[i].Name ||
+			a[i].SourcePath != b[i].SourcePath ||
+			a[i].SourceKind != b[i].SourceKind ||
+			a[i].Managed != b[i].Managed ||
+			a[i].State != b[i].State ||
+			a[i].ShadowedBy != b[i].ShadowedBy ||
+			a[i].ContentHash != b[i].ContentHash {
+			return false
+		}
+	}
+	return true
 }
 
 func containsSourcePath(items []Entry, target string) bool {
