@@ -565,7 +565,8 @@ func (d *DiscussTrigger) resolveProbeConfig(ctx context.Context, sess *discussSe
 			convType, token)
 		if err == nil {
 			probeCfg = resolved.RunConfig
-			sess.cachedProbeModel = &agentpkg.RunConfig{Model: resolved.RunConfig.Model}
+			probeCfg.SupportsToolCall = false
+			sess.cachedProbeModel = &probeCfg
 		}
 	}
 	return probeCfg

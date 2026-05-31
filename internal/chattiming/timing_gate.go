@@ -82,12 +82,11 @@ const (
 
 // Evaluate runs the timing gate check. If isMentioned is true, it skips the
 // LLM call entirely and returns TimingContinue immediately (the bot must respond).
-// On error, it fails open by returning TimingContinue.
 //
 // The LLM call is wrapped in a separate goroutine with a wall-clock hard timeout
-// (time.After) so that the caller is not blocked even if the SDK's HTTP client
-// ignores context cancellation. When the goroutine returns its result or the
-// timeout fires earlier, we return immediately.
+// so that the caller is not blocked even if the SDK's HTTP client ignores context
+// cancellation. The caller (evaluateTimingGate) applies fail-closed semantics on
+// failure results.
 func (tg *TimingGate) Evaluate(ctx context.Context, params TimingGateParams, runConfig agentpkg.RunConfig) TimingGateResult {
 	// @mention always forces a response.
 	if params.IsMentioned {
@@ -104,18 +103,27 @@ func (tg *TimingGate) Evaluate(ctx context.Context, params TimingGateParams, run
 		resultCh <- tg.doEvaluate(evalCtx, params, runConfig)
 	}()
 
-	// Wait for the goroutine to finish, or time out via wall-clock.
+	// Wall-clock hard timeout — independent of context so we can distinguish
+	// "parent cancelled" from "gate took too long".
+	hardTimer := time.NewTimer(timingGateMaxTimeout)
+	defer hardTimer.Stop()
+
 	select {
 	case result := <-resultCh:
 		return result
-	case <-time.After(timingGateMaxTimeout):
-		tg.logger.Warn("timing gate goroutine hard timeout, failing open",
+	case <-hardTimer.C:
+		// The goroutine exceeded the hard timeout. Cancel its context to unblock it.
+		cancel()
+		tg.logger.Warn("timing gate goroutine hard timeout",
 			slog.Duration("max_timeout", timingGateMaxTimeout),
 			slog.String("bot_name", params.BotName))
 		return TimingGateResult{Decision: TimingContinue, Reason: "goroutine timeout"}
-	case <-evalCtx.Done():
-		tg.logger.Warn("timing gate context cancelled, failing closed",
-			slog.String("bot_name", params.BotName))
+	case <-ctx.Done():
+		// Parent context cancelled (e.g., session shutdown, new message arrived).
+		cancel()
+		tg.logger.Warn("timing gate parent context cancelled",
+			slog.String("bot_name", params.BotName),
+			slog.Any("cause", ctx.Err()))
 		return TimingGateResult{Decision: TimingNoReply, Reason: "context cancelled"}
 	}
 }
@@ -195,7 +203,9 @@ func (tg *TimingGate) doEvaluate(ctx context.Context, params TimingGateParams, r
 
 		case <-idleTimer.C:
 			// No token activity for timingGateIdleTimeout — treat as stall.
-			tg.logger.Warn("timing gate idle timeout, failing open to continue",
+			// Note: caller (evaluateTimingGate) applies fail-closed semantics on
+			// failure results, so "TimingContinue" here is overridden upstream.
+			tg.logger.Warn("timing gate idle timeout (gate failure)",
 				slog.Duration("idle_timeout", timingGateIdleTimeout),
 				slog.Duration("elapsed", time.Since(startTime)),
 				slog.Int("text_length", textBuilder.Len()))
@@ -210,11 +220,12 @@ func (tg *TimingGate) doEvaluate(ctx context.Context, params TimingGateParams, r
 			return TimingGateResult{Decision: TimingContinue, Reason: "idle timeout"}
 
 		case <-ctx.Done():
-			// Absolute timeout or parent context cancelled.
-			tg.logger.Warn("timing gate context done, failing open",
-				slog.Duration("max_timeout", timingGateMaxTimeout),
+			// Context cancelled (hard timeout or parent shutdown).
+			// Caller applies fail-closed semantics on this result.
+			tg.logger.Warn("timing gate context cancelled (gate failure)",
 				slog.Duration("elapsed", time.Since(startTime)),
-				slog.Int("text_length", textBuilder.Len()))
+				slog.Int("text_length", textBuilder.Len()),
+				slog.Any("cause", ctx.Err()))
 			go func() {
 				for range ch {
 				}
@@ -345,11 +356,16 @@ func parseTimingGateResult(text string) TimingGateResult {
 			decision = TimingNoReply
 		}
 		waitSec := resp.WaitSeconds
-		if waitSec <= 0 {
-			waitSec = 5
-		}
-		if waitSec > 30 {
-			waitSec = 30
+		// Only apply default/clamp for "wait" decisions; other decisions don't use WaitSeconds.
+		if decision == TimingWait {
+			if waitSec <= 0 {
+				waitSec = 5
+			}
+			if waitSec > 30 {
+				waitSec = 30
+			}
+		} else {
+			waitSec = 0
 		}
 		return TimingGateResult{
 			Decision:    decision,

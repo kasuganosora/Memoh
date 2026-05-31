@@ -1,7 +1,6 @@
 package pipeline
 
 import (
-	"fmt"
 	"strings"
 	"time"
 )
@@ -18,16 +17,18 @@ func wasRecentlyMentioned(rc RenderedContext, afterMs int64) bool {
 }
 
 // renderContextXML formats recent context segments as XML for the timing gate prompt.
+// Each segment's Content already contains fully-rendered XML (with sender, timestamp,
+// etc.), so we output them directly without extra wrapping.
 func renderContextXML(rc RenderedContext, afterMs int64) string {
 	var sb strings.Builder
 	for _, seg := range rc {
 		if seg.ReceivedAtMs <= afterMs || seg.IsMyself {
 			continue
 		}
-		ts := time.UnixMilli(seg.ReceivedAtMs).Format(time.RFC3339)
 		for _, piece := range seg.Content {
 			if piece.Type == "text" && piece.Text != "" {
-				fmt.Fprintf(&sb, "<msg time=\"%s\">%s</msg>\n", ts, piece.Text)
+				sb.WriteString(piece.Text)
+				sb.WriteByte('\n')
 			}
 		}
 	}
