@@ -51,6 +51,15 @@ func (h *Handler) buildCompactGroup() *CommandGroup {
 }
 
 func (h *Handler) buildCompactConfig(cc CommandContext, sessionID string) (compaction.TriggerConfig, error) {
+	if h.settingsService == nil {
+		return compaction.TriggerConfig{}, errors.New("settings service is not available")
+	}
+	if h.modelsService == nil {
+		return compaction.TriggerConfig{}, errors.New("model service is not available")
+	}
+	if h.providersService == nil {
+		return compaction.TriggerConfig{}, errors.New("provider service is not available")
+	}
 	botSettings, err := h.settingsService.GetBot(cc.Ctx, cc.BotID)
 	if err != nil {
 		return compaction.TriggerConfig{}, fmt.Errorf("failed to load settings: %w", err)

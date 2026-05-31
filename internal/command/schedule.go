@@ -1,6 +1,7 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -14,6 +15,9 @@ func (h *Handler) buildScheduleGroup() *CommandGroup {
 		Name:  "list",
 		Usage: "list - List all schedules",
 		Handler: func(cc CommandContext) (string, error) {
+			if h.scheduleService == nil {
+				return "Schedule service is not available.", nil
+			}
 			items, err := h.scheduleService.List(cc.Ctx, cc.BotID)
 			if err != nil {
 				return "", err
@@ -189,6 +193,9 @@ func (h *Handler) buildScheduleGroup() *CommandGroup {
 }
 
 func (h *Handler) findScheduleByName(cc CommandContext, name string) (schedule.Schedule, error) {
+	if h.scheduleService == nil {
+		return schedule.Schedule{}, errors.New("schedule service is not available")
+	}
 	items, err := h.scheduleService.List(cc.Ctx, cc.BotID)
 	if err != nil {
 		return schedule.Schedule{}, err

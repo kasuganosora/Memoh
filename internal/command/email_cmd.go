@@ -10,6 +10,9 @@ func (h *Handler) buildEmailGroup() *CommandGroup {
 		Name:  "providers",
 		Usage: "providers - List email providers",
 		Handler: func(cc CommandContext) (string, error) {
+			if h.emailService == nil {
+				return "Email service is not available.", nil
+			}
 			items, err := h.emailService.ListProviders(cc.Ctx, "")
 			if err != nil {
 				return "", err
@@ -31,6 +34,9 @@ func (h *Handler) buildEmailGroup() *CommandGroup {
 		Name:  "bindings",
 		Usage: "bindings - List bot email bindings",
 		Handler: func(cc CommandContext) (string, error) {
+			if h.emailService == nil {
+				return "Email service is not available.", nil
+			}
 			items, err := h.emailService.ListBindings(cc.Ctx, cc.BotID)
 			if err != nil {
 				return "", err
@@ -53,6 +59,9 @@ func (h *Handler) buildEmailGroup() *CommandGroup {
 		Name:  "outbox",
 		Usage: "outbox - List recently sent emails",
 		Handler: func(cc CommandContext) (string, error) {
+			if h.emailOutboxService == nil {
+				return "Email outbox service is not available.", nil
+			}
 			items, _, err := h.emailOutboxService.ListByBot(cc.Ctx, cc.BotID, 10, 0)
 			if err != nil {
 				return "", err

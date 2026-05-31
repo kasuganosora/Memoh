@@ -48,8 +48,10 @@ func newCommandGroup(name, description string) *CommandGroup {
 }
 
 func (g *CommandGroup) Register(sub SubCommand) {
+	if _, exists := g.commands[sub.Name]; !exists {
+		g.order = append(g.order, sub.Name)
+	}
 	g.commands[sub.Name] = sub
-	g.order = append(g.order, sub.Name)
 }
 
 // Usage returns the usage text for this resource group.
@@ -103,8 +105,10 @@ func newRegistry() *Registry {
 }
 
 func (r *Registry) RegisterGroup(group *CommandGroup) {
+	if _, exists := r.groups[group.Name]; !exists {
+		r.order = append(r.order, group.Name)
+	}
 	r.groups[group.Name] = group
-	r.order = append(r.order, group.Name)
 }
 
 // GlobalHelp returns the top-level help text listing all commands.

@@ -11,6 +11,9 @@ func (h *Handler) buildMCPGroup() *CommandGroup {
 		Name:  "list",
 		Usage: "list - List all MCP connections",
 		Handler: func(cc CommandContext) (string, error) {
+			if h.mcpConnService == nil {
+				return "MCP service is not available.", nil
+			}
 			items, err := h.mcpConnService.ListByBot(cc.Ctx, cc.BotID)
 			if err != nil {
 				return "", err
@@ -36,6 +39,9 @@ func (h *Handler) buildMCPGroup() *CommandGroup {
 		Handler: func(cc CommandContext) (string, error) {
 			if len(cc.Args) < 1 {
 				return "Usage: /mcp get <name>", nil
+			}
+			if h.mcpConnService == nil {
+				return "MCP service is not available.", nil
 			}
 			name := cc.Args[0]
 			items, err := h.mcpConnService.ListByBot(cc.Ctx, cc.BotID)
@@ -75,6 +81,9 @@ func (h *Handler) buildMCPGroup() *CommandGroup {
 		Handler: func(cc CommandContext) (string, error) {
 			if len(cc.Args) < 1 {
 				return "Usage: /mcp delete <name>", nil
+			}
+			if h.mcpConnService == nil {
+				return "MCP service is not available.", nil
 			}
 			name := cc.Args[0]
 			items, err := h.mcpConnService.ListByBot(cc.Ctx, cc.BotID)
