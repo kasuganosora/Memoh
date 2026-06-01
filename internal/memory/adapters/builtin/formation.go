@@ -2,6 +2,7 @@ package builtin
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strings"
 	"time"
@@ -10,9 +11,11 @@ import (
 )
 
 const (
-	formationTimeout       = 120 * time.Second // overall safety-net timeout
+	formationTimeout       = 200 * time.Second // overall safety-net timeout (accommodates decide retry)
 	extractTimeout         = 60 * time.Second  // independent timeout for Extract LLM call
-	decideTimeout          = 60 * time.Second  // independent timeout for Decide LLM call
+	decideTimeout          = 90 * time.Second  // independent timeout for Decide LLM call (raised from 60s to reduce timeouts)
+	decideMaxAttempts      = 2                 // retry once on transient failure
+	decideRetryDelay       = 5 * time.Second   // delay between decide retries
 	candidateSearchLimit   = 20
 	candidateGetAllLimit   = 50
 	maxCandidatesPerDecide = 30
@@ -64,13 +67,31 @@ func runFormation(ctx context.Context, logger *slog.Logger, llm adapters.LLM, ru
 
 	candidates := gatherCandidates(ctx, logger, runtime, botID, facts)
 
-	decideCtx, decideCancel := context.WithTimeout(ctx, decideTimeout)
-	decided, err := llm.Decide(decideCtx, adapters.DecideRequest{
-		BotID:      botID,
-		Facts:      facts,
-		Candidates: candidates,
-	})
-	decideCancel()
+	var decided adapters.DecideResponse
+	for attempt := range decideMaxAttempts {
+		decideCtx, decideCancel := context.WithTimeout(ctx, decideTimeout)
+		decided, err = llm.Decide(decideCtx, adapters.DecideRequest{
+			BotID:      botID,
+			Facts:      facts,
+			Candidates: candidates,
+		})
+		decideCancel()
+		if err == nil {
+			break
+		}
+		if !isTransientError(err) || attempt == decideMaxAttempts-1 {
+			break
+		}
+		logger.Info("memory formation: decide retrying",
+			slog.String("bot_id", botID),
+			slog.Int("attempt", attempt+1),
+			slog.Any("error", err),
+		)
+		if !sleepOrCancel(ctx, decideRetryDelay) {
+			err = ctx.Err()
+			break
+		}
+	}
 	if err != nil {
 		logger.Warn("memory formation: decide failed", slog.String("bot_id", botID), slog.Any("error", err))
 		result.Err = err
@@ -284,4 +305,50 @@ func cloneMetadata(meta map[string]any) map[string]any {
 		cp[k] = v
 	}
 	return cp
+}
+
+// isTransientError returns true for errors that are likely temporary and worth
+// retrying (e.g., deadline exceeded, network timeouts, server errors).
+func isTransientError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	// Don't retry on parent-context cancellation (e.g., overall formation timeout hit).
+	if errors.Is(err, context.Canceled) {
+		return false
+	}
+	// Match common transient error patterns from LLM providers.
+	msg := strings.ToLower(err.Error())
+	for _, keyword := range []string{
+		"deadline exceeded",
+		"timeout",
+		"connection reset",
+		"unexpected eof",
+		"status 429",
+		"status 500",
+		"status 502",
+		"status 503",
+		"status 504",
+	} {
+		if strings.Contains(msg, keyword) {
+			return true
+		}
+	}
+	return false
+}
+
+// sleepOrCancel waits for the specified duration or returns early if the context
+// is cancelled. Returns true if the sleep completed, false if cancelled.
+func sleepOrCancel(ctx context.Context, d time.Duration) bool {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-t.C:
+		return true
+	case <-ctx.Done():
+		return false
+	}
 }

@@ -2,6 +2,7 @@ package builtin
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strings"
 	"testing"
@@ -562,6 +563,154 @@ func TestMemorySourceLabel(t *testing.T) {
 				if c != "" && !strings.Contains(label, c) {
 					t.Fatalf("expected label to contain %q, got %q", c, label)
 				}
+			}
+		})
+	}
+}
+
+// --- Decide retry tests ---
+
+// retryFakeLLM allows configuring per-call behavior for Decide.
+type retryFakeLLM struct {
+	fakeLLM
+	decideErrors []error // errors to return in order; nil = success
+}
+
+func (f *retryFakeLLM) Decide(_ context.Context, _ adapters.DecideRequest) (adapters.DecideResponse, error) {
+	call := f.decideCalls
+	f.decideCalls++
+	if call < len(f.decideErrors) && f.decideErrors[call] != nil {
+		return adapters.DecideResponse{}, f.decideErrors[call]
+	}
+	return adapters.DecideResponse{Actions: f.decideActions}, nil
+}
+
+func TestFormationDecideRetryOnTransientError(t *testing.T) {
+	t.Parallel()
+	encoder := &fakeSparseEncoder{}
+	index := newFakeSparseIndex(encoder)
+	store := newFakeSparseStore()
+	runtime := &sparseRuntime{qdrant: index, encoder: encoder, store: store}
+
+	llm := &retryFakeLLM{
+		fakeLLM: fakeLLM{
+			extractFacts: []string{"User likes hiking"},
+			decideActions: []adapters.DecisionAction{
+				{Event: "ADD", Text: "User likes hiking"},
+			},
+		},
+		decideErrors: []error{
+			context.DeadlineExceeded, // first call fails
+			nil,                      // second call succeeds
+		},
+	}
+
+	result := runFormation(context.Background(), slog.Default(), llm, runtime, adapters.AfterChatRequest{
+		BotID: "bot-retry",
+		Messages: []adapters.Message{
+			{Role: "user", Content: "I like hiking"},
+		},
+	})
+
+	if result.Err != nil {
+		t.Fatalf("expected success after retry, got error: %v", result.Err)
+	}
+	if result.Added != 1 {
+		t.Fatalf("expected 1 add after retry, got %d", result.Added)
+	}
+	if llm.decideCalls != 2 {
+		t.Fatalf("expected 2 decide calls (1 failure + 1 retry), got %d", llm.decideCalls)
+	}
+}
+
+func TestFormationDecideNoRetryOnNonTransientError(t *testing.T) {
+	t.Parallel()
+	encoder := &fakeSparseEncoder{}
+	index := newFakeSparseIndex(encoder)
+	store := newFakeSparseStore()
+	runtime := &sparseRuntime{qdrant: index, encoder: encoder, store: store}
+
+	llm := &retryFakeLLM{
+		fakeLLM: fakeLLM{
+			extractFacts: []string{"User likes hiking"},
+			decideActions: []adapters.DecisionAction{
+				{Event: "ADD", Text: "User likes hiking"},
+			},
+		},
+		decideErrors: []error{
+			errors.New("invalid api key"), // non-transient error
+		},
+	}
+
+	result := runFormation(context.Background(), slog.Default(), llm, runtime, adapters.AfterChatRequest{
+		BotID: "bot-no-retry",
+		Messages: []adapters.Message{
+			{Role: "user", Content: "I like hiking"},
+		},
+	})
+
+	if result.Err == nil {
+		t.Fatal("expected error on non-transient failure")
+	}
+	if llm.decideCalls != 1 {
+		t.Fatalf("expected 1 decide call (no retry for non-transient), got %d", llm.decideCalls)
+	}
+}
+
+func TestFormationDecideAllRetriesExhausted(t *testing.T) {
+	t.Parallel()
+	encoder := &fakeSparseEncoder{}
+	index := newFakeSparseIndex(encoder)
+	store := newFakeSparseStore()
+	runtime := &sparseRuntime{qdrant: index, encoder: encoder, store: store}
+
+	llm := &retryFakeLLM{
+		fakeLLM: fakeLLM{
+			extractFacts: []string{"User likes hiking"},
+		},
+		decideErrors: []error{
+			context.DeadlineExceeded, // first call fails
+			context.DeadlineExceeded, // retry also fails
+		},
+	}
+
+	result := runFormation(context.Background(), slog.Default(), llm, runtime, adapters.AfterChatRequest{
+		BotID: "bot-exhaust",
+		Messages: []adapters.Message{
+			{Role: "user", Content: "I like hiking"},
+		},
+	})
+
+	if result.Err == nil {
+		t.Fatal("expected error when all retries exhausted")
+	}
+	if llm.decideCalls != 2 {
+		t.Fatalf("expected 2 decide calls (initial + 1 retry), got %d", llm.decideCalls)
+	}
+}
+
+func TestIsTransientError(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{"nil", nil, false},
+		{"deadline exceeded", context.DeadlineExceeded, true},
+		{"context canceled", context.Canceled, false},
+		{"timeout in message", errors.New("openai: request timeout"), true},
+		{"connection reset", errors.New("connection reset by peer"), true},
+		{"status 429", errors.New("status 429 too many requests"), true},
+		{"status 503", errors.New("HTTP status 503"), true},
+		{"invalid key", errors.New("invalid api key"), false},
+		{"auth error", errors.New("401 unauthorized"), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isTransientError(tt.err)
+			if got != tt.expected {
+				t.Fatalf("isTransientError(%v) = %v, want %v", tt.err, got, tt.expected)
 			}
 		})
 	}
