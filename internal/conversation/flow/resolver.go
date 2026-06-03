@@ -600,6 +600,11 @@ func (r *Resolver) resolve(ctx context.Context, req conversation.ChatRequest) (r
 		}
 	}
 
+	// Wire cross-turn reply dedup tracker for discuss sessions.
+	if req.RepliedTargets != nil {
+		runCfg.Identity.RepliedTargets = req.RepliedTargets
+	}
+
 	return resolvedContext{
 		runConfig:           runCfg,
 		model:               chatModel,

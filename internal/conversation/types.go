@@ -255,6 +255,11 @@ type ChatRequest struct {
 	// between tool rounds via the PrepareStep hook. Nil means no injection.
 	InjectCh <-chan InjectMessage `json:"-"`
 
+	// RepliedTargets is a cross-turn reply dedup tracker for discuss sessions.
+	// Passed as any to avoid import cycles; the agent layer type-asserts to
+	// *tools.RepliedTargetTracker. Nil for non-discuss sessions.
+	RepliedTargets any `json:"-"`
+
 	Query           string           `json:"query"`
 	Model           string           `json:"model,omitempty"`
 	Provider        string           `json:"provider,omitempty"`

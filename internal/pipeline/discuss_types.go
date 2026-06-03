@@ -151,6 +151,10 @@ type discussSession struct {
 	lastProcessedMs int64
 	lastAgentCallAt atomic.Int64 // unix millis of last agent call (0 = never)
 
+	// repliedTargets tracks message IDs already replied to across agent calls
+	// within this session, preventing duplicate replies to the same @mention.
+	repliedTargets any // *tools.RepliedTargetTracker, typed as any to avoid import cycle
+
 	// Diagnostics — written only by the session goroutine, read by SessionDiagnostics.
 	startedAt      time.Time    // set once at session creation
 	lastActivityAt atomic.Int64 // unix millis of last meaningful activity (RC received / agent call)

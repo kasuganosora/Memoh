@@ -147,7 +147,7 @@ func latestReplyTarget(rc RenderedContext, afterMs int64) string {
 
 // buildLateBindingPrompt constructs the late-binding system prompt injected
 // as the final user message in discuss mode.
-func buildLateBindingPrompt(isMentioned bool) string {
+func buildLateBindingPrompt(isMentioned bool, repliedTargets []string) string {
 	now := time.Now().Format(time.RFC3339)
 	var sb strings.Builder
 	sb.WriteString("Current time: ")
@@ -158,6 +158,17 @@ func buildLateBindingPrompt(isMentioned bool) string {
 	sb.WriteString("Focus on the MOST RECENT messages in the conversation. ")
 	sb.WriteString("If you already replied to an earlier question or @mention in a previous turn, do NOT re-reply to it — the conversation has moved on. ")
 	sb.WriteString("If new messages are unrelated to you or don't warrant a response, staying silent is the right choice — trust your judgment.")
+
+	if len(repliedTargets) > 0 {
+		sb.WriteString("\n\n⚠️ ALREADY REPLIED — DO NOT reply to these message IDs again (you replied in a previous turn): ")
+		for i, t := range repliedTargets {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(t)
+		}
+		sb.WriteString(". If the latest @mention is one of these, stay SILENT.")
+	}
 
 	if isMentioned {
 		sb.WriteString("\n\nYou were @mentioned or replied to in the LATEST messages. Consider responding — but only if you have something meaningful to say.")

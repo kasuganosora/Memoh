@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -91,6 +92,12 @@ type SessionContext struct {
 	// Shared via pointer so that the counter survives value copies of SessionContext.
 	// Nil means no limit is enforced.
 	SendCount *atomic.Int32
+
+	// RepliedTargets tracks message IDs that have already been replied to in this
+	// discuss session (cross-turn dedup). Shared via pointer so it survives value
+	// copies and persists across multiple agent calls within the same session.
+	// Nil means no cross-turn dedup is enforced (non-discuss sessions).
+	RepliedTargets *RepliedTargetTracker
 }
 
 // IsSameConversation reports whether the given platform+target pair refers to
@@ -145,6 +152,74 @@ func CheckSendLimit(session SessionContext) error {
 	}
 	if count > limit {
 		return fmt.Errorf("%w: maximum %d sends per turn — stop sending", ErrSendLimitReached, limit)
+	}
+	return nil
+}
+
+// RepliedTargetTracker is a thread-safe set of message IDs that have been
+// replied to within a discuss session. It persists across multiple agent calls
+// (turns) within the same session to prevent duplicate replies to the same
+// @mention/note across session rebuilds.
+type RepliedTargetTracker struct {
+	mu      sync.Mutex
+	targets map[string]struct{}
+}
+
+// NewRepliedTargetTracker creates a new tracker.
+func NewRepliedTargetTracker() *RepliedTargetTracker {
+	return &RepliedTargetTracker{
+		targets: make(map[string]struct{}),
+	}
+}
+
+// MarkReplied records that a reply has been sent to the given message ID.
+func (t *RepliedTargetTracker) MarkReplied(messageID string) {
+	if t == nil || messageID == "" {
+		return
+	}
+	t.mu.Lock()
+	t.targets[messageID] = struct{}{}
+	t.mu.Unlock()
+}
+
+// HasReplied reports whether the given message ID has already been replied to.
+func (t *RepliedTargetTracker) HasReplied(messageID string) bool {
+	if t == nil || messageID == "" {
+		return false
+	}
+	t.mu.Lock()
+	_, ok := t.targets[messageID]
+	t.mu.Unlock()
+	return ok
+}
+
+// RepliedList returns a copy of all replied message IDs (for prompt injection).
+func (t *RepliedTargetTracker) RepliedList() []string {
+	if t == nil {
+		return nil
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	list := make([]string, 0, len(t.targets))
+	for id := range t.targets {
+		list = append(list, id)
+	}
+	return list
+}
+
+// ErrAlreadyReplied is returned when attempting to reply to a message that has
+// already been replied to in this session.
+var ErrAlreadyReplied = errors.New("already replied to this message")
+
+// CheckReplyDedup checks whether the given reply_to target has already been
+// replied to in this discuss session. Returns ErrAlreadyReplied if so.
+// Safe to call with nil tracker or empty messageID (no-op).
+func CheckReplyDedup(session SessionContext, replyTo string) error {
+	if session.RepliedTargets == nil || replyTo == "" {
+		return nil
+	}
+	if session.RepliedTargets.HasReplied(replyTo) {
+		return fmt.Errorf("%w: message %s — do not reply to the same note twice", ErrAlreadyReplied, replyTo)
 	}
 	return nil
 }

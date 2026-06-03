@@ -776,6 +776,12 @@ func (a *Agent) assembleTools(ctx context.Context, cfg RunConfig, emitter tools.
 			Path:        s.Path,
 		}
 	}
+	// Wire cross-turn reply dedup tracker for discuss sessions.
+	var repliedTargets *tools.RepliedTargetTracker
+	if tracker, ok := cfg.Identity.RepliedTargets.(*tools.RepliedTargetTracker); ok && tracker != nil {
+		repliedTargets = tracker
+	}
+
 	session := tools.SessionContext{
 		BotID:              cfg.Identity.BotID,
 		ChatID:             cfg.Identity.ChatID,
@@ -792,6 +798,7 @@ func (a *Agent) assembleTools(ctx context.Context, cfg RunConfig, emitter tools.
 		TimezoneLocation:   cfg.Identity.TimezoneLocation,
 		Emitter:            emitter,
 		SendCount:          new(atomic.Int32),
+		RepliedTargets:     repliedTargets,
 	}
 
 	allowedSet := make(map[string]struct{})

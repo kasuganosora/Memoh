@@ -24,6 +24,11 @@ type SessionContext struct {
 	TimezoneLocation  *time.Location
 	SessionToken      string //nolint:gosec // carries session credential material at runtime
 	IsSubagent        bool
+
+	// RepliedTargets is a cross-turn reply dedup tracker for discuss sessions.
+	// Typed as any to avoid import cycles; the tools layer type-asserts to
+	// *tools.RepliedTargetTracker. Nil for non-discuss sessions.
+	RepliedTargets any
 }
 
 // SkillEntry represents a skill loaded from the bot container.

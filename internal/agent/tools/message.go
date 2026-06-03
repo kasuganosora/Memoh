@@ -213,6 +213,19 @@ func (p *MessageProvider) execSend(ctx context.Context, session SessionContext, 
 		return nil, err
 	}
 
+	// Cross-turn reply dedup: prevent replying to the same message twice across
+	// multiple agent calls within the same discuss session.
+	replyToArg := StringArg(args, "reply_to")
+	if err := CheckReplyDedup(session, replyToArg); err != nil {
+		p.logger.Warn("send tool: cross-turn reply dedup blocked",
+			slog.String("reply_to", replyToArg),
+			slog.Any("error", err))
+		return map[string]any{
+			"ok":    false,
+			"error": "you already replied to this message in a previous turn — do not reply again, move on",
+		}, nil
+	}
+
 	// Discuss mode protections — prevent the LLM from sending into a void
 	// when the inbound event has no valid ReplyTarget (e.g. pure renotes,
 	// which Misskey does not allow direct replies to).
@@ -255,6 +268,20 @@ func (p *MessageProvider) execSend(ctx context.Context, session SessionContext, 
 			slog.String("reply_to", strings.TrimSpace(session.ReplyTarget)))
 	}
 
+	// Cross-turn reply dedup (post auto-injection): check the final reply_to
+	// value after auto-injection may have set it.
+	if finalReplyTo := StringArg(args, "reply_to"); finalReplyTo != "" && finalReplyTo != replyToArg {
+		if err := CheckReplyDedup(session, finalReplyTo); err != nil {
+			p.logger.Warn("send tool: cross-turn reply dedup blocked (auto-injected)",
+				slog.String("reply_to", finalReplyTo),
+				slog.Any("error", err))
+			return map[string]any{
+				"ok":    false,
+				"error": "you already replied to this message in a previous turn — do not reply again, move on",
+			}, nil
+		}
+	}
+
 	result, err := p.exec.Send(ctx, toMessagingSession(session), args)
 	if err != nil {
 		return nil, err
@@ -272,6 +299,10 @@ func (p *MessageProvider) execSend(ctx context.Context, session SessionContext, 
 		p.logger.Info("send tool: message delivered via SendDirect",
 			slog.String("bot_id", session.BotID),
 			slog.String("message_id", sendResult.MessageID))
+		// Record reply target for cross-turn dedup.
+		if rt := StringArg(args, "reply_to"); rt != "" {
+			session.RepliedTargets.MarkReplied(rt)
+		}
 		resp := map[string]any{
 			"ok": true, "bot_id": sendResult.BotID, "platform": sendResult.Platform, "target": sendResult.Target,
 			"delivered": "current_conversation",

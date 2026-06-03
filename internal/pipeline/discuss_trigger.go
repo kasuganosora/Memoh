@@ -9,6 +9,7 @@ import (
 	"time"
 
 	agentpkg "github.com/memohai/memoh/internal/agent"
+	"github.com/memohai/memoh/internal/agent/tools"
 	"github.com/memohai/memoh/internal/channel"
 	"github.com/memohai/memoh/internal/chattiming"
 	"github.com/memohai/memoh/internal/conversation"
@@ -90,6 +91,7 @@ func (d *DiscussTrigger) NotifyRC(ctx context.Context, sessionID string, rc Rend
 			cancel:          cancel,
 			lastProcessedMs: initialProcessedMs,
 			startedAt:       time.Now(),
+			repliedTargets:  tools.NewRepliedTargetTracker(),
 		}
 		sess.lastActivityAt.Store(time.Now().UnixMilli())
 		d.wireSmartTiming(ctx, sess, config.BotID)
@@ -725,6 +727,12 @@ func (d *DiscussTrigger) handleReplyWithAgent(ctx context.Context, sess *discuss
 		log.Info("triggering discuss LLM call via StreamChat",
 			slog.Int("round", round), slog.String("session_id", cfg.SessionID))
 
+		// Collect already-replied targets for the late-binding prompt.
+		var repliedList []string
+		if tracker, ok := sess.repliedTargets.(*tools.RepliedTargetTracker); ok && tracker != nil {
+			repliedList = tracker.RepliedList()
+		}
+
 		chatReq := conversation.ChatRequest{
 			BotID:                    cfg.BotID,
 			ChatID:                   cfg.BotID,
@@ -738,8 +746,9 @@ func (d *DiscussTrigger) handleReplyWithAgent(ctx context.Context, sess *discuss
 			ChatToken:                cfg.SessionToken,
 			SessionType:              sessionpkg.TypeDiscuss,
 			UserMessagePersisted:     true,
-			DiscussLateBindingPrompt: buildLateBindingPrompt(isMentioned),
+			DiscussLateBindingPrompt: buildLateBindingPrompt(isMentioned, repliedList),
 			InjectCh:                 injectCh,
+			RepliedTargets:           sess.repliedTargets,
 		}
 
 		log.Info("discuss: dispatching StreamChat",
