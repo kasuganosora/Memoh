@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"log/slog"
+	"sync/atomic"
 	"testing"
 
 	sdk "github.com/memohai/twilight-ai/sdk"
@@ -38,6 +39,12 @@ func newTestMessageProvider(sender *fakeSender) *MessageProvider {
 		},
 		logger: slog.Default(),
 	}
+}
+
+func newAtomicInt32(v int32) *atomic.Int32 {
+	a := new(atomic.Int32)
+	a.Store(v)
+	return a
 }
 
 func TestExecSend_DiscussMode_AutoInjectsReplyTo(t *testing.T) {
@@ -271,4 +278,118 @@ type fakeTextGenerator struct{}
 
 func (*fakeTextGenerator) GenerateText(_ context.Context, _ string, _ []sdk.Message) (string, error) {
 	return "generated reply", nil
+}
+
+func TestLooksLikeInternalNote(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		text string
+		want bool
+	}{
+		{"empty", "", false},
+		{"normal message", "你好，今天天气不错", false},
+		{"timestamp prefixed observation", "12:25 心跳检查——大小姐上班中...", true},
+		{"timestamp with note", "09:30 状态观察：一切正常", true},
+		{"heartbeat keyword", "进行心跳检查", true},
+		{"heartbeat english", "heartbeat check on timeline", true},
+		{"status monitoring", "状态监控：timeline 没有新消息", true},
+		{"internal marker CN", "[内部] 这是一个内部观察", true},
+		{"internal marker EN", "[internal] just an observation", true},
+		{"monologue marker", "[monologue] thinking about stuff", true},
+		{"normal discussion", "我觉得这个技术方案挺好的", false},
+		{"question", "大家觉得这个怎么样？", false},
+		{"reply with numbers", "2024年的数据显示增长了20%", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := looksLikeInternalNote(tt.text)
+			if got != tt.want {
+				t.Errorf("looksLikeInternalNote(%q) = %v, want %v", tt.text, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExecSend_DiscussMode_BlocksInternalNote(t *testing.T) {
+	t.Parallel()
+
+	sender := &fakeSender{}
+	p := newTestMessageProvider(sender)
+
+	session := SessionContext{
+		BotID:           "bot-1",
+		SessionID:       "sess-1",
+		SessionType:     "discuss",
+		CurrentPlatform: "misskey",
+		ReplyTarget:     "note-123",
+		IsMentioned:     false,
+		SendCount:       newAtomicInt32(0),
+		RepliedTargets:  NewRepliedTargetTracker(),
+	}
+
+	args := map[string]any{
+		"text": "12:25 心跳检查——大小姐上班中...",
+	}
+
+	result, err := p.execSend(context.Background(), session, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	m, ok := result.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map result, got %T", result)
+	}
+	if m["ok"] != false {
+		t.Fatalf("expected ok=false, got %v", m["ok"])
+	}
+	errMsg, _ := m["error"].(string)
+	if errMsg == "" {
+		t.Fatal("expected non-empty error message")
+	}
+	if sender.called != 0 {
+		t.Fatalf("expected sender not called, but was called %d times", sender.called)
+	}
+}
+
+func TestExecSend_DiscussMode_AllowsNormalMessage(t *testing.T) {
+	t.Parallel()
+
+	sender := &fakeSender{}
+	p := newTestMessageProvider(sender)
+
+	session := SessionContext{
+		BotID:           "bot-1",
+		SessionID:       "sess-1",
+		SessionType:     "discuss",
+		CurrentPlatform: "misskey",
+		ReplyTarget:     "note-123",
+		IsMentioned:     true,
+		SendCount:       newAtomicInt32(0),
+		RepliedTargets:  NewRepliedTargetTracker(),
+	}
+
+	args := map[string]any{
+		"text": "我觉得这个方案不错！",
+	}
+
+	result, err := p.execSend(context.Background(), session, args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	m, ok := result.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map result, got %T", result)
+	}
+	if m["ok"] != true {
+		t.Fatalf("expected ok=true, got %v (error: %v)", m["ok"], m["error"])
+	}
+	if sender.called != 1 {
+		t.Fatalf("expected sender called once, got %d", sender.called)
+	}
 }

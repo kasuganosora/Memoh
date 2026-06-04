@@ -801,10 +801,21 @@ func (a *Agent) assembleTools(ctx context.Context, cfg RunConfig, emitter tools.
 		RepliedTargets:     repliedTargets,
 	}
 
+	// toolAliases maps legacy/alternative config names to the actual registered
+	// tool names. This ensures AllowedTools configs using older naming conventions
+	// still correctly include the intended tools.
+	toolAliases := map[string]string{
+		"memory_read":  "read",
+		"memory_write": "write",
+	}
+
 	allowedSet := make(map[string]struct{})
 	hasAllowed := len(cfg.AllowedTools) > 0
 	for _, name := range cfg.AllowedTools {
 		allowedSet[name] = struct{}{}
+		if actual, ok := toolAliases[name]; ok {
+			allowedSet[actual] = struct{}{}
+		}
 	}
 
 	a.logger.Info("assembleTools: starting tool assembly",

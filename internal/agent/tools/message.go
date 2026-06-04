@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strings"
 
 	sdk "github.com/memohai/twilight-ai/sdk"
@@ -211,6 +212,25 @@ func (p *MessageProvider) execSend(ctx context.Context, session SessionContext, 
 	if err := CheckSendLimit(session); err != nil {
 		p.logger.Warn("send tool: send limit exceeded", slog.Any("error", err))
 		return nil, err
+	}
+
+	// Content safety guard: detect internal monologue/heartbeat-style content
+	// that should be written to memory, not sent externally. This is a
+	// defense-in-depth measure — the primary fix is ensuring `write` tool is
+	// available via AllowedTools alias mapping.
+	if session.SessionType == "discuss" {
+		sendText := StringArg(args, "text")
+		if looksLikeInternalNote(sendText) {
+			p.logger.Warn("send tool: blocked internal note from being sent externally",
+				slog.String("bot_id", session.BotID),
+				slog.String("session_id", session.SessionID),
+				slog.String("text_preview", truncateForLog(sendText, 80)),
+			)
+			return map[string]any{
+				"ok":    false,
+				"error": "this looks like an internal observation/heartbeat note — use the write tool to save it to memory instead of sending it externally",
+			}, nil
+		}
 	}
 
 	// Cross-turn reply dedup: prevent replying to the same message twice across
@@ -502,3 +522,33 @@ func toMessagingSession(s SessionContext) messaging.SessionContext {
 // truncateForLog is an alias for truncateStr for backward compatibility.
 // Both functions truncate a string to n bytes, appending "..." if truncated.
 var truncateForLog = truncateStr
+
+// internalNotePatterns detects content that looks like internal monologue or
+// heartbeat notes. These should NEVER be sent externally via the send tool
+// in discuss mode — they are internal observations the LLM should write to
+// memory instead.
+var internalNotePatterns = []*regexp.Regexp{
+	// Timestamp-prefixed observation notes: "12:25 心跳检查——..."
+	regexp.MustCompile(`^\d{1,2}:\d{2}\s+.{2,}`),
+	// Heartbeat-style phrases
+	regexp.MustCompile(`(?i)心跳[检查记录报告]|heartbeat\s*(check|note|log|report)`),
+	// Internal status monitoring
+	regexp.MustCompile(`(?i)状态[检查记录监控]|status\s*(check|monitor|report|log)`),
+	// Explicit internal markers
+	regexp.MustCompile(`(?i)\[内部\]|\[internal\]|\[monologue\]|\[独白\]`),
+}
+
+// looksLikeInternalNote returns true if the text appears to be an internal
+// monologue or heartbeat observation note that should not be sent externally.
+func looksLikeInternalNote(text string) bool {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return false
+	}
+	for _, pat := range internalNotePatterns {
+		if pat.MatchString(text) {
+			return true
+		}
+	}
+	return false
+}
