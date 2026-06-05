@@ -172,6 +172,15 @@ func buildLateBindingPrompt(isMentioned bool, repliedTargets []string) string {
 
 	if isMentioned {
 		sb.WriteString("\n\nYou were @mentioned or replied to in the LATEST messages. Consider responding — but only if you have something meaningful to say.")
+	} else {
+		sb.WriteString("\n\n⚠️ CRITICAL: You were NOT @mentioned or directly addressed. You are passively observing. ")
+		sb.WriteString("In this mode, you MUST NOT call `send` unless ALL of these are true: ")
+		sb.WriteString("(1) someone explicitly asked a question directed at you by name, AND ")
+		sb.WriteString("(2) you have genuinely useful information to contribute. ")
+		sb.WriteString("NEVER send messages about your own internal state (e.g. 'I'm standing by', 'no one mentioned me', 'staying quiet'). ")
+		sb.WriteString("NEVER report what you're doing or observing. ")
+		sb.WriteString("NEVER apologize for previous leaks in a public message. ")
+		sb.WriteString("If in doubt, stay SILENT — use `write` to save thoughts to memory instead.")
 	}
 
 	return sb.String()

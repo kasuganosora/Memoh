@@ -536,6 +536,16 @@ var internalNotePatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)状态[检查记录监控]|status\s*(check|monitor|report|log)`),
 	// Explicit internal markers
 	regexp.MustCompile(`(?i)\[内部\]|\[internal\]|\[monologue\]|\[独白\]`),
+	// Standby / idle / waiting phrases that indicate self-status reporting
+	regexp.MustCompile(`(?i)待命|安静待命|静默待机|standby|standing\s*by|idle\s*mode`),
+	// "没@" / "没有被@" / "没被提到" patterns — self-awareness of not being mentioned
+	regexp.MustCompile(`没.{0,2}@|没有?被(提到|@|提及|叫到)|not\s*(mentioned|tagged|called)`),
+	// "上班中" / "工作中" / "忙碌中" — reporting someone else's status
+	regexp.MustCompile(`(大小姐|主人|master).{0,6}(上班|工作|忙碌|睡觉|休息|不在)`),
+	// "不打扰" / "不要打扰" / "保持安静"
+	regexp.MustCompile(`(?i)不打扰|不要打扰|保持安静|保持沉默|keep\s*quiet|stay\s*silent`),
+	// Self-referential bot status: "我在观察" / "继续观察" / "继续监听"
+	regexp.MustCompile(`(?i)(我在|继续)(观察|监听|潜水|旁观|待机|守候)`),
 }
 
 // looksLikeInternalNote returns true if the text appears to be an internal

@@ -301,6 +301,23 @@ func TestLooksLikeInternalNote(t *testing.T) {
 		{"normal discussion", "我觉得这个技术方案挺好的", false},
 		{"question", "大家觉得这个怎么样？", false},
 		{"reply with numbers", "2024年的数据显示增长了20%", false},
+		// New patterns: standby/idle self-status
+		{"standby CN", "安静待命。", true},
+		{"standby phrase", "待命中，等候指令", true},
+		{"standby EN", "standing by for instructions", true},
+		// Not-mentioned self-awareness
+		{"not mentioned CN", "没 @栞娜，大小姐上班中。安静待命。", true},
+		{"not tagged", "没有被@到，继续观察", true},
+		{"not mentioned EN", "not mentioned, keeping quiet", true},
+		// Master/owner status reporting
+		{"master busy", "大小姐上班中，不打扰", true},
+		{"owner sleeping", "主人睡觉了，安静", true},
+		// Keep quiet
+		{"keep quiet CN", "保持安静，不打扰大家", true},
+		{"stay silent EN", "stay silent and observe", true},
+		// Self-referential observation
+		{"self observing", "我在观察时间线上的消息", true},
+		{"continue observing", "继续潜水观察", true},
 	}
 
 	for _, tt := range tests {

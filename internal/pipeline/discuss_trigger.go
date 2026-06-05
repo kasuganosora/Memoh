@@ -476,6 +476,20 @@ func (d *DiscussTrigger) handleReply(ctx context.Context, sess *discussSession, 
 		}
 	}
 
+	// Defense-in-depth: if the bot was NOT mentioned and the timing gate was
+	// supposed to protect this path but is misconfigured (TimingGate=false in DB
+	// or timingGate==nil despite Enabled=true), block the agent call entirely.
+	// This prevents internal monologue leaks when the gate is accidentally disabled.
+	if !isMentioned && sess.chatTimingCfg != nil && sess.chatTimingCfg.Enabled &&
+		(!sess.chatTimingCfg.TimingGate || sess.timingGate == nil) && !sess.gateDisabled {
+		log.Warn("discuss_step: handleReply exit (timing gate misconfigured, blocking unrequested agent call)",
+			slog.String("step", "handleReply_exit_gate_misconfigured"),
+			slog.Bool("timing_gate_cfg", sess.chatTimingCfg.TimingGate),
+			slog.Bool("timing_gate_nil", sess.timingGate == nil),
+			slog.Duration("step_duration", time.Since(handleReplyStart)))
+		return false
+	}
+
 	// Guard: if context was cancelled (e.g. watchdog timeout) during timing gate
 	// evaluation or earlier steps, abort rather than wasting an agent call that
 	// would immediately fail with "context deadline exceeded".
