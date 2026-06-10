@@ -878,6 +878,12 @@ func (a *MisskeyAdapter) handleTimelineNote(ctx context.Context, cfg channel.Cha
 		source = "hybrid"
 	}
 
+	// Cache mention handles so that when the bot replies to this timeline note,
+	// the auto-mention logic in Send() can @-notify all participants.
+	// Without this, replies to timeline notes would lack @ prefixes because
+	// storeMentions was only called for mention/reply/notification events.
+	a.storeMentions(note, me)
+
 	inbound := a.buildTimelineInboundMessage(note, source, tlCfg.Discuss, me)
 	a.logInbound(cfg.ID, inbound)
 	go func() {

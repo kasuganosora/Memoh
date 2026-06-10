@@ -199,6 +199,142 @@ func TestSend_NoReplyTarget_NoFallback(t *testing.T) {
 	}
 }
 
+func TestSend_TimelineNote_AutoMention(t *testing.T) {
+	t.Parallel()
+
+	var capturedBody map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&capturedBody); err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+
+		if strings.HasSuffix(r.URL.Path, "/api/notes/create") {
+			resp := map[string]any{
+				"createdNote": map[string]any{
+					"id":   "reply-note-id",
+					"text": capturedBody["text"],
+				},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(resp)
+			return
+		}
+
+		http.Error(w, "not found", http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	adapter := NewMisskeyAdapter(slog.Default())
+
+	// Simulate receiving a timeline note and caching its mentions.
+	// This mimics what handleTimelineNote does after the fix.
+	me := &meResponse{ID: "bot-id", Username: "kanna"}
+	timelineNote := misskeyNote{
+		ID:     "timeline-note-123",
+		Text:   "today is a nice day",
+		UserID: "user-abc",
+		User:   misskeyUser{ID: "user-abc", Username: "luna"},
+	}
+	adapter.storeMentions(timelineNote, me)
+
+	// Now send a reply to this timeline note.
+	cfg := channel.ChannelConfig{
+		ID: "test-config",
+		Credentials: map[string]any{
+			"instanceURL": server.URL,
+			"accessToken": "test-token",
+		},
+	}
+
+	msg := channel.PreparedOutboundMessage{
+		Target: "timeline-note-123",
+		Message: channel.PreparedMessage{
+			Message: channel.Message{
+				Text: "nice weather indeed!",
+				Reply: &channel.ReplyRef{
+					MessageID: "timeline-note-123",
+				},
+			},
+		},
+	}
+
+	err := adapter.Send(context.Background(), cfg, msg)
+	if err != nil {
+		t.Fatalf("Send should succeed, got error: %v", err)
+	}
+
+	// Verify that the mention prefix @luna was prepended to the text.
+	text, _ := capturedBody["text"].(string)
+	if !strings.Contains(text, "@luna") {
+		t.Errorf("expected text to contain '@luna' auto-mention, got %q", text)
+	}
+	if !strings.Contains(text, "nice weather indeed!") {
+		t.Errorf("expected text to contain original message, got %q", text)
+	}
+}
+
+func TestSend_TimelineNote_NoMentionWithoutStoreMentions(t *testing.T) {
+	t.Parallel()
+
+	var capturedBody map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&capturedBody); err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+
+		if strings.HasSuffix(r.URL.Path, "/api/notes/create") {
+			resp := map[string]any{
+				"createdNote": map[string]any{
+					"id":   "reply-note-id",
+					"text": capturedBody["text"],
+				},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(resp)
+			return
+		}
+
+		http.Error(w, "not found", http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	adapter := NewMisskeyAdapter(slog.Default())
+
+	// Do NOT call storeMentions — simulating the bug before the fix.
+	cfg := channel.ChannelConfig{
+		ID: "test-config",
+		Credentials: map[string]any{
+			"instanceURL": server.URL,
+			"accessToken": "test-token",
+		},
+	}
+
+	msg := channel.PreparedOutboundMessage{
+		Target: "unknown-note-456",
+		Message: channel.PreparedMessage{
+			Message: channel.Message{
+				Text: "nice weather indeed!",
+				Reply: &channel.ReplyRef{
+					MessageID: "unknown-note-456",
+				},
+			},
+		},
+	}
+
+	err := adapter.Send(context.Background(), cfg, msg)
+	if err != nil {
+		t.Fatalf("Send should succeed, got error: %v", err)
+	}
+
+	// Without storeMentions, no auto-mention should be prepended.
+	text, _ := capturedBody["text"].(string)
+	if strings.HasPrefix(text, "@") {
+		t.Errorf("expected no @ prefix without storeMentions, got %q", text)
+	}
+}
+
 func TestSend_BothAttemptsFail(t *testing.T) {
 	t.Parallel()
 
