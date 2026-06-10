@@ -161,14 +161,16 @@ func CheckSendLimit(session SessionContext) error {
 // (turns) within the same session to prevent duplicate replies to the same
 // @mention/note across session rebuilds.
 type RepliedTargetTracker struct {
-	mu      sync.Mutex
-	targets map[string]struct{}
+	mu         sync.Mutex
+	targets    map[string]struct{}
+	lastUsedAt time.Time // updated on MarkReplied; used for TTL-based eviction
 }
 
 // NewRepliedTargetTracker creates a new tracker.
 func NewRepliedTargetTracker() *RepliedTargetTracker {
 	return &RepliedTargetTracker{
-		targets: make(map[string]struct{}),
+		targets:    make(map[string]struct{}),
+		lastUsedAt: time.Now(),
 	}
 }
 
@@ -179,6 +181,7 @@ func (t *RepliedTargetTracker) MarkReplied(messageID string) {
 	}
 	t.mu.Lock()
 	t.targets[messageID] = struct{}{}
+	t.lastUsedAt = time.Now()
 	t.mu.Unlock()
 }
 
@@ -205,6 +208,17 @@ func (t *RepliedTargetTracker) RepliedList() []string {
 		list = append(list, id)
 	}
 	return list
+}
+
+// LastUsedAt returns the last time MarkReplied was called on this tracker.
+// Used for TTL-based eviction of stale trackers.
+func (t *RepliedTargetTracker) LastUsedAt() time.Time {
+	if t == nil {
+		return time.Time{}
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.lastUsedAt
 }
 
 // ErrAlreadyReplied is returned when attempting to reply to a message that has

@@ -29,6 +29,14 @@ type DiscussTrigger struct {
 	logger       *slog.Logger
 	parentCtx    context.Context
 	parentCancel context.CancelFunc
+
+	// repliedTrackers persists RepliedTargetTrackers beyond individual session
+	// lifecycles. Session objects are destroyed on idle timeout (10 min), but
+	// conversation history is long-lived — the LLM can still see old @mentions.
+	// By persisting trackers at the trigger level (keyed by session_id), we
+	// prevent duplicate replies across session recreations.
+	repliedTrackersMu sync.Mutex
+	repliedTrackers   map[string]*tools.RepliedTargetTracker
 }
 
 // NewDiscussTrigger creates a new DiscussTrigger.
@@ -39,12 +47,39 @@ func NewDiscussTrigger(deps DiscussTriggerDeps) *DiscussTrigger {
 	}
 	parentCtx, parentCancel := context.WithCancel(context.Background())
 	return &DiscussTrigger{
-		deps:         deps,
-		sessions:     make(map[string]*discussSession),
-		logger:       logger.With(slog.String("service", "discuss_trigger")),
-		parentCtx:    parentCtx,
-		parentCancel: parentCancel,
+		deps:            deps,
+		sessions:        make(map[string]*discussSession),
+		repliedTrackers: make(map[string]*tools.RepliedTargetTracker),
+		logger:          logger.With(slog.String("service", "discuss_trigger")),
+		parentCtx:       parentCtx,
+		parentCancel:    parentCancel,
 	}
+}
+
+// getOrCreateRepliedTracker returns the persistent RepliedTargetTracker for
+// the given session ID, creating one if it doesn't exist. This ensures reply
+// dedup survives session idle timeout and recreation.
+func (d *DiscussTrigger) getOrCreateRepliedTracker(sessionID string) *tools.RepliedTargetTracker {
+	d.repliedTrackersMu.Lock()
+	defer d.repliedTrackersMu.Unlock()
+
+	// Lazy eviction: remove trackers idle for more than 2 hours.
+	// This prevents unbounded growth while keeping dedup effective across
+	// the typical session rebuild cycle (10 min idle timeout).
+	const trackerTTL = 2 * time.Hour
+	now := time.Now()
+	for id, t := range d.repliedTrackers {
+		if now.Sub(t.LastUsedAt()) > trackerTTL {
+			delete(d.repliedTrackers, id)
+		}
+	}
+
+	if t, ok := d.repliedTrackers[sessionID]; ok {
+		return t
+	}
+	t := tools.NewRepliedTargetTracker()
+	d.repliedTrackers[sessionID] = t
+	return t
 }
 
 // ---------------------------------------------------------------------------
@@ -91,7 +126,7 @@ func (d *DiscussTrigger) NotifyRC(ctx context.Context, sessionID string, rc Rend
 			cancel:          cancel,
 			lastProcessedMs: initialProcessedMs,
 			startedAt:       time.Now(),
-			repliedTargets:  tools.NewRepliedTargetTracker(),
+			repliedTargets:  d.getOrCreateRepliedTracker(sessionID),
 		}
 		sess.lastActivityAt.Store(time.Now().UnixMilli())
 		d.wireSmartTiming(ctx, sess, config.BotID)
